@@ -14,7 +14,7 @@ TESTFILES = nnet-randomizer-test nnet-component-test
 OBJFILES = nnet-nnet.o nnet-component.o nnet-loss.o \
            nnet-randomizer.o
 
-LIBNAME = alsp-nnet
+LIBNAME = aslp-nnet
 
 ADDLIBS = $(KALDI_DIR)/cudamatrix/kaldi-cudamatrix.a \
           $(KALDI_DIR)/matrix/kaldi-matrix.a \
