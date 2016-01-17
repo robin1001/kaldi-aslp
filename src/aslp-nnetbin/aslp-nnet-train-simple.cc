@@ -74,7 +74,8 @@ int main(int argc, char *argv[]) {
     
     double dropout_retention = 0.0;
     po.Register("dropout-retention", &dropout_retention, "number between 0..1, saying how many neurons to preserve (0.0 will keep original value");
-     
+    int report_period = 60000; // 60000 frames with one report 
+    po.Register("report-period", &report_period, "Number of frames for one report log, default(60000)");
     
     po.Read(argc, argv);
 
@@ -120,6 +121,7 @@ int main(int argc, char *argv[]) {
     }
 
     kaldi::int64 total_frames = 0;
+    kaldi::int64 report_frames = 0;
 
     SequentialBaseFloatMatrixReader feature_reader(feature_rspecifier);
     RandomAccessPosteriorReader targets_reader(targets_rspecifier);
@@ -139,6 +141,10 @@ int main(int argc, char *argv[]) {
 
     Xent xent;
     Mse mse;
+    if (objective_function == "xent") {
+      // Just for log analysis ^_^
+      KALDI_LOG << xent.Report();
+    }
     
     MultiTaskLoss multitask;
     if (0 == objective_function.compare(0,9,"multitask")) {
@@ -306,6 +312,14 @@ int main(int argc, char *argv[]) {
         }
         
         total_frames += nnet_in.NumRows();
+        // Add by zhangbinbin, date 2016-01-17
+        report_frames += nnet_in.NumRows();
+        if (report_frames >= report_period) {
+          if (objective_function == "xent") {
+            KALDI_LOG << xent.Report();
+          }
+          report_frames -= report_period;
+        }
       }
     }
     

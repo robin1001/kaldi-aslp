@@ -115,11 +115,18 @@ void Xent::Eval(const VectorBase<BaseFloat> &frame_weights,
   entropy_aux_.MulRowsVec(frame_weights_); // w*t*log(t) 
   double entropy = -entropy_aux_.Sum();
 
+  // caluculate likelyhood_ (in GPU)
+  likelyhood_aux_ = net_out;
+  likelyhood_aux_.MulElements(targets); // t * y
+  double likelyhood = likelyhood_aux_.Sum();
+
   KALDI_ASSERT(KALDI_ISFINITE(cross_entropy));
   KALDI_ASSERT(KALDI_ISFINITE(entropy));
+  KALDI_ASSERT(KALDI_ISFINITE(likelyhood));
 
   loss_ += cross_entropy;
   entropy_ += entropy;
+  likelyhood_ += likelyhood;
   correct_ += correct;
   frames_ += num_frames;
 
@@ -129,10 +136,12 @@ void Xent::Eval(const VectorBase<BaseFloat> &frame_weights,
     frames_progress_ += num_frames;
     loss_progress_ += cross_entropy;
     entropy_progress_ += entropy;
+    likelyhood_progress_ += likelyhood;
     if (frames_progress_ > progress_step) {
       KALDI_VLOG(1) << "ProgressLoss[last " 
                     << static_cast<int>(frames_progress_/100/3600) << "h of " 
                     << static_cast<int>(frames_/100/3600) << "h]: " 
+                    << likelyhood_progress_/frames_progress_ << " (Likelyhood) "
                     << (loss_progress_-entropy_progress_)/frames_progress_ << " (Xent)";
       // store
       loss_vec_.push_back((loss_progress_-entropy_progress_)/frames_progress_);
@@ -140,6 +149,7 @@ void Xent::Eval(const VectorBase<BaseFloat> &frame_weights,
       frames_progress_ = 0;
       loss_progress_ = 0.0;
       entropy_progress_ = 0.0;
+      likelyhood_progress_ = 0.0;
     }
   }
 }
@@ -164,6 +174,7 @@ void Xent::Eval(const VectorBase<BaseFloat> &frame_weights,
 std::string Xent::Report() {
   std::ostringstream oss;
   oss << "AvgLoss: " << (loss_-entropy_)/frames_ << " (Xent), "
+      << "Likelyhood: " << (likelyhood_)/frames_ << " "
       << "[AvgXent " << loss_/frames_ 
       << ", AvgTargetEnt " << entropy_/frames_ 
       << ", frames " << frames_ << "]" << std::endl;

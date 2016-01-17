@@ -60,7 +60,9 @@ class LossItf {
 class Xent : public LossItf {
  public:
   Xent() : frames_(0.0), correct_(0.0), loss_(0.0), entropy_(0.0), 
-           frames_progress_(0.0), loss_progress_(0.0), entropy_progress_(0.0) { }
+           likelyhood_(0.0), 
+           frames_progress_(0.0), loss_progress_(0.0), 
+           entropy_progress_(0.0), likelyhood_progress_(0.0) { }
   ~Xent() { }
 
   /// Evaluate cross entropy using target-matrix (supports soft labels),
@@ -88,11 +90,13 @@ class Xent : public LossItf {
   double correct_;
   double loss_;
   double entropy_;
+  double likelyhood_;
 
   // partial results during training
   double frames_progress_;
   double loss_progress_;
   double entropy_progress_;
+  double likelyhood_progress_;
   std::vector<float> loss_vec_;
 
   // weigting buffer,
@@ -103,6 +107,9 @@ class Xent : public LossItf {
   CuMatrix<BaseFloat> tgt_mat_;
   CuMatrix<BaseFloat> xentropy_aux_;
   CuMatrix<BaseFloat> entropy_aux_;
+
+  // likelyhood computation buffers 
+  CuMatrix<BaseFloat> likelyhood_aux_;
 
   // frame classification buffers, 
   CuArray<int32> max_id_out_;
