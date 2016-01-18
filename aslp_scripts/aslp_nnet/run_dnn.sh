@@ -98,3 +98,7 @@ if [ $stage -le 3 ]; then
 fi
 
 # Decoding 
+if [ $stage -le 4 ]; then
+    aslp_scripts/aslp_nnet/decode.sh --nj 20 --cmd "$decode_cmd" --acwt 0.2 \
+        $gmmdir/graph $feat_dir/test $dir/decode_test || exit 1;
+fi
