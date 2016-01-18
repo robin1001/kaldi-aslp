@@ -12,7 +12,7 @@ EXTRA_CXXFLAGS = -I$(KALDI_DIR)
 TESTFILES = nnet-randomizer-test nnet-component-test
 
 OBJFILES = nnet-nnet.o nnet-component.o nnet-loss.o \
-           nnet-randomizer.o
+           nnet-randomizer.o nnet-pdf-prior.o
 
 LIBNAME = aslp-nnet
 

@@ -23,8 +23,6 @@ echo "$0 $@"  # Print the command line for logging
 set -euo pipefail
 
 # Options
-echo $# $1 $2 $3 $4
-
 if [ $# != 4 ]; then
    echo "Usage: $0 <feat-train> <label-train> <hidden-layers> <exp-dir>"
    echo "Options:"
@@ -47,17 +45,20 @@ dir=$4
 [ ! -d $dir/log ] && mkdir $dir/log
 [ ! -d $dir/nnet ] && mkdir $dir/nnet
 
+[ -e $dir/nnet/pretrain.final.nnet ] && echo "'$dir/nnet/pretrain.final.nnet' exists, skipping training" && exit 0
+
 # Check files
 for f in $dir/nnet.proto $dir/hidden.conf; do
     [ ! -f $f ] && echo "$f: no such file" && exit 1;
 done
 
-rm $dir/nnet/pretrain*
+# Delete previous files
+rm -f $dir/nnet/pretrain*
 
 # Pretrain
 for ((i=1; i<=$num_hid; i++)); do
     mlp_init=$dir/nnet/pretrain.$i.init.nnet
-    echo "Train with $i hidden layers" 
+    echo "Train with $i hidden layers, EPOCH: $i" 
     if [ $i -eq 1 ]; then
         aslp-nnet-init $dir/nnet.proto $mlp_init
     else
@@ -68,7 +69,7 @@ for ((i=1; i<=$num_hid; i++)); do
     mlp_final=$dir/nnet/pretrain.$i.final.nnet
     mlp_cur=$mlp_init
     for j in `seq $iters_per_epoch`; do
-        echo "Train with $i hidden layers iters $j" 
+        echo "Train with $i hidden layers iters, ITERRATION: $j" 
         mlp_next=$dir/nnet/pretrain.$i.$j.nnet
         $train_tool $train_tool_opts \
             --minibatch-size=$minibatch_size \

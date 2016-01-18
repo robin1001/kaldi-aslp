@@ -12,7 +12,8 @@ LDLIBS += $(CUDA_LDLIBS)
 
 BINFILES = aslp-nnet-info aslp-nnet-init \
          aslp-nnet-insert \
-         aslp-nnet-train-simple 
+         aslp-nnet-train-simple \
+         aslp-nnet-forward
 #        nnet-train-perutt \
 #        nnet-train-mmi-sequential \
 #        nnet-train-mpe-sequential \

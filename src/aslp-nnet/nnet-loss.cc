@@ -173,18 +173,27 @@ void Xent::Eval(const VectorBase<BaseFloat> &frame_weights,
 
 std::string Xent::Report() {
   std::ostringstream oss;
-  oss << "AvgLoss: " << (loss_-entropy_)/frames_ << " (Xent), "
-      << "Likelyhood: " << (likelyhood_)/frames_ << " "
-      << "[AvgXent " << loss_/frames_ 
-      << ", AvgTargetEnt " << entropy_/frames_ 
-      << ", frames " << frames_ << "]" << std::endl;
-  if (loss_vec_.size() > 0) {
-     oss << "progress: [";
-     std::copy(loss_vec_.begin(),loss_vec_.end(),std::ostream_iterator<float>(oss," "));
-     oss << "]" << std::endl;
-  }
-  if (correct_ >= 0.0) {
-    oss << "FRAME_ACCURACY >> " << 100.0*correct_/frames_ << "% <<" << std::endl;
+  if (0 == frames_) {
+    // Just for log analysis
+    oss << "AvgLoss: " << 0.0 << " (Xent), "
+        << "Likelyhood: " << 0.0 << " "
+        << "Frame: " << 0 << std::endl;
+    oss << "FRAME_ACCURACY >> " << 0.0 << "% <<" << std::endl;
+  } else {
+    oss << "AvgLoss: " << (loss_-entropy_)/frames_ << " (Xent), "
+        << "Likelyhood: " << (likelyhood_)/frames_ << " "
+        << "Frame: " << frames_ << std::endl;
+        //<< "[AvgXent " << loss_/frames_ 
+        //<< ", AvgTargetEnt " << entropy_/frames_ 
+        //<< ", frames " << frames_ << "]" << std::endl;
+    //if (loss_vec_.size() > 0) {
+    //   oss << "progress: [";
+    //   std::copy(loss_vec_.begin(),loss_vec_.end(),std::ostream_iterator<float>(oss," "));
+    //   oss << "]" << std::endl;
+    //}
+    if (correct_ >= 0.0) {
+      oss << "FRAME_ACCURACY >> " << 100.0*correct_/frames_ << "% <<" << std::endl;
+    }
   }
   return oss.str(); 
 }
