@@ -1,7 +1,7 @@
 
 all:
 
-KALDI_DIR = /home/disk1/zhangbinbin/kaldi/src
+KALDI_DIR = ../../../kaldi/src
 
 EXTRA_CXXFLAGS = -Wno-sign-compare -I$(KALDI_DIR) -I../aslp-nnet
 

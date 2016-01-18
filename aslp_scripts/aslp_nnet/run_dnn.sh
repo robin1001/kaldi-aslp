@@ -3,7 +3,7 @@
 # Copyright 2016  ASLP (Author: zhangbinbin)
 # Apache 2.0
 
-stage=1
+stage=4
 feat_dir=data-fmllr-tri3
 cv_utt_percent=10 # default 10% of total utterances 
 gmmdir=exp/tri3
@@ -78,8 +78,6 @@ EOF
         "$feats_tr" "$labels_tr" $hid_layers $dir
 fi
 
-exit 0
-
 # Train nnet(dnn, cnn, lstm)
 if [ $stage -le 3 ]; then
     echo "Training nnet"
@@ -100,5 +98,5 @@ fi
 # Decoding 
 if [ $stage -le 4 ]; then
     aslp_scripts/aslp_nnet/decode.sh --nj 20 --cmd "$decode_cmd" --acwt 0.2 \
-        $gmmdir/graph $feat_dir/test $dir/decode_test || exit 1;
+        $gmmdir/graph $feat_dir/test $dir/decode_test_iter90 || exit 1;
 fi

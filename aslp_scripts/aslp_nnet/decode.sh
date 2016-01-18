@@ -14,6 +14,7 @@ nj=4
 cmd=run.pl
 
 acwt=0.10 # note: only really affects pruning (scoring is on lattices).
+
 beam=13.0
 lattice_beam=8.0
 min_active=200
@@ -94,11 +95,14 @@ thread_string=
 # import config,
 cmvn_opts=
 delta_opts=
+splice_opts=
 D=$srcdir
 [ -e $D/norm_vars ] && cmvn_opts="--norm-means=true --norm-vars=$(cat $D/norm_vars)" # Bwd-compatibility,
 [ -e $D/cmvn_opts ] && cmvn_opts=$(cat $D/cmvn_opts)
 [ -e $D/delta_order ] && delta_opts="--delta-order=$(cat $D/delta_order)" # Bwd-compatibility,
 [ -e $D/delta_opts ] && delta_opts=$(cat $D/delta_opts)
+[ -e $D/splice_opts ] && splice_opts=$(cat $D/splice_opts)
+
 #
 # Create the feature stream,
 feats="ark,s,cs:copy-feats scp:$sdata/JOB/feats.scp ark:- |"
@@ -107,6 +111,8 @@ feats="ark,s,cs:copy-feats scp:$sdata/JOB/feats.scp ark:- |"
 [ ! -z "$cmvn_opts" ] && feats="$feats apply-cmvn $cmvn_opts --utt2spk=ark:$sdata/JOB/utt2spk scp:$sdata/JOB/cmvn.scp ark:- ark:- |"
 # add-deltas (optional),
 [ ! -z "$delta_opts" ] && feats="$feats add-deltas $delta_opts ark:- ark:- |"
+# add splice (optional)
+[ ! -z "splice_opts" ] && feats="$feats splice-feats $splice_opts ark:- ark:- |"
 
 # Run the decoding in the queue,
 if [ $stage -le 0 ]; then

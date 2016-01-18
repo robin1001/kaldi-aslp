@@ -1,7 +1,7 @@
 
 all:
 
-KALDI_DIR = /home/disk1/zhangbinbin/kaldi/src
+KALDI_DIR = ../../../kaldi/src
 
 include $(KALDI_DIR)/kaldi.mk
 
