@@ -3,7 +3,7 @@
 # Copyright 2016  ASLP (Author: zhangbinbin)
 # Apache 2.0
 
-stage=4
+stage=0
 feat_dir=data-fmllr-tri3
 cv_utt_percent=10 # default 10% of total utterances 
 gmmdir=exp/tri3
@@ -24,10 +24,13 @@ if [ $stage -le 0 ]; then
     echo "Extracting feats & Create tr cv set"
     aslp_scripts/make_feats.sh \
         --feat-type "fmllr" \
+		--split-cv true
         --cv-utt-percent $cv_utt_percent \
-        data $feat_dir
+        data/train $feat_dir
+	aslp_scripts/make_feats.sh --feat-type "fmllr" data/test $feat_dir
 fi
 
+exit 0;
 # Prepare feature and alignment config file for nn training
 # This script will make $dir/train.conf automaticlly
 if [ $stage -le 1 ]; then
