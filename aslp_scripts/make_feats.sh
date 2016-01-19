@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Created on 2016-01-15
-# Author: zhangbinbin
+# Author: zhangbinbin liwenpeng
 
 feat_type=fbank #fmllr
 gmmdir=exp/tri3 #for fmllr feature
