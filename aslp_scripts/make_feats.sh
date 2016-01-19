@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Created on 2016-01-15
+# Created on 2016-01-19
 # Author: zhangbinbin liwenpeng
 
 feat_type=fbank #fmllr
