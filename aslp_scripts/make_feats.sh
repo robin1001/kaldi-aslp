@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Created on 2016-01-15
-# Author: zhangbinbin liwenpeng
+# Created on 2016-01-19
+# Author: zhangbinbin liwenpeng duwei
 
 feat_type=fbank #fmllr
 gmmdir=exp/tri3 #for fmllr feature
