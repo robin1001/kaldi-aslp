@@ -4,13 +4,12 @@
 # Apache 2.0
 
 stage=0
-feat_dir=data-fmllr-tri3
+feat_dir=data_fbank
 cv_utt_percent=10 # default 10% of total utterances 
 gmmdir=exp/tri3
-dir=exp/dnn_fmllr_with_pretrain2
+dir=exp/dnn_fbank
 ali=${gmmdir}_ali
-train_dir=$feat_dir/train_tr$[100-$cv_utt_percent]
-cv_dir=$feat_dir/train_cv$cv_utt_percent
+num_cv_utt=500
 
 echo "$0 $@"  # Print the command line for logging
 [ -f path.sh ] && . ./path.sh; 
@@ -22,12 +21,18 @@ set -euo pipefail
 # eg data-fbank/train data-fbank/train_tr90 data-fbank/train_cv10 data-fbank/test
 if [ $stage -le 0 ]; then
     echo "Extracting feats & Create tr cv set"
-    aslp_scripts/make_feats.sh \
-        --feat-type "fmllr" \
-		--split-cv true
-        --cv-utt-percent $cv_utt_percent \
-        data/train $feat_dir
-	aslp_scripts/make_feats.sh --feat-type "fmllr" data/test $feat_dir
+    aslp_scripts/make_feats.sh --feat-type "fbank" data/train $feat_dir
+    # Split tr & cv
+    utils/shuffle_list.pl $feat_dir/train/feats.scp > $feat_dir/train/random.scp
+    head -n$num_cv_utt $feat_dir/train/random.scp | sort > $feat_dir/train/cv.scp
+    total=$(cat $feat_dir/train/random.scp | wc -l)
+    left=$[$total-$num_cv_utt]
+    tail -n$left $feat_dir/train/random.scp | sort > $feat_dir/train/tr.scp
+    utils/subset_data_dir.sh --utt-list $feat_dir/train/tr.scp \
+        $feat_dir/train $feat_dir/train_tr
+    utils/subset_data_dir.sh --utt-list $feat_dir/train/cv.scp \
+        $feat_dir/train $feat_dir/train_cv
+	aslp_scripts/make_feats.sh --feat-type "fbank" data/test $feat_dir
 fi
 
 exit 0;
@@ -35,11 +40,11 @@ exit 0;
 # This script will make $dir/train.conf automaticlly
 if [ $stage -le 1 ]; then
     echo "Preparing alignment and feats"
-        #--cmvn_opts "--norm-means=true --norm-vars=true" \
         #--delta_opts "--delta-order=2" \
     aslp_scripts/aslp_nnet/prepare_feats_ali.sh \
+        --cmvn_opts "--norm-means=true --norm-vars=true" \
         --splice_opts "--left-context=5 --right-context=5" \
-        $train_dir $cv_dir data/lang $ali $ali $dir || exit 1;
+        $feat_dir/train_tr $feat_dir/train_cv data/lang $ali $ali $dir || exit 1;
 fi
 
 # Get feats_tr feats_cv labels_tr labels_cv 
