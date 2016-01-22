@@ -90,7 +90,8 @@ halving=0
 
 # training,
 for iter in $(seq -w $max_iters); do
-  echo "ITERATION $iter: "
+  echo "ITERATION $iter: " `date`
+  echo "LOG (Just-for-log-analysis) ProgressLoss[last 0h of Nh]: 0 (Likelyhood) 0 (Xent)"
   mlp_next=$dir/nnet/${mlp_base}_iter${iter}
   
   # skip iteration (epoch) if already done,
