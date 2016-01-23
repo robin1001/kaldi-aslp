@@ -111,7 +111,7 @@ for iter in $(seq -w $max_iters); do
     "$feats_tr" "$labels_tr" $mlp_best $mlp_next 
     #2>> $log || exit 1; 
 
-  #tr_loss=$(cat $dir/log/iter${iter}.tr.log | grep "AvgLoss:" | tail -n 1 | awk '{ print $4; }')
+  tr_loss=$(cat $dir/log/iter${iter}.tr.log | grep "AvgLoss:" | tail -n 1 | awk '{ print $4; }')
   #echo -n "TRAIN AVG.LOSS $(printf "%.4f" $tr_loss), (lrate$(printf "%.6g" $learn_rate)), "
   
   # cross-validation,
