@@ -69,7 +69,7 @@ for ((i=1; i<=$num_hid; i++)); do
     mlp_final=$dir/nnet/pretrain.$i.final.nnet
     mlp_cur=$mlp_init
     for j in `seq $iters_per_epoch`; do
-        echo "Train with $i hidden layers iters, ITERRATION: $j" `date`
+        echo "Train with $i hidden layers iters, ITERATION: $j" `date`
         echo "LOG (Just-for-log-analysis) ProgressLoss[last 0h of Nh]: 0 (Likelyhood) 0 (Xent)"
         mlp_next=$dir/nnet/pretrain.$i.$j.nnet
         $train_tool $train_tool_opts \
