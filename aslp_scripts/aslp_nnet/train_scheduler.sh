@@ -111,7 +111,7 @@ for iter in $(seq -w $max_iters); do
     "$feats_tr" "$labels_tr" $mlp_best $mlp_next 
     #2>> $log || exit 1; 
 
-  tr_loss=$(cat $dir/log/iter${iter}.tr.log | grep "AvgLoss:" | tail -n 1 | awk '{ print $4; }')
+  #tr_loss=$(cat $dir/log/iter${iter}.tr.log | grep "AvgLoss:" | tail -n 1 | awk '{ print $4; }')
   #echo -n "TRAIN AVG.LOSS $(printf "%.4f" $tr_loss), (lrate$(printf "%.6g" $learn_rate)), "
   
   # cross-validation,
@@ -128,7 +128,8 @@ for iter in $(seq -w $max_iters); do
   if [ 1 == $(bc <<< "$loss_new < $loss") -o $iter -le $keep_lr_iters -o $iter -le $min_iters ]; then
     # accepting: the loss was better, or we had fixed learn-rate, or we had fixed epoch-number,
     loss=$loss_new
-    mlp_best=$dir/nnet/${mlp_base}_iter${iter}_learnrate${learn_rate}_tr$(printf "%.4f" $tr_loss)_cv$(printf "%.4f" $loss_new)
+    #mlp_best=$dir/nnet/${mlp_base}_iter${iter}_learnrate${learn_rate}_tr$(printf "%.4f" $tr_loss)_cv$(printf "%.4f" $loss_new)
+    mlp_best=$dir/nnet/${mlp_base}_iter${iter}_learnrate${learn_rate}_cv$(printf "%.4f" $loss_new)
     [ $iter -le $min_iters ] && mlp_best=${mlp_best}_min-iters-$min_iters
     [ $iter -le $keep_lr_iters ] && mlp_best=${mlp_best}_keep-lr-iters-$keep_lr_iters
     mv $mlp_next $mlp_best
@@ -136,7 +137,8 @@ for iter in $(seq -w $max_iters); do
     echo $mlp_best > $dir/.mlp_best 
   else
     # rejecting,
-    mlp_reject=$dir/nnet/${mlp_base}_iter${iter}_learnrate${learn_rate}_tr$(printf "%.4f" $tr_loss)_cv$(printf "%.4f" $loss_new)_rejected
+    #mlp_reject=$dir/nnet/${mlp_base}_iter${iter}_learnrate${learn_rate}_tr$(printf "%.4f" $tr_loss)_cv$(printf "%.4f" $loss_new)_rejected
+    mlp_reject=$dir/nnet/${mlp_base}_iter${iter}_learnrate${learn_rate}_cv$(printf "%.4f" $loss_new)_rejected
     mv $mlp_next $mlp_reject
     echo "nnet rejected ($(basename $mlp_reject))"
   fi
