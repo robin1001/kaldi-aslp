@@ -138,7 +138,7 @@ void Xent::Eval(const VectorBase<BaseFloat> &frame_weights,
     entropy_progress_ += entropy;
     likelyhood_progress_ += likelyhood;
     if (frames_progress_ > progress_step) {
-      KALDI_VLOG(1) << "ProgressLoss[last " 
+      KALDI_LOG << "ProgressLoss[last " 
                     << static_cast<int>(frames_progress_/100/3600) << "h of " 
                     << static_cast<int>(frames_/100/3600) << "h]: " 
                     << likelyhood_progress_/frames_progress_ << " (Likelyhood) "
