@@ -29,8 +29,7 @@
 #include "aslp-nnet/nnet-lstm-projected-streams.h"
 #include "aslp-nnet/nnet-blstm-projected-streams.h"
 
-//#include "nnet/nnet-nnet.h"
-
+#include "aslp-nnet/nnet-batch-normalization.h"
 
 #include <sstream>
 
@@ -57,6 +56,8 @@ const struct Component::key_value Component::kMarkerMap[] = {
   { Component::kMaxPoolingComponent, "<MaxPoolingComponent>"},
   { Component::kLstmProjectedStreams,"<LstmProjectedStreams>"},
   { Component::kBLstmProjectedStreams,"<BLstmProjectedStreams>"},
+  // Aslp
+  { Component::kBatchNormalization, "<BatchNormalization>"},
 };
 
 
@@ -136,6 +137,9 @@ Component* Component::NewComponentOfType(ComponentType comp_type,
     case Component::kMaxPoolingComponent :
       ans = new MaxPoolingComponent(input_dim, output_dim);
       break;
+    // Aslp extention component
+    case Component::kBatchNormalization :
+      ans = new BatchNormalization(input_dim, output_dim);
     case Component::kUnknown :
     default :
       KALDI_ERR << "Missing type: " << TypeToMarker(comp_type);

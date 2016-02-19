@@ -83,7 +83,10 @@ class Component {
     kMaxPoolingComponent,
     kMaxPooling2DComponent,
     kFramePoolingComponent, 
-    kParallelComponent
+    kParallelComponent,
+
+    // Aslp extention component 
+    kBatchNormalization = 0x0f00
   } ComponentType;
   /// A pair of type and marker 
   struct key_value {
