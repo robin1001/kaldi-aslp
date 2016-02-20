@@ -140,6 +140,7 @@ Component* Component::NewComponentOfType(ComponentType comp_type,
     // Aslp extention component
     case Component::kBatchNormalization :
       ans = new BatchNormalization(input_dim, output_dim);
+      break;
     case Component::kUnknown :
     default :
       KALDI_ERR << "Missing type: " << TypeToMarker(comp_type);

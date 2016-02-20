@@ -43,6 +43,7 @@ public:
     ComponentType GetType() const { return kBatchNormalization; }
 
     void InitData(std::istream &is) {
+        num_acc_frames_ = 0;
         scale_.Resize(output_dim_);
         scale_.Set(1.0);
         shift_.Resize(output_dim_);
@@ -113,6 +114,21 @@ public:
         acc_means_.SetZero();
         acc_vars_.SetZero();
         num_acc_frames_ = 0;
+    }
+
+    void FeedforwardFnc(const CuMatrixBase<BaseFloat> &in,
+                        CuMatrixBase<BaseFloat> *out) {
+        int32 batch_size = in.NumRows();
+        if (XsharpO_.NumRows() != batch_size) {
+            XsharpO_.Resize(batch_size, output_dim_);
+        }
+        // \delta <- 1/m \sum (x_i - mu)^2
+        XsharpO_.CopyFromMat(in);
+        XsharpO_.AddVecToRows(-1.0, mean_vec_, 1.0);
+        XsharpO_.MulColsVec(var_vec_);
+        out->CopyFromMat(XsharpO_);
+        out->MulColsVec(scale_);
+        out->AddVecToRows(1.0, shift_, 1.0);
     }
 
     void PropagateFnc(const CuMatrixBase<BaseFloat> &in, CuMatrixBase<BaseFloat> *out) {
