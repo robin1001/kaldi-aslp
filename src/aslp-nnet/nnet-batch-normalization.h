@@ -173,8 +173,8 @@ public:
 
         // calculate the W-gradient (dGamma)
         bufE_.AddMatMatElements(1.0, XsharpO_, out_diff, 0.0);
-        //dscale_.AddRowSumMat(1.0 /*/ (BaseFloat)batch_size*/, bufE_, momentum_);
-        //dshift_.AddRowSumMat(1.0 /*/ (BaseFloat)batch_size*/, out_diff, momentum_);
+        dscale_.AddRowSumMat(1.0 /*/ (BaseFloat)batch_size*/, bufE_, opts_.momentum);
+        dshift_.AddRowSumMat(1.0 /*/ (BaseFloat)batch_size*/, out_diff, opts_.momentum);
 
         if (in_diff == NULL) return;
 
@@ -219,26 +219,9 @@ public:
 
 
     void Update(const CuMatrixBase<BaseFloat> &input, const CuMatrixBase<BaseFloat> &diff) {
-        //BatNormalComponent *grad = dynamic_cast<BatNormalComponent*>(other);
-
-        //if (grad == nullptr) {
-        //    KALDI_WARN << "Ignore Update\n";
-        //    return;
-        //}
-
-        //if (learning_rate_ == 0.0) return;
-
-        //BaseFloat lr = (grad == this ? learning_rate_ : 1.0);
-        //if (grad != this && !accum) {
-        //    grad->SetZero();
-        //}
-
-        //grad->scale_.AddVec(-lr, dscale_, 1.0);
-        //grad->shift_.AddVec(-lr, dshift_, 1.0);
-
-        //if (grad != this && momentum_ != 0) {
-        //    momentum_ = 0;
-        //}
+        const BaseFloat lr = opts_.learn_rate;
+        scale_.AddVec(-lr, dscale_, 1.0);
+        shift_.AddVec(-lr, dshift_, 1.0);
     }
  private:
 	CuMatrix<BaseFloat> XsharpO_;
