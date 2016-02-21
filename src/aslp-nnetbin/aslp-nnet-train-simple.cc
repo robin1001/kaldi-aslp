@@ -268,7 +268,11 @@ int main(int argc, char *argv[]) {
         const Vector<BaseFloat>& frm_weights = weights_randomizer.Value();
 
         // forward pass
-        nnet.Propagate(nnet_in, &nnet_out);
+        if (!crossvalidate) {
+            nnet.Propagate(nnet_in, &nnet_out);
+        } else {
+            nnet.Feedforward(nnet_in, &nnet_out);
+        }
 
         // evaluate objective function we've chosen
         if (objective_function == "xent") {
