@@ -118,6 +118,35 @@ void Nnet::Backpropagate(const CuMatrixBase<BaseFloat> &out_diff, CuMatrix<BaseF
 }
 
 
+//void Nnet::Feedforward(const CuMatrixBase<BaseFloat> &in, CuMatrix<BaseFloat> *out) {
+//  KALDI_ASSERT(NULL != out);
+//
+//  if (NumComponents() == 0) { 
+//    out->Resize(in.NumRows(), in.NumCols());
+//    out->CopyFromMat(in); 
+//    return; 
+//  }
+//
+//  if (NumComponents() == 1) {
+//    components_[0]->Propagate(in, out);
+//    return;
+//  }
+//
+//  // we need at least 2 input buffers
+//  KALDI_ASSERT(propagate_buf_.size() >= 2);
+//
+//  // propagate by using exactly 2 auxiliary buffers
+//  int32 L = 0;
+//  components_[L]->Propagate(in, &propagate_buf_[L%2]);
+//  for(L++; L<=NumComponents()-2; L++) {
+//    components_[L]->Propagate(propagate_buf_[(L-1)%2], &propagate_buf_[L%2]);
+//  }
+//  components_[L]->Propagate(propagate_buf_[(L-1)%2], out);
+//  // release the buffers we don't need anymore
+//  propagate_buf_[0].Resize(0,0);
+//  propagate_buf_[1].Resize(0,0);
+//}
+
 void Nnet::Feedforward(const CuMatrixBase<BaseFloat> &in, CuMatrix<BaseFloat> *out) {
   KALDI_ASSERT(NULL != out);
 
@@ -128,7 +157,7 @@ void Nnet::Feedforward(const CuMatrixBase<BaseFloat> &in, CuMatrix<BaseFloat> *o
   }
 
   if (NumComponents() == 1) {
-    components_[0]->Propagate(in, out);
+    components_[0]->Feedforward(in, out);
     return;
   }
 
@@ -137,16 +166,15 @@ void Nnet::Feedforward(const CuMatrixBase<BaseFloat> &in, CuMatrix<BaseFloat> *o
 
   // propagate by using exactly 2 auxiliary buffers
   int32 L = 0;
-  components_[L]->Propagate(in, &propagate_buf_[L%2]);
+  components_[L]->Feedforward(in, &propagate_buf_[L%2]);
   for(L++; L<=NumComponents()-2; L++) {
-    components_[L]->Propagate(propagate_buf_[(L-1)%2], &propagate_buf_[L%2]);
+    components_[L]->Feedforward(propagate_buf_[(L-1)%2], &propagate_buf_[L%2]);
   }
-  components_[L]->Propagate(propagate_buf_[(L-1)%2], out);
+  components_[L]->Feedforward(propagate_buf_[(L-1)%2], out);
   // release the buffers we don't need anymore
   propagate_buf_[0].Resize(0,0);
   propagate_buf_[1].Resize(0,0);
 }
-
 
 int32 Nnet::OutputDim() const {
   KALDI_ASSERT(!components_.empty());

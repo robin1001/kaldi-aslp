@@ -83,7 +83,10 @@ class Component {
     kMaxPoolingComponent,
     kMaxPooling2DComponent,
     kFramePoolingComponent, 
-    kParallelComponent
+    kParallelComponent,
+
+    // Aslp extention component 
+    kBatchNormalization = 0x0f00
   } ComponentType;
   /// A pair of type and marker 
   struct key_value {
@@ -121,7 +124,9 @@ class Component {
   int32 OutputDim() const { 
     return output_dim_; 
   }
- 
+  /// Perform feed forward pass
+  virtual void Feedforward(const CuMatrixBase<BaseFloat> &in, 
+                         CuMatrix<BaseFloat> *out); 
   /// Perform forward pass propagation Input->Output
   void Propagate(const CuMatrixBase<BaseFloat> &in, CuMatrix<BaseFloat> *out); 
   /// Perform backward pass propagation, out_diff -> in_diff
@@ -145,6 +150,8 @@ class Component {
 
  /// Abstract interface for propagation/backpropagation 
  protected:
+  virtual void FeedforwardFnc(const CuMatrixBase<BaseFloat> &in,
+                            CuMatrixBase<BaseFloat> *out);
   /// Forward pass transformation (to be implemented by descending class...)
   virtual void PropagateFnc(const CuMatrixBase<BaseFloat> &in,
                             CuMatrixBase<BaseFloat> *out) = 0;
@@ -217,6 +224,22 @@ class UpdatableComponent : public Component {
   NnetTrainOptions opts_; 
 };
 
+inline void Component::Feedforward(const CuMatrixBase<BaseFloat> &in,
+                                 CuMatrix<BaseFloat> *out) {
+  // Check the dims
+  if (input_dim_ != in.NumCols()) {
+    KALDI_ERR << "Non-matching dims! " << TypeToMarker(GetType()) 
+              << " input-dim : " << input_dim_ << " data : " << in.NumCols();
+  }
+  // Allocate target buffer
+  out->Resize(in.NumRows(), output_dim_, kSetZero); // reset
+  FeedforwardFnc(in, out);
+}
+
+inline void Component::FeedforwardFnc(const CuMatrixBase<BaseFloat> &in,
+                            CuMatrixBase<BaseFloat> *out) {
+  PropagateFnc(in, out);
+}
 
 inline void Component::Propagate(const CuMatrixBase<BaseFloat> &in,
                                  CuMatrix<BaseFloat> *out) {
