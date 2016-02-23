@@ -203,6 +203,7 @@ class UpdatableComponent : public Component {
   /// Number of trainable parameters
   virtual int32 NumParams() const = 0;
   virtual void GetParams(Vector<BaseFloat> *params) const = 0;
+  virtual void GetGpuParams(std::vector<std::pair<BaseFloat *, int> > *params) = 0;
 
   /// Compute gradient and update parameters
   virtual void Update(const CuMatrixBase<BaseFloat> &input,

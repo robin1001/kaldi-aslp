@@ -216,6 +216,17 @@ class LstmProjectedStreams : public UpdatableComponent {
     return;
   }
 
+  void GetGpuParams(std::vector<std::pair<BaseFloat *, int> > *params) {
+    params->clear();
+    params->push_back(std::make_pair(w_gifo_x_.Data(), w_gifo_x_.NumRows() * w_gifo_x_.Stride()));
+    params->push_back(std::make_pair(w_gifo_r_.Data(), w_gifo_r_.NumRows() * w_gifo_r_.Stride()));
+    params->push_back(std::make_pair(bias_.Data(), bias_.Dim()));
+    params->push_back(std::make_pair(peephole_i_c_.Data(), peephole_i_c_.Dim()));
+    params->push_back(std::make_pair(peephole_f_c_.Data(), peephole_f_c_.Dim()));
+    params->push_back(std::make_pair(peephole_o_c_.Data(), peephole_o_c_.Dim()));
+    params->push_back(std::make_pair(w_r_m_.Data(), w_r_m_.NumRows() * w_r_m_.Stride()));
+  }
+
   std::string Info() const {
     return std::string("  ") +
       "\n  w_gifo_x_  "   + MomentStatistics(w_gifo_x_) +

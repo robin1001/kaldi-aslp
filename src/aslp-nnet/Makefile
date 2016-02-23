@@ -23,3 +23,12 @@ ADDLIBS = $(KALDI_DIR)/cudamatrix/kaldi-cudamatrix.a \
 
 include $(KALDI_DIR)/makefiles/default_rules.mk
 
+nnet-component.o: nnet-component.h \
+                  nnet-activation.h nnet-various.h \
+                  nnet-affine-transform.h nnet-linear-transform.h \
+                  nnet-convolutional-component.h nnet-max-pooling-component.h \
+                  nnet-lstm-projected-streams.h nnet-blstm-projected-streams.h \
+                  nnet-batch-normalization.h
+
+
+

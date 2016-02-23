@@ -13,5 +13,6 @@ int main(int argc, char *argv[]) {
     NnetMpiSync mpi_sync;
     for (int i = 0; i < 10; i++) {
         mpi_sync.SyncTest();
+        //sleep(1);
     }
 }

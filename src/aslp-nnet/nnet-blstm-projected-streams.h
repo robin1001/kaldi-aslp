@@ -324,6 +324,25 @@ class BLstmProjectedStreams : public UpdatableComponent {
     return;
   }
 
+  void GetGpuParams(std::vector<std::pair<BaseFloat *, int> > *params) {
+    params->clear();
+    // Forward params
+    params->push_back(std::make_pair(f_w_gifo_x_.Data(), f_w_gifo_x_.NumRows() * f_w_gifo_x_.Stride()));
+    params->push_back(std::make_pair(f_w_gifo_r_.Data(), f_w_gifo_r_.NumRows() * f_w_gifo_r_.Stride()));
+    params->push_back(std::make_pair(f_bias_.Data(), f_bias_.Dim()));
+    params->push_back(std::make_pair(f_peephole_i_c_.Data(), f_peephole_i_c_.Dim()));
+    params->push_back(std::make_pair(f_peephole_f_c_.Data(), f_peephole_f_c_.Dim()));
+    params->push_back(std::make_pair(f_peephole_o_c_.Data(), f_peephole_o_c_.Dim()));
+    params->push_back(std::make_pair(f_w_r_m_.Data(), f_w_r_m_.NumRows() * f_w_r_m_.Stride()));
+    // Backward params
+    params->push_back(std::make_pair(b_w_gifo_x_.Data(), b_w_gifo_x_.NumRows() * b_w_gifo_x_.Stride()));
+    params->push_back(std::make_pair(b_w_gifo_r_.Data(), b_w_gifo_r_.NumRows() * b_w_gifo_r_.Stride()));
+    params->push_back(std::make_pair(b_bias_.Data(), b_bias_.Dim()));
+    params->push_back(std::make_pair(b_peephole_i_c_.Data(), b_peephole_i_c_.Dim()));
+    params->push_back(std::make_pair(b_peephole_f_c_.Data(), b_peephole_f_c_.Dim()));
+    params->push_back(std::make_pair(b_peephole_o_c_.Data(), b_peephole_o_c_.Dim()));
+    params->push_back(std::make_pair(b_w_r_m_.Data(), b_w_r_m_.NumRows() * b_w_r_m_.Stride()));
+  }
 
   std::string Info() const {
     return std::string("  ")  +

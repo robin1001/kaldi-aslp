@@ -35,7 +35,8 @@ void NnetMpiSync::SyncTest() {
     MPI_Irecv(&r, 1, MPI_INT, peer_, 0, MPI_COMM_WORLD, &recv_req_);
     MPI_Wait(&send_req_, &send_status_);
     MPI_Wait(&recv_req_, &recv_status_);
-    std::cout << "rank " << rank_ << " " << s << " " << r << std::endl;
+    std::cout << "rank " << rank_ << " " << s << " " << r 
+              << std::endl << std::flush;
 }
 
 void NnetMpiSync::Sync() {
