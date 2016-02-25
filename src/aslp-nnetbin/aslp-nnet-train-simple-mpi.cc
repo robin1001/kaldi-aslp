@@ -116,7 +116,7 @@ int main(int argc, char *argv[]) {
 
     std::vector<std::pair<BaseFloat *, int> > params;
     nnet.GetGpuParams(&params);
-    NnetMpiSync mpi_sync(sync_period);
+    NnetMpiSync mpi_sync;
     mpi_sync.Init(params);
 
     if (dropout_retention > 0.0) {
@@ -170,6 +170,7 @@ int main(int argc, char *argv[]) {
     KALDI_LOG << (crossvalidate?"CROSS-VALIDATION":"TRAINING") << " STARTED";
 
     int32 num_done = 0, num_no_tgt_mat = 0, num_other_error = 0;
+    kaldi::int64 num_minibatch = 0;
     bool peer_done = false;
     while (!feature_reader.Done()) {
 #if HAVE_CUDA==1
@@ -333,10 +334,14 @@ int main(int argc, char *argv[]) {
           }
           report_frames -= report_period;
         }
-        // Mpi sync when peer node donesn't finish data processing
-        if (!peer_done) {
-            peer_done = mpi_sync.PeerDone();
-            mpi_sync.Sync();
+        num_minibatch ++;
+        if (num_minibatch % sync_period == 0) {
+            // Mpi sync when peer node donesn't finish data processing
+            if (!peer_done) {
+                peer_done = mpi_sync.PeerDone();
+                KALDI_LOG << "mpi sync on " << num_minibatch;
+                mpi_sync.Sync();
+            }
         }
       }
     }

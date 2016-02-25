@@ -3,10 +3,10 @@ all:
 
 KALDI_DIR = ../../../kaldi/src
 
+include $(KALDI_DIR)/kaldi.mk
+
 CXX = mpicxx
 EXTRA_CXXFLAGS = -I$(KALDI_DIR)
-
-include $(KALDI_DIR)/kaldi.mk
 
 LDFLAGS += $(CUDA_LDFLAGS)
 LDLIBS += $(CUDA_LDLIBS)
