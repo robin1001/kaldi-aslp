@@ -378,7 +378,9 @@ int main(int argc, char *argv[]) {
     }
 
     if (!crossvalidate) {
-      nnet.Write(target_model_filename, binary);
+      if (mpi_sync.Rank() == 0) {
+        nnet.Write(target_model_filename, binary);
+      }
     }
 
     KALDI_LOG << "Done " << num_done << " files, " << num_no_tgt_mat
