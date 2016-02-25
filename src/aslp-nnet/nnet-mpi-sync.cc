@@ -23,7 +23,8 @@ NnetMpiSync::NnetMpiSync() {
     peer_ = (rank_ + 1) % 2;
     total_params_ = 0;
     is_init_ = false;
-    done_ = false;
+    self_done_ = 0;
+    peer_done_ = 0;
 }
 
 NnetMpiSync::~NnetMpiSync() {
@@ -88,19 +89,6 @@ void NnetMpiSync::SyncTest() {
               << std::endl << std::flush;
 }
 
-void NnetMpiSync::SetDone(bool done) {
-    done_ =  done; 
-}
-
-bool NnetMpiSync::PeerDone() {
-    int s = done_ ? 1 : 0, r = 0;
-    MPI_Isend(&s, 1, MPI_INT, peer_, 1, MPI_COMM_WORLD, &send_req_);
-    MPI_Irecv(&r, 1, MPI_INT, peer_, 1, MPI_COMM_WORLD, &recv_req_);
-    MPI_Wait(&send_req_, &send_status_);
-    MPI_Wait(&recv_req_, &recv_status_);
-    return r > 0; // 1:true 0:false
-}
-
 void NnetMpiSync::Sync() {
     //static int counter = 0;
     //KALDI_LOG << "sync once " << counter++;
@@ -117,24 +105,50 @@ void NnetMpiSync::Sync() {
     }
     CU_SAFE_CALL(cudaDeviceSynchronize());
     // 2. Mpi send and recv
-    MPI_Isend(send_buf_, total_params_, MPI_FLOAT, peer_, 0, 
+    MPI_Isend(&self_done_, 1, MPI_INT, peer_, 0,
+            MPI_COMM_WORLD, &send_done_req_);
+    MPI_Irecv(&peer_done_, 1, MPI_INT, peer_, 0,
+            MPI_COMM_WORLD, &recv_done_req_);
+    MPI_Isend(send_buf_, total_params_, MPI_FLOAT, peer_, 1, 
             MPI_COMM_WORLD, &send_req_);
-    MPI_Irecv(recv_buf_, total_params_, MPI_FLOAT, peer_, 0,
+    MPI_Irecv(recv_buf_, total_params_, MPI_FLOAT, peer_, 1,
             MPI_COMM_WORLD, &recv_req_);
+    MPI_Wait(&send_done_req_, &send_done_status_);
+    MPI_Wait(&recv_done_req_, &recv_done_status_);
     MPI_Wait(&send_req_, &send_status_);
     MPI_Wait(&recv_req_, &recv_status_);
     // 3. Copy recv_buf_ to peer_params_ & Do average
-    offset = 0;
-    for (int i = 0; i < num_params_; i++) {
-        CU_SAFE_CALL(cudaMemcpyAsync(peer_params_[i].first, 
-                    recv_buf_ + offset, peer_params_[i].second * sizeof(float), 
-                    cudaMemcpyHostToDevice , streams_[i]));
-        offset += peer_params_[i].second;
-        // Do average
-        cuda_average(my_params_[i].first, peer_params_[i].first, 
-                my_params_[i].second, streams_[i]);
+    if (PeerDone()) return;
+    if (SelfDone()) {
+        // Copy peer's param to self param
+        offset = 0;
+        for (int i = 0; i < num_params_; i++) {
+            CU_SAFE_CALL(cudaMemcpyAsync(my_params_[i].first, 
+                recv_buf_ + offset, my_params_[i].second * sizeof(float), 
+                cudaMemcpyHostToDevice , streams_[i]));
+            offset += my_params_[i].second;
+        }
+        CU_SAFE_CALL(cudaDeviceSynchronize());
     }
-    CU_SAFE_CALL(cudaDeviceSynchronize());
+    else {
+        // Do average my_params_ = (my_params_ + peer_params_) / 2
+        offset = 0;
+        for (int i = 0; i < num_params_; i++) {
+            CU_SAFE_CALL(cudaMemcpyAsync(peer_params_[i].first, 
+                        recv_buf_ + offset, peer_params_[i].second * sizeof(float), 
+                        cudaMemcpyHostToDevice , streams_[i]));
+            offset += peer_params_[i].second;
+            // Do average
+            cuda_average(my_params_[i].first, peer_params_[i].first, 
+                    my_params_[i].second, streams_[i]);
+        }
+        CU_SAFE_CALL(cudaDeviceSynchronize());
+    }
+}
+
+void NnetMpiSync::SyncStatus() const {
+    std::cerr << "self" << "\t" << "peer" << "\t" << "all" << "\n"; 
+    std::cerr << SelfDone() << "\t" << PeerDone() << "\t" << AllDone() << "\n";
 }
 
 } // namespace aslp_nnet

@@ -29,6 +29,18 @@
 #include "aslp-nnet/nnet-randomizer.h"
 #include "aslp-nnet/nnet-mpi-sync.h"
 
+std::string replace_all(const std::string& s,
+        const std::string& old_value, const std::string& new_value) {
+    std::string str = s;
+    while(true) {
+        std::string::size_type pos(0);   
+        if((pos=str.find(old_value)) != string::npos)   
+            str.replace(pos, old_value.length(), new_value);   
+        else break;   
+    }
+    return str;
+}   
+
 int main(int argc, char *argv[]) {
   using namespace kaldi;
   using namespace kaldi::aslp_nnet;
@@ -118,6 +130,11 @@ int main(int argc, char *argv[]) {
     nnet.GetGpuParams(&params);
     NnetMpiSync mpi_sync;
     mpi_sync.Init(params);
+    std::stringstream ss;
+    ss << mpi_sync.Rank();
+    feature_rspecifier = replace_all(feature_rspecifier, "JOB", ss.str());
+    KALDI_LOG << "MPI Rank " << mpi_sync.Rank(); 
+    KALDI_LOG << "Train scp " << feature_rspecifier;
 
     if (dropout_retention > 0.0) {
       nnet_transf.SetDropoutRetention(dropout_retention);
@@ -171,7 +188,6 @@ int main(int argc, char *argv[]) {
 
     int32 num_done = 0, num_no_tgt_mat = 0, num_other_error = 0;
     kaldi::int64 num_minibatch = 0;
-    bool peer_done = false;
     while (!feature_reader.Done()) {
 #if HAVE_CUDA==1
       // check the GPU is not overheated
@@ -337,16 +353,19 @@ int main(int argc, char *argv[]) {
         num_minibatch ++;
         if (num_minibatch % sync_period == 0) {
             // Mpi sync when peer node donesn't finish data processing
-            if (!peer_done) {
-                peer_done = mpi_sync.PeerDone();
-                KALDI_LOG << "mpi sync on " << num_minibatch;
-                mpi_sync.Sync();
-            }
+            KALDI_LOG << "MPI sync on " << num_minibatch;
+            mpi_sync.Sync();
         }
       }
     }
     // Mpi set down Status
-    mpi_sync.SetDone(true);
+    mpi_sync.SyncStatus();
+    mpi_sync.SetSelfDone();
+    mpi_sync.SyncStatus();
+    do {
+        mpi_sync.Sync();
+    } while(!mpi_sync.AllDone()); 
+    mpi_sync.SyncStatus();
     
     // after last minibatch : show what happens in network 
     if (kaldi::g_kaldi_verbose_level >= 1) { // vlog-1

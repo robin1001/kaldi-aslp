@@ -21,22 +21,38 @@ public:
     ~NnetMpiSync();
     void Init(const std::vector<std::pair<BaseFloat *, int> > &params);
     void Sync();
+    void SyncStatus() const;
     /// Just for test
     void SyncTest();
-    void SetDone(bool done);
+    void SetSelfDone() {
+        self_done_ = 1;
+    }
+    /// If self node finish data processing
+    bool SelfDone() const {
+        return self_done_ > 0;
+    }
     /// If peer finish data processing
-    bool PeerDone();
+    bool PeerDone() const {
+        return peer_done_ > 0;
+    }
+    /// If self and peer node all finish data processing
+    bool AllDone() const {
+        return ((self_done_ > 0) && (peer_done_ > 0));
+    }
     int Rank() const { return rank_; }
 private:
     MPI_Request send_req_, recv_req_;
     MPI_Status send_status_, recv_status_;
+    MPI_Request send_done_req_, recv_done_req_;
+    MPI_Status send_done_status_, recv_done_status_;
     int rank_, size_, peer_;
     int num_params_, total_params_;
     std::vector<std::pair<BaseFloat *, int> > my_params_, peer_params_;
     BaseFloat *send_buf_, *recv_buf_;
     cudaStream_t *streams_;
     bool is_init_;
-    bool done_;
+    int peer_done_;
+    int self_done_;
 };
 
 
