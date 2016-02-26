@@ -106,6 +106,12 @@ public:
         wei_copy->Range(shift_.Dim(), scale_.Dim()).CopyFromVec(Vector<BaseFloat>(scale_));
     }
 
+    void GetGpuParams(std::vector<std::pair<BaseFloat *, int> > *params) {
+        params->clear();
+        params->push_back(std::make_pair(shift_.Data(), shift_.Dim()));
+        params->push_back(std::make_pair(scale_.Data(), scale_.Dim()));
+    }
+
     std::string Info() const {
 	    return std::string("\n  batch_normaliztion");
     }

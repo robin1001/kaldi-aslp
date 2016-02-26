@@ -130,6 +130,12 @@ class AffineTransform : public UpdatableComponent {
     wei_copy->Range(0,linearity_num_elem).CopyRowsFromMat(Matrix<BaseFloat>(linearity_));
     wei_copy->Range(linearity_num_elem, bias_.Dim()).CopyFromVec(Vector<BaseFloat>(bias_));
   }
+
+  void GetGpuParams(std::vector<std::pair<BaseFloat *, int> > *params) {
+    params->clear();
+    params->push_back(std::make_pair(linearity_.Data(), linearity_.NumRows() * linearity_.Stride()));
+    params->push_back(std::make_pair(bias_.Data(), bias_.Dim()));
+  }
   
   std::string Info() const {
     return std::string("\n  linearity") + MomentStatistics(linearity_) +

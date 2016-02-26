@@ -5,18 +5,23 @@ KALDI_DIR = ../../../kaldi/src
 
 include $(KALDI_DIR)/kaldi.mk
 
-LDFLAGS += $(CUDA_LDFLAGS)
-LDLIBS += $(CUDA_LDLIBS)
+CXX = mpicxx
 EXTRA_CXXFLAGS = -I$(KALDI_DIR)
 
-TESTFILES = nnet-randomizer-test nnet-component-test
+LDFLAGS += $(CUDA_LDFLAGS)
+LDLIBS += $(CUDA_LDLIBS)
+
+TESTFILES = nnet-randomizer-test nnet-component-test \
+            nnet-mpi-sync-test
 
 OBJFILES = nnet-nnet.o nnet-component.o nnet-loss.o \
-           nnet-randomizer.o nnet-pdf-prior.o
+           nnet-randomizer.o nnet-pdf-prior.o \
+           nnet-mpi-sync.o
 
 LIBNAME = aslp-nnet
 
-ADDLIBS = $(KALDI_DIR)/cudamatrix/kaldi-cudamatrix.a \
+ADDLIBS = ../aslp-cudamatrix/aslp-cudamatrix.a \
+          $(KALDI_DIR)/cudamatrix/kaldi-cudamatrix.a \
           $(KALDI_DIR)/matrix/kaldi-matrix.a \
           $(KALDI_DIR)/base/kaldi-base.a \
           $(KALDI_DIR)/util/kaldi-util.a 

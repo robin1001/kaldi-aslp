@@ -109,7 +109,12 @@ class LinearTransform : public UpdatableComponent {
     int32 linearity_num_elem = linearity_.NumRows() * linearity_.NumCols(); 
     wei_copy->Range(0,linearity_num_elem).CopyRowsFromMat(Matrix<BaseFloat>(linearity_));
   }
-  
+ 
+  void GetGpuParams(std::vector<std::pair<BaseFloat *, int> > *params) {
+    params->clear();
+    params->push_back(std::make_pair(linearity_.Data(), linearity_.NumRows() * linearity_.Stride()));
+  } 
+
   std::string Info() const {
     return std::string("\n  linearity") + MomentStatistics(linearity_);
   }

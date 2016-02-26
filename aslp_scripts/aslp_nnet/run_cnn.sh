@@ -112,6 +112,9 @@ fi
 
 # Decoding 
 if [ $stage -le 4 ]; then
-    aslp_scripts/aslp_nnet/decode.sh --nj 20 --cmd "$decode_cmd" --acwt 0.2 \
-        $gmmdir/graph $feat_dir/test $dir/decode_test_iter90 || exit 1;
+    aslp_scripts/aslp_nnet/decode.sh --nj 2 --num-threads 12 \
+        --cmd "$decode_cmd" --acwt 0.0666667 \
+        $gmmdir/graph $feat_dir/test $dir/decode_test3000 || exit 1;
+    aslp_scripts/score_basic.sh --cmd "$decode_cmd" $feat_dir/test \
+        $gmmdir/graph $dir/decode_test3000 || exit 1;
 fi

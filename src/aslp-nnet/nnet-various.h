@@ -390,6 +390,11 @@ class AddShift : public UpdatableComponent {
     wei_copy->Resize(InputDim());
     shift_data_.CopyToVec(wei_copy);
   }
+
+  void GetGpuParams(std::vector<std::pair<BaseFloat *, int> > *params) {
+    params->clear();
+    params->push_back(std::make_pair(shift_data_.Data(), shift_data_.Dim()));
+  }
    
   std::string Info() const {
     return std::string("\n  shift_data") + MomentStatistics(shift_data_);
@@ -496,6 +501,11 @@ class Rescale : public UpdatableComponent {
   void GetParams(Vector<BaseFloat>* wei_copy) const {
     wei_copy->Resize(InputDim());
     scale_data_.CopyToVec(wei_copy);
+  }
+
+  void GetGpuParams(std::vector<std::pair<BaseFloat *, int> > *params) {
+    params->clear();
+    params->push_back(std::make_pair(scale_data_.Data(), scale_data_.Dim()));
   }
  
   std::string Info() const {

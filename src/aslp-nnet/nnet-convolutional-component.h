@@ -219,6 +219,12 @@ class ConvolutionalComponent : public UpdatableComponent {
     wei_copy->Range(filters_num_elem, bias_.Dim()).CopyFromVec(Vector<BaseFloat>(bias_));
   }
 
+  void GetGpuParams(std::vector<std::pair<BaseFloat *, int> > *params) {
+    params->clear();
+    params->push_back(std::make_pair(filters_.Data(), filters_.NumRows() * filters_.Stride()));
+    params->push_back(std::make_pair(bias_.Data(), bias_.Dim()));
+  }
+
   std::string Info() const {
     return std::string("\n  filters") + MomentStatistics(filters_) +
            "\n  bias" + MomentStatistics(bias_);

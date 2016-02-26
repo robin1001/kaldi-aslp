@@ -256,6 +256,19 @@ void Nnet::GetParams(Vector<BaseFloat>* wei_copy) const {
 }
 
 
+void Nnet::GetGpuParams(std::vector<std::pair<BaseFloat *, int> > *params) {
+  KALDI_ASSERT(params != NULL);
+  params->clear();
+  for(int32 i=0; i<components_.size(); i++) {
+    if(components_[i]->IsUpdatable()) {
+      UpdatableComponent& c = dynamic_cast<UpdatableComponent&>(*components_[i]);
+      std::vector<std::pair<BaseFloat *, int> > c_params;
+      c.GetGpuParams(&c_params);
+      params->insert(params->end(), c_params.begin(), c_params.end());
+    }
+  }
+}
+
 void Nnet::GetWeights(Vector<BaseFloat>* wei_copy) const {
   wei_copy->Resize(NumParams());
   int32 pos = 0;

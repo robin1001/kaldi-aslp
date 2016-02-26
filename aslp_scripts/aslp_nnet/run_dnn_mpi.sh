@@ -3,13 +3,12 @@
 # Copyright 2016  ASLP (Author: zhangbinbin)
 # Apache 2.0
 
-stage=0
+stage=3
 feat_dir=data_fbank
-cv_utt_percent=10 # default 10% of total utterances 
 gmmdir=exp/tri2b
-dir=exp/dnn_fbank
+dir=exp/dnn_fbank_sync10
 ali=${gmmdir}_ali
-num_cv_utt=500
+num_cv_utt=3484
 
 echo "$0 $@"  # Print the command line for logging
 [ -f path.sh ] && . ./path.sh; 
@@ -35,7 +34,6 @@ if [ $stage -le 0 ]; then
 	aslp_scripts/make_feats.sh --feat-type "fbank" data/test $feat_dir
 fi
 
-exit 0;
 # Prepare feature and alignment config file for nn training
 # This script will make $dir/train.conf automaticlly
 if [ $stage -le 1 ]; then
@@ -88,6 +86,13 @@ fi
 
 # Train nnet(dnn, cnn, lstm)
 if [ $stage -le 3 ]; then
+    # Preprocessing for 2-card mpi-sync train
+    cp $dir/train.conf $dir/train.conf.JOB
+    sed -i -e 's:train.scp:train.scp.JOB:g' $dir/train.conf.JOB
+    source $dir/train.conf.JOB
+    train_scp=$dir/train.scp
+    utils/split_scp.pl $train_scp $train_scp.0 $train_scp.1
+
     echo "Training nnet"
     [ ! -f $dir/nnet/pretrain.final.nnet ] && \
         echo "$dir/nnet/pretrain.final.nnet: no such file" && exit 1
@@ -95,7 +100,10 @@ if [ $stage -le 3 ]; then
     [ -e $nnet_init ] && rm $nnet_init
     ln -s $(basename $dir/nnet/pretrain.final.nnet) $nnet_init
     #"$train_cmd" $dir/log/train.log \
-    aslp_scripts/aslp_nnet/train_scheduler.sh --train-tool "aslp-nnet-train-simple" \
+    aslp_scripts/aslp_nnet/train_scheduler_mpi.sh \
+        --train-tool "aslp-nnet-train-simple-mpi" \
+        --cv-tool "aslp-nnet-train-simple" \
+        --sync-period 10 \
         --learn-rate 0.008 \
         --momentum 0.0 \
         --minibatch_size 256 \
@@ -111,3 +119,4 @@ if [ $stage -le 4 ]; then
     aslp_scripts/score_basic.sh --cmd "$decode_cmd" $feat_dir/test \
         $gmmdir/graph $dir/decode_test3000 || exit 1;
 fi
+

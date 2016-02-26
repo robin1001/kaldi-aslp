@@ -91,6 +91,8 @@ class Nnet {
   int32 NumParams() const;
   /// Get the network weights in a supervector
   void GetParams(Vector<BaseFloat>* wei_copy) const;
+  /// Get the network weights in pair<data *,int>
+  void GetGpuParams(std::vector<std::pair<BaseFloat *, int> > *params); 
   /// Get the network weights in a supervector
   void GetWeights(Vector<BaseFloat>* wei_copy) const;
   /// Set the network weights from a supervector
