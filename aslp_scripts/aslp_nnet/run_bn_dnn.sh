@@ -1,15 +1,15 @@
 #!/bin/bash
 
 # Copyright 2016  ASLP (Author: zhangbinbin)
+# Created on 2016-02-21
 # Apache 2.0
 
-stage=0
+stage=4
 feat_dir=data_fbank
-cv_utt_percent=10 # default 10% of total utterances 
-gmmdir=exp/tri3
-dir=exp/dnn_fbank
+gmmdir=exp/tri2b
+dir=exp/bn_dnn_fbank
 ali=${gmmdir}_ali
-num_cv_utt=500
+num_cv_utt=3484
 
 echo "$0 $@"  # Print the command line for logging
 [ -f path.sh ] && . ./path.sh; 
@@ -35,7 +35,6 @@ if [ $stage -le 0 ]; then
 	aslp_scripts/make_feats.sh --feat-type "fbank" data/test $feat_dir
 fi
 
-exit 0;
 # Prepare feature and alignment config file for nn training
 # This script will make $dir/train.conf automaticlly
 if [ $stage -le 1 ]; then
@@ -63,6 +62,7 @@ if [ $stage -le 2 ]; then
 cat > $dir/hidden.conf <<EOF
 <NnetProto>
 <AffineTransform> <InputDim> $hid_dim <OutputDim> $hid_dim <BiasMean> -2.000000 <BiasRange> 4.000000 <ParamStddev> 0.1
+<BatchNormalization> <InputDim> $hid_dim <OutputDim> $hid_dim
 <Sigmoid> <InputDim> $hid_dim <OutputDim> $hid_dim 
 </NnetProto>
 EOF
@@ -71,6 +71,7 @@ EOF
 cat > $dir/nnet.proto <<EOF
 <NnetProto>
 <AffineTransform> <InputDim> $num_feat <OutputDim> $hid_dim <BiasMean> -2.000000 <BiasRange> 4.000000 <ParamStddev> 0.1
+<BatchNormalization> <InputDim> $hid_dim <OutputDim> $hid_dim
 <Sigmoid> <InputDim> $hid_dim <OutputDim> $hid_dim 
 <AffineTransform> <InputDim> $hid_dim <OutputDim> $num_tgt <BiasMean> -2.000000 <BiasRange> 4.000000 <ParamStddev> 0.1
 <Softmax> <InputDim> $num_tgt <OutputDim> $num_tgt
@@ -84,6 +85,7 @@ EOF
         --train-tool-opts "--report-period=60000" \
         --iters_per_epoch 2 \
         "$feats_tr" "$labels_tr" $hid_layers $dir
+		exit 0;			
 fi
 
 # Train nnet(dnn, cnn, lstm)
@@ -111,3 +113,5 @@ if [ $stage -le 4 ]; then
     aslp_scripts/score_basic.sh --cmd "$decode_cmd" $feat_dir/test \
         $gmmdir/graph $dir/decode_test3000 || exit 1;
 fi
+
+exit 0
