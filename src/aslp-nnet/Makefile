@@ -1,13 +1,11 @@
 
 all:
 
-KALDI_DIR = ../../../kaldi/src
-
+include ../aslp.mk
 include $(KALDI_DIR)/kaldi.mk
 
 LDFLAGS += $(CUDA_LDFLAGS)
 LDLIBS += $(CUDA_LDLIBS)
-EXTRA_CXXFLAGS = -I$(KALDI_DIR)
 
 TESTFILES = nnet-randomizer-test nnet-component-test
 

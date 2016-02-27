@@ -1,12 +1,10 @@
 
 all:
 
-KALDI_DIR = ../../../kaldi/src
-
+include ../aslp.mk
 include $(KALDI_DIR)/kaldi.mk
 
 CXX = mpicxx
-EXTRA_CXXFLAGS = -I$(KALDI_DIR)
 
 LDFLAGS += $(CUDA_LDFLAGS)
 LDLIBS += $(CUDA_LDLIBS)

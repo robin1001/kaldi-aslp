@@ -1,12 +1,11 @@
 
 all:
 
-KALDI_DIR = ../../../kaldi/src
-
-EXTRA_CXXFLAGS = -Wno-sign-compare -I$(KALDI_DIR) -I../aslp-nnet
-
+include ../aslp.mk
 include $(KALDI_DIR)/kaldi.mk
 
+
+EXTRA_CXXFLAGS += -Wno-sign-compare
 LDFLAGS += $(CUDA_LDFLAGS)
 LDLIBS += $(CUDA_LDLIBS)
 
