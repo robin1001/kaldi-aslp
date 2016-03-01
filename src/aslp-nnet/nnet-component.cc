@@ -98,12 +98,12 @@ Component* Component::NewComponentOfType(ComponentType comp_type,
     case Component::kConvolutionalComponent :
       ans = new ConvolutionalComponent(input_dim, output_dim);
       break;
-//    case Component::kLstmProjectedStreams :
-//      ans = new LstmProjectedStreams(input_dim, output_dim);
-//      break;
-//    case Component::kBLstmProjectedStreams :
-//      ans = new BLstmProjectedStreams(input_dim, output_dim);
-//      break;
+    case Component::kLstmProjectedStreams :
+      ans = new LstmProjectedStreams(input_dim, output_dim);
+      break;
+    case Component::kBLstmProjectedStreams :
+      ans = new BLstmProjectedStreams(input_dim, output_dim);
+      break;
     case Component::kSoftmax :
       ans = new Softmax(input_dim, output_dim);
       break;
