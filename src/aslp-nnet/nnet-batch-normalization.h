@@ -64,6 +64,12 @@ public:
         KALDI_ASSERT(acc_means_.Dim() == acc_vars_.Dim());
         KALDI_ASSERT(acc_means_.Dim() == shift_.Dim());
         KALDI_ASSERT(acc_means_.Dim() == scale_.Dim());
+
+        // Add init mean and var, error if num_acc_frames_ == 0
+        mean_vec_.Resize(acc_means_.Dim(), kSetZero);
+        var_vec_.Resize(acc_means_.Dim());
+        var_vec_.Set(1.0);
+
         if (num_acc_frames_ <= 0.0)
             return;
         float var_floor = 1e-10;
