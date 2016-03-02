@@ -94,6 +94,9 @@ int main(int argc, char *argv[]) {
     //
     int report_period = 200; // 200 sentence with one report 
     po.Register("report-period", &report_period, "Number of sentence for one report log, default(200)");
+    int drop_len = 0;
+    po.Register("drop-len", &drop_len, "if Sentence frame length greater than drop_len,"
+                "then drop it, default(0, no drop)");
     
     po.Read(argc, argv);
 
@@ -180,6 +183,11 @@ int main(int argc, char *argv[]) {
                 const std::string& key = feature_reader.Key();
                 // get the feature matrix,
                 const Matrix<BaseFloat> &mat = feature_reader.Value();
+                if (drop_len > 0 && mat.NumRows() > drop_len) {
+                    KALDI_WARN << key << ", too long, droped";
+                    feature_reader.Next();
+                    continue;
+                }
                 // forward the features through a feature-transform,
                 nnet_transf.Feedforward(CuMatrix<BaseFloat>(mat), &feat_transf);
                 
