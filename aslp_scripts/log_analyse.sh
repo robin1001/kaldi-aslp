@@ -6,6 +6,7 @@
 sum=121
 stride=5
 
+. path.sh
 . parse_options.sh || exit 1;
 
 if [ $# != 1 ]; then
@@ -27,6 +28,6 @@ awk -v sum=$sum -v stride=$stride '{
 #if ((NR - 1) % 5 == 0) print $7;
 iter = int(1 + (NR - 1) / sum);
 if ((NR - 1) % sum == 0) print $7;
-if ((NR - 1 - iter) % stride == 0) print $7; 
+else if ((NR - 1 - iter) % stride == 0) print $7; 
 }'
 

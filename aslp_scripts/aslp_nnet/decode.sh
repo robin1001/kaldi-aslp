@@ -112,7 +112,7 @@ feats="ark,s,cs:copy-feats scp:$sdata/JOB/feats.scp ark:- |"
 # add-deltas (optional),
 [ ! -z "$delta_opts" ] && feats="$feats add-deltas $delta_opts ark:- ark:- |"
 # add splice (optional)
-[ ! -z "splice_opts" ] && feats="$feats splice-feats $splice_opts ark:- ark:- |"
+[ ! -z "$splice_opts" ] && feats="$feats splice-feats $splice_opts ark:- ark:- |"
 
 # Run the decoding in the queue,
 if [ $stage -le 0 ]; then
