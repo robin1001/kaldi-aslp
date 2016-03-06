@@ -86,7 +86,9 @@ class Component {
     kParallelComponent,
 
     // Aslp extention component 
-    kBatchNormalization = 0x0f00
+    kBatchNormalization = 0x0f00,
+    kInputLayer,
+    kOutputLayer
   } ComponentType;
   /// A pair of type and marker 
   struct key_value {
@@ -123,6 +125,30 @@ class Component {
   /// Get size of output vectors 
   int32 OutputDim() const { 
     return output_dim_; 
+  }
+  int32 Id() const {
+    return id_;
+  }
+  void SetId(int id) {
+    id_ = id;
+  }
+  const std::vector<int32> & GetInput() const {
+    return input_;
+  }
+  void SetInput(const std::vector<int32> &input) {
+    input_ = input;
+  }
+  const std::vector<float> & GetScalar() const {
+    return scalar_;
+  }
+  void SetScalar(const std::vector<float> &scalar) {
+    scalar_ = scalar;
+  }
+  const std::vector<int32> & GetOffset() const {
+    return offset_;
+  }
+  void SetOffset(const std::vector<int32> &offset) {
+    offset_ = offset;
   }
   /// Perform feed forward pass
   virtual void Feedforward(const CuMatrixBase<BaseFloat> &in, 
@@ -174,6 +200,9 @@ class Component {
  protected:
   int32 input_dim_;  ///< Size of input vectors
   int32 output_dim_; ///< Size of output vectors
+  int32 id_;
+  std::vector<int32> input_, offset_;
+  std::vector<float> scalar_;
 
  private:
   /// Create new intance of component

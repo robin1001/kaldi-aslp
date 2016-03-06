@@ -35,11 +35,9 @@ Nnet::Nnet(const Nnet& other) {
   for(int32 i = 0; i < other.NumComponents(); i++) {
     components_.push_back(other.GetComponent(i).Copy());
   }
-  // create empty buffers
-  propagate_buf_.resize(NumComponents()+1);
-  backpropagate_buf_.resize(NumComponents()+1);
   // copy train opts
   SetTrainOptions(other.opts_);
+  InitInputOutput();
   Check();
 }
 
@@ -49,11 +47,9 @@ Nnet & Nnet::operator = (const Nnet& other) {
   for(int32 i = 0; i < other.NumComponents(); i++) {
     components_.push_back(other.GetComponent(i).Copy());
   }
-  // create empty buffers
-  propagate_buf_.resize(NumComponents()+1);
-  backpropagate_buf_.resize(NumComponents()+1);
   // copy train opts
   SetTrainOptions(other.opts_); 
+  InitInputOutput();
   Check();
   return *this;
 }
@@ -200,16 +196,15 @@ void Nnet::SetComponent(int32 c, Component *component) {
   KALDI_ASSERT(static_cast<size_t>(c) < components_.size());
   delete components_[c];
   components_[c] = component;
+  InitInputOutput();
   Check(); // Check that all the dimensions still match up.
 }
 
 void Nnet::AppendComponent(Component* dynamically_allocated_comp) {
   // append,
   components_.push_back(dynamically_allocated_comp);
-  // create training buffers,
-  propagate_buf_.resize(NumComponents()+1);
-  backpropagate_buf_.resize(NumComponents()+1);
   //
+  InitInputOutput();
   Check();
 }
 
@@ -218,10 +213,8 @@ void Nnet::AppendNnet(const Nnet& nnet_to_append) {
   for(int32 i=0; i<nnet_to_append.NumComponents(); i++) {
     AppendComponent(nnet_to_append.GetComponent(i).Copy());
   }
-  // create training buffers,
-  propagate_buf_.resize(NumComponents()+1);
-  backpropagate_buf_.resize(NumComponents()+1);
   //
+  InitInputOutput();
   Check();
 }
 
@@ -231,10 +224,8 @@ void Nnet::RemoveComponent(int32 component) {
   Component* ptr = components_[component];
   components_.erase(components_.begin()+component);
   delete ptr;
-  // create training buffers,
-  propagate_buf_.resize(NumComponents()+1);
-  backpropagate_buf_.resize(NumComponents()+1);
   // 
+  InitInputOutput();
   Check();
 }
 
@@ -422,11 +413,20 @@ void Nnet::Init(const std::string &file) {
     KALDI_VLOG(1) << conf_line; 
     std::istringstream(conf_line) >> std::ws >> token; // get 1st token,
     if (token == "<NnetProto>" || token == "</NnetProto>") continue; // ignored tokens,
-    AppendComponent(Component::Init(conf_line+"\n"));
+    //AppendComponent(Component::Init(conf_line+"\n"));
+    Component *comp = Component::Init(conf_line+"\n");
+    int id = comp->Id();
+    if (id >= components_.size()) components_.resize(id+1, NULL);
+    if (components_[id] != NULL) {
+      KALDI_ERR << "Component id " << id << " already be taken" 
+                << "the id must be unique"; 
+    }
+    components_[id] = comp;
     is >> std::ws;
   }
   // cleanup
   in.Close();
+  InitInputOutput();
   Check();
 }
 
@@ -452,14 +452,23 @@ void Nnet::Read(std::istream &is, bool binary) {
                 << " Previous layer output:" << components_.back()->OutputDim()
                 << " Current layer input:" << comp->InputDim();
     }
-    components_.push_back(comp);
+    //components_.push_back(comp);
+    int id = comp->Id();
+    if (id >= components_.size()) components_.resize(id+1, NULL);
+    if (components_[id] != NULL) {
+      KALDI_ERR << "Component id " << id << " already be taken" 
+                << "the id must be unique"; 
+    }
+    // components i index = comp->Id(), in order
+    components_[id] = comp;
   }
   // create empty buffers
-  propagate_buf_.resize(NumComponents()+1);
-  backpropagate_buf_.resize(NumComponents()+1);
+  propagate_buf_.resize(NumComponents());
+  backpropagate_buf_.resize(NumComponents());
   // reset learn rate
   opts_.learn_rate = 0.0;
   
+  InitInputOutput();
   Check(); //check consistency (dims...)
 }
 
@@ -548,19 +557,46 @@ std::string Nnet::InfoBackPropagate() const {
   return ostr.str();
 }
 
-
-
+/// Add by zhangbinbin date 2016-03-05
 void Nnet::Check() const {
-  // check we have correct number of buffers,
-  KALDI_ASSERT(propagate_buf_.size() == NumComponents()+1);
-  KALDI_ASSERT(backpropagate_buf_.size() == NumComponents()+1);
-  // check dims,
-  for (size_t i = 0; i + 1 < components_.size(); i++) {
-    KALDI_ASSERT(components_[i] != NULL);
-    int32 output_dim = components_[i]->OutputDim(),
-      next_input_dim = components_[i+1]->InputDim();
-    KALDI_ASSERT(output_dim == next_input_dim);
+  // Check must have input and output
+  if (input_.size() < 1) {
+    KALDI_ERR << "Must have at least one InputLayer";
   }
+  if (output_.size() < 1) {
+    KALDI_ERR << "Must have at least one OutputLayer";
+  }
+  // Check index == id && none null component
+  for (int i = 0; i < NumComponents(); i++) {
+    if (components_[i] == NULL) {
+      KALDI_ERR << "Component id must be consistant, but have no id " << i;
+    }
+    if (components_[i]->Id() != i) {
+      KALDI_ERR << "Component id not equal index id, May be error in Read";
+    }
+  }
+  // Check layer's input id must less than layer' id
+  for (int i = 0; i < NumComponents(); i++) {
+    if (components_[i]->GetType() == Component::kInputLayer) continue;
+    const std::vector<int32> &input_idx = components_[i]->GetInput();
+    const std::vector<int32> &offset = components_[i]->GetOffset();
+    KALDI_ASSERT(input_idx.size() == offset.size());
+    for (int j = 0; j < input_idx.size(); j++) {
+      int idx = input_idx[j];
+      if (components_[idx]->Id() >= components_[i]->Id()) {
+        KALDI_ERR << "Input id must be less than Component id, case " 
+                  << " <Id> " << i << " <Input> " << idx;
+      }
+      int32 out_dim = components_[idx]->OutputDim();
+      if (offset[j] + out_dim > components_[i]->InputDim()) {
+        KALDI_ERR << "Component " << idx << " outputdim + offset must be less than "
+                  << "Component " << i << " inputdim";
+      }
+    }
+  }
+  // check we have correct number of buffers,
+  KALDI_ASSERT(propagate_buf_.size() == NumComponents());
+  KALDI_ASSERT(backpropagate_buf_.size() == NumComponents());
   // check for nan/inf in network weights,
   Vector<BaseFloat> weights;
   GetParams(&weights);
@@ -592,6 +628,24 @@ void Nnet::SetTrainOptions(const NnetTrainOptions& opts) {
       dynamic_cast<UpdatableComponent&>(GetComponent(l)).SetTrainOptions(opts_);
     }
   }
+}
+
+void Nnet::InitInputOutput() {
+  // Reset input_ and output_
+  input_.clear();
+  output_.clear();
+  for (int i = 0; i < NumComponents(); i++) {
+    if (components_[i] == NULL) continue;
+    if (components_[i]->GetType() == Component::kInputLayer) {
+      input_.push_back(components_[i]->Id());
+    }
+    else if (components_[i]->GetType() == Component::kOutputLayer) {
+      output_.push_back(components_[i]->Id());
+    }
+  } 
+  // create empty buffers
+  propagate_buf_.resize(NumComponents());
+  backpropagate_buf_.resize(NumComponents());
 }
 
  

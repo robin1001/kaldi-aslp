@@ -140,9 +140,12 @@ class Nnet {
   }
 
  private:
+   void InitInputOutput();
   /// Vector which contains all the components composing the neural network,
   /// the components are for example: AffineTransform, Sigmoid, Softmax
   std::vector<Component*> components_;
+  /// Inputs, Outputs
+  std::vector<int32> input_, output_;
 
   std::vector<CuMatrix<BaseFloat> > propagate_buf_;  ///< buffers for forward pass
   std::vector<CuMatrix<BaseFloat> > backpropagate_buf_;  ///< buffers for backward pass
