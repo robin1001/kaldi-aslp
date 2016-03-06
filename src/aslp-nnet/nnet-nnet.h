@@ -46,10 +46,19 @@ class Nnet {
  public:
   /// Perform forward pass through the network
   void Propagate(const CuMatrixBase<BaseFloat> &in, CuMatrix<BaseFloat> *out);
+  /// Perform forward pass with multi-input and multi-output
+  void Propagate(const std::vector<const CuMatrixBase<BaseFloat> *> &in, 
+        std::vector<CuMatrix<BaseFloat> *> *out); 
   /// Perform backward pass through the network
   void Backpropagate(const CuMatrixBase<BaseFloat> &out_diff, CuMatrix<BaseFloat> *in_diff);
+  /// Perform backward pass through the network
+  void Backpropagate(const std::vector<const CuMatrixBase<BaseFloat> *> &out_diff, 
+        std::vector<CuMatrix<BaseFloat> *> *in_diff);
   /// Perform forward pass through the network, don't keep buffers (use it when not training)
   void Feedforward(const CuMatrixBase<BaseFloat> &in, CuMatrix<BaseFloat> *out);
+  /// Perform forward pass through the network, don't keep buffers (use it when not training)
+  void Feedforward(const std::vector<const CuMatrixBase<BaseFloat> *> &in, 
+        std::vector<CuMatrix<BaseFloat> *> *out); 
 
   /// Dimensionality on network input (input feature dim.)
   int32 InputDim() const;
@@ -149,8 +158,8 @@ class Nnet {
 
   std::vector<CuMatrix<BaseFloat> > propagate_buf_;  ///< buffers for forward pass
   std::vector<CuMatrix<BaseFloat> > backpropagate_buf_;  ///< buffers for backward pass
-  std::vector<CuMatrix<BaseFloat> > input_forward_buf_, output_forward_buf_,
-                                    input_backward_buf_, output_backward_buf_;
+  std::vector<CuMatrix<BaseFloat> > input_buf_, output_buf_,
+                                    input_diff_buf_, output_diff_buf_;
 
   /// Option class with hyper-parameters passed to UpdatableComponent(s)
   NnetTrainOptions opts_;
