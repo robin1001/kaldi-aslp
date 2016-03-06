@@ -61,6 +61,7 @@ const struct Component::key_value Component::kMarkerMap[] = {
   { Component::kBatchNormalization, "<BatchNormalization>"},
   { Component::kInputLayer, "<InputLayer>"},
   { Component::kOutputLayer, "<OutputLayer>"},
+  { Component::kScaleLayer, "<ScaleLayer>"},
 };
 
 
@@ -150,6 +151,9 @@ Component* Component::NewComponentOfType(ComponentType comp_type,
     case Component::kOutputLayer :
       ans = new OutputLayer(input_dim, output_dim);
       break;
+    case Component::kScaleLayer:
+      ans = new ScaleLayer(input_dim, output_dim);
+      break;
     case Component::kUnknown :
     default :
       KALDI_ERR << "Missing type: " << TypeToMarker(comp_type);
@@ -181,23 +185,18 @@ Component* Component::Init(const std::string &conf_line) {
   int32 num_input = sub_input_string.size();
   std::vector<int32> input(num_input, 0),
                      offset(num_input, 0);
-  std::vector<float> scalar(num_input, 1.0);
   // Parse inputs
   for (int i = 0; i < num_input; i++) {
     std::vector<std::string> field;
     SplitStringToVector(sub_input_string[i], ":", true, &field);
     KALDI_ASSERT(field.size() >= 1);
-    KALDI_ASSERT(field.size() <= 3);
+    KALDI_ASSERT(field.size() <= 2);
     ConvertStringToInteger(field[0], &input[i]);
     if (field.size() > 1) {
-      ConvertStringToReal(field[1], &scalar[i]);
-    }
-    if (field.size() > 2) {
-      ConvertStringToInteger(field[2], &offset[i]);
+      ConvertStringToInteger(field[1], &offset[i]);
     }
     KALDI_VLOG(3) << "layerId " << id << " "
                   << "inputId " << input[i] << " "
-                  << "scalar " << scalar[i] << " "
                   << "offset " << offset[i];
   }
 
@@ -208,7 +207,6 @@ Component* Component::Init(const std::string &conf_line) {
   ans->SetId(id);
   ans->SetInput(input);
   ans->SetOffset(offset);
-  ans->SetScalar(scalar);
   return ans;
 }
 
@@ -235,23 +233,16 @@ Component* Component::Read(std::istream &is, bool binary) {
 
   int32 id;
   std::vector<int32> input, offset;
-  std::vector<float> scalar;
   ReadBasicType(is, binary, &id);
   ReadIntegerVector(is, binary, &input);
-  scalar.resize(input.size(), 1);
-  for (int i = 0; i < scalar.size(); i++) {
-    ReadBasicType(is, binary, &scalar[i]);
-  }
   ReadIntegerVector(is, binary, &offset);
-  KALDI_ASSERT(input.size() == scalar.size());
-  KALDI_ASSERT(scalar.size() == offset.size());
+  KALDI_ASSERT(input.size() == offset.size());
 
   Component *ans = NewComponentOfType(MarkerToType(token), dim_in, dim_out);
   ans->ReadData(is, binary);
   ans->SetId(id);
   ans->SetInput(input);
   ans->SetOffset(offset);
-  ans->SetScalar(scalar);
   return ans;
 }
 
@@ -262,9 +253,6 @@ void Component::Write(std::ostream &os, bool binary) const {
   WriteBasicType(os, binary, InputDim());
   WriteBasicType(os, binary, id_);
   WriteIntegerVector(os, binary, input_);
-  for (int i = 0; i < input_.size(); i++) {
-    WriteBasicType(os, binary, scalar_[i]);
-  }
   WriteIntegerVector(os, binary, offset_);
 
   if(!binary) os << "\n";

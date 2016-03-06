@@ -149,6 +149,8 @@ class Nnet {
 
   std::vector<CuMatrix<BaseFloat> > propagate_buf_;  ///< buffers for forward pass
   std::vector<CuMatrix<BaseFloat> > backpropagate_buf_;  ///< buffers for backward pass
+  std::vector<CuMatrix<BaseFloat> > input_forward_buf_, output_forward_buf_,
+                                    input_backward_buf_, output_backward_buf_;
 
   /// Option class with hyper-parameters passed to UpdatableComponent(s)
   NnetTrainOptions opts_;

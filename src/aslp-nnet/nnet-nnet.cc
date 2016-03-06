@@ -81,6 +81,27 @@ void Nnet::Propagate(const CuMatrixBase<BaseFloat> &in, CuMatrix<BaseFloat> *out
   (*out) = propagate_buf_[components_.size()];
 }
 
+//void Nnet::Propagate(const std::vector<const CuMatrixBase<BaseFloat> &> &in, 
+//                     std::vector<CuMatrix<BaseFloat> *> out) {
+//  KALDI_ASSERT(NULL != out);
+//  if (NumComponents() == 0) {
+//    (*out) = in; // copy 
+//    return; 
+//  }
+//  out->clear();
+//
+//  KALDI_ASSERT(in.size() == input_.size());
+//  // Copy in to InputLayer
+//  for (int i = 0; i < input_.size(); i++) {
+//    int idx = input_[i];
+//    propagate_buf_[idx].Resize(in[i].NumRows(), in[i].NumCols());
+//    propagate_buf_[idx].CopyFromMat(in[i]);
+//  }
+//  // Do propagate
+//  for(int32 i=0; i<(int32)components_.size(); i++) {
+//  }
+//}
+
 
 void Nnet::Backpropagate(const CuMatrixBase<BaseFloat> &out_diff, CuMatrix<BaseFloat> *in_diff) {
 
@@ -462,9 +483,6 @@ void Nnet::Read(std::istream &is, bool binary) {
     // components i index = comp->Id(), in order
     components_[id] = comp;
   }
-  // create empty buffers
-  propagate_buf_.resize(NumComponents());
-  backpropagate_buf_.resize(NumComponents());
   // reset learn rate
   opts_.learn_rate = 0.0;
   
@@ -646,6 +664,10 @@ void Nnet::InitInputOutput() {
   // create empty buffers
   propagate_buf_.resize(NumComponents());
   backpropagate_buf_.resize(NumComponents());
+  input_forward_buf_.resize(NumComponents());
+  output_forward_buf_.resize(NumComponents());
+  input_backward_buf_.resize(NumComponents());
+  output_backward_buf_.resize(NumComponents());
 }
 
  

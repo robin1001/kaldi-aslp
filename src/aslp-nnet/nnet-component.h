@@ -88,7 +88,8 @@ class Component {
     // Aslp extention component 
     kBatchNormalization = 0x0f00,
     kInputLayer,
-    kOutputLayer
+    kOutputLayer,
+    kScaleLayer
   } ComponentType;
   /// A pair of type and marker 
   struct key_value {
@@ -137,12 +138,6 @@ class Component {
   }
   void SetInput(const std::vector<int32> &input) {
     input_ = input;
-  }
-  const std::vector<float> & GetScalar() const {
-    return scalar_;
-  }
-  void SetScalar(const std::vector<float> &scalar) {
-    scalar_ = scalar;
   }
   const std::vector<int32> & GetOffset() const {
     return offset_;
@@ -202,7 +197,6 @@ class Component {
   int32 output_dim_; ///< Size of output vectors
   int32 id_;
   std::vector<int32> input_, offset_;
-  std::vector<float> scalar_;
 
  private:
   /// Create new intance of component
