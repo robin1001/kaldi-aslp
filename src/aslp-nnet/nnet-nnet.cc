@@ -115,22 +115,27 @@ void Nnet::Backpropagate(const std::vector<const CuMatrixBase<BaseFloat> *> &out
             UpdatableComponent *uc = dynamic_cast<UpdatableComponent*>(components_[i]);
             uc->Update(input_buf_[i], output_diff_buf_[i]);
         }
-        if (components_[i]->GetType() != Component::kInputLayer) continue;
-        const std::vector<int32> &input_idx = components_[i]->GetInput();
-        const std::vector<int32> &offset = components_[i]->GetOffset();
-        KALDI_ASSERT(input_idx.size() == offset.size());
-        for (int j = 0; j < input_idx.size(); j++) {
-            int out_len = components_[input_idx[j]]->OutputDim();
-            output_diff_buf_[input_idx[j]].AddMat(1.0, 
-                input_diff_buf_[i].ColRange(offset[j], out_len));
+        if (components_[i]->GetType() != Component::kInputLayer) {
+            const std::vector<int32> &input_idx = components_[i]->GetInput();
+            const std::vector<int32> &offset = components_[i]->GetOffset();
+            KALDI_ASSERT(input_idx.size() == offset.size());
+            for (int j = 0; j < input_idx.size(); j++) {
+                KALDI_ASSERT(input_idx[j] >= 0);
+                KALDI_ASSERT(input_idx[j] <= NumComponents());
+                int out_len = components_[input_idx[j]]->OutputDim();
+                output_diff_buf_[input_idx[j]].AddMat(1.0, 
+                        input_diff_buf_[i].ColRange(offset[j], out_len));
+            }
         }
     }
     // 4. Copy to in_diff
     if (NULL == in_diff) return;
     for (int i = 0; i < input_.size(); i++) {
-        if ((*in_diff)[i] != NULL) continue;
-        *((*in_diff)[i]) = input_diff_buf_[input_[i]];
+        if ((*in_diff)[i] != NULL) {
+            *((*in_diff)[i]) = input_diff_buf_[input_[i]];
+        }
     }
+    //KALDI_LOG << "5. Done";
 }
 
 void Nnet::Feedforward(const std::vector<const CuMatrixBase<BaseFloat> *> &in, 
@@ -487,12 +492,6 @@ void Nnet::Read(std::istream &is, bool binary) {
   // get the network layers from a factory
   Component *comp;
   while (NULL != (comp = Component::Read(is, binary))) {
-    if (NumComponents() > 0 && components_.back()->OutputDim() != comp->InputDim()) {
-      KALDI_ERR << "Dimensionality mismatch!"
-                << " Previous layer output:" << components_.back()->OutputDim()
-                << " Current layer input:" << comp->InputDim();
-    }
-    //components_.push_back(comp);
     int id = comp->Id();
     if (id >= components_.size()) components_.resize(id+1, NULL);
     if (components_[id] != NULL) {
@@ -543,7 +542,14 @@ std::string Nnet::Info() const {
          << Component::TypeToMarker(components_[i]->GetType()) 
          << ", input-dim " << components_[i]->InputDim()
          << ", output-dim " << components_[i]->OutputDim()
-         << ", " << components_[i]->Info() << std::endl;
+         << ", id " << components_[i]->Id();
+    const std::vector<int32> &input_idx = components_[i]->GetInput();
+    const std::vector<int32> &offset = components_[i]->GetOffset();
+    ostr << ", input ";
+    for (int j = 0; j < input_idx.size(); j++) {
+      ostr << input_idx[j] << ":" << offset[j] << ",";
+    }
+    ostr << "  " << components_[i]->Info() << std::endl;
   }
   return ostr.str();
 }
@@ -626,6 +632,8 @@ void Nnet::Check() const {
       int32 out_dim = components_[idx]->OutputDim();
       if (offset[j] + out_dim > components_[i]->InputDim()) {
         KALDI_ERR << "Component " << idx << " outputdim + offset must be less than "
+                  << "offset " << offset[j] << " "
+                  << "outdim " << out_dim << " "
                   << "Component " << i << " inputdim";
       }
     }
