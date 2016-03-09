@@ -10,7 +10,8 @@ LDLIBS += $(CUDA_LDLIBS)
 TESTFILES = nnet-randomizer-test nnet-component-test
 
 OBJFILES = nnet-nnet.o nnet-component.o nnet-loss.o \
-           nnet-randomizer.o nnet-pdf-prior.o
+           nnet-randomizer.o nnet-pdf-prior.o \
+           data-reader.o
 
 LIBNAME = aslp-nnet
 
@@ -28,5 +29,5 @@ nnet-component.o: nnet-component.h \
                   nnet-lstm-projected-streams.h nnet-blstm-projected-streams.h \
                   nnet-batch-normalization.h nnet-io.h
 
-
+data-reader.o:data-reader.h
 
