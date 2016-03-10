@@ -71,9 +71,6 @@ int main(int argc, char *argv[]) {
             model_filename = po.GetArg(num_args);
         }
 
-        std::string feature_rspecifier = po.GetArg(1),
-            targets_rspecifier = po.GetArg(2);
-
         // Select the GPU
 #if HAVE_CUDA==1
         CuDevice::Instantiate().SelectGpuId(use_gpu);
@@ -162,7 +159,8 @@ int main(int argc, char *argv[]) {
             // Report
             if (report_period > 0 && report_frames >= report_period) {
                 for (int i = 0; i < losses.size(); i++) {
-                    KALDI_LOG << losses[i]->Report() << " [" << i << "]";
+                    KALDI_LOG << "Obj " << "[" << i << "] " << sub_string[i];
+                    KALDI_LOG << losses[i]->Report();
                 }
                 report_frames -= report_period;
             }
@@ -177,7 +175,8 @@ int main(int argc, char *argv[]) {
             << ", " << time.Elapsed()/60 << " min, fps" << total_frames/time.Elapsed()
             << "]";  
         for (int i = 0; i < losses.size(); i++) {
-            KALDI_LOG << losses[i]->Report() << " [" << i << "]";
+            KALDI_LOG << "Obj " << "[" << i << "] " << sub_string[i];
+            KALDI_LOG << losses[i]->Report();
         }
         for (int i = 0; i < num_output; i++) {
             delete losses[i];

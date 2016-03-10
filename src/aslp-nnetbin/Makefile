@@ -14,7 +14,8 @@ BINFILES = aslp-nnet-info aslp-nnet-init \
          aslp-nnet-train-simple \
          aslp-nnet-forward \
          aslp-nnet-train-lstm-streams \
-         aslp-nnet-train-frame aslp-nnet-train-frame-mimo
+         aslp-nnet-train-frame aslp-nnet-train-frame-mimo \
+         aslp-nnet-forward-mimo
 
 #        nnet-train-perutt \
 #        nnet-train-mmi-sequential \
