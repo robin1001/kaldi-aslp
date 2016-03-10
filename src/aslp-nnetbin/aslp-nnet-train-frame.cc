@@ -21,7 +21,7 @@ int main(int argc, char *argv[]) {
     try {
         const char *usage =
             "Perform one iteration of Neural Network training by mini-batch Stochastic Gradient Descent.\n"
-            "It is same to aslp-nnet-train-simple, but use FrameDataReader.\n"
+            "It is same to aslp-nnet-train-simple, but use FrameDataReader to read feat and label.\n"
             "This version use pdf-posterior as targets, prepared typically by ali-to-post.\n"
             "Usage:  aslp-nnet-train-frame [options] <feature-rspecifier> <targets-rspecifier> <model-in> [<model-out>]\n"
             "e.g.: \n"
@@ -103,19 +103,19 @@ int main(int argc, char *argv[]) {
         while (!reader.Done()) {
             reader.ReadData(&nnet_in, &nnet_tgt); 
             // Forward pass
-            //if (!crossvalidate) {
-            //    nnet.Propagate(*nnet_in, &nnet_out);
-            //} else {
-            //    nnet.Feedforward(*nnet_in, &nnet_out);
-            //}
-            //// Eval loss
-            //loss->Eval(nnet_out, *nnet_tgt, &obj_diff);
-            //// Backward pass
-            //if (!crossvalidate) {
-            //    nnet.Backpropagate(obj_diff, NULL);
-            //}
-            //total_frames += nnet_in->NumRows();
-            //report_frames += nnet_in->NumRows();
+            if (!crossvalidate) {
+                nnet.Propagate(*nnet_in, &nnet_out);
+            } else {
+                nnet.Feedforward(*nnet_in, &nnet_out);
+            }
+            // Eval loss
+            loss->Eval(nnet_out, *nnet_tgt, &obj_diff);
+            // Backward pass
+            if (!crossvalidate) {
+                nnet.Backpropagate(obj_diff, NULL);
+            }
+            total_frames += nnet_in->NumRows();
+            report_frames += nnet_in->NumRows();
             // Report
             if (report_period > 0 && report_frames >= report_period) {
                 KALDI_LOG << loss->Report();

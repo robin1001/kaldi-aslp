@@ -65,6 +65,14 @@ class Nnet {
   /// Dimensionality of network outputs (posteriors | bn-features | etc.)
   int32 OutputDim() const;
 
+  int32 NumInput() const {
+    return input_.size();
+  }
+
+  int32 NumOutput() const {
+    return output_.size();
+  }
+
   /// Returns number of components-- think of this as similar to # of layers, but
   /// e.g. the nonlinearity and the linear part count as separate components,
   /// so the number of components will be more than the number of layers.
