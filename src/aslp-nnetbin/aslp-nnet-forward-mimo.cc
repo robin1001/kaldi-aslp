@@ -99,7 +99,7 @@ int main(int argc, char *argv[]) {
         nnet_in.resize(num_input, NULL);
         nnet_outs.resize(num_output, NULL);
         for (int i = 0; i < num_output; i++) {
-            nnet_outs.push_back(new CuMatrix<BaseFloat>);
+            nnet_outs[i] = new CuMatrix<BaseFloat>;
         }
 
         Timer time;
@@ -115,6 +115,7 @@ int main(int argc, char *argv[]) {
             }
             // Add feature
             std::string utt = feature_readers[0]->Key();
+            KALDI_VLOG(2) << "Processing " << utt;
             for (int i = 0; i < num_input; i++) {
                 std::string utti = feature_readers[i]->Key();
                 if (utti != utt) {

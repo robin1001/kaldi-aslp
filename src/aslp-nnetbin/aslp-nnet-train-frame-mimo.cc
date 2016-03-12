@@ -181,7 +181,7 @@ int main(int argc, char *argv[]) {
         for (int i = 0; i < num_output; i++) {
             delete losses[i];
             delete nnet_out[i];
-            delete nnet_tgt[i];
+            delete obj_diff[i];
         }
 
 #if HAVE_CUDA==1
