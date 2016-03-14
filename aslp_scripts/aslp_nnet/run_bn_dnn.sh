@@ -12,6 +12,7 @@ ali=${gmmdir}_ali
 num_cv_utt=3484
 
 echo "$0 $@"  # Print the command line for logging
+[ -f cmd.sh ] && . ./cmd.sh;
 [ -f path.sh ] && . ./path.sh; 
 . parse_options.sh || exit 1;
 
