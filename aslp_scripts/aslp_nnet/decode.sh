@@ -20,6 +20,7 @@ lattice_beam=8.0
 min_active=200
 max_active=7000 # limit of active tokens
 max_mem=50000000 # approx. limit to memory consumption during minimization in bytes
+forward_tool="aslp-nnet-forward"
 nnet_forward_opts="--no-softmax=true --prior-scale=1.0"
 
 skip_scoring=false
@@ -117,7 +118,7 @@ feats="ark,s,cs:copy-feats scp:$sdata/JOB/feats.scp ark:- |"
 # Run the decoding in the queue,
 if [ $stage -le 0 ]; then
   $cmd --num-threads $((num_threads+1)) JOB=1:$nj $dir/log/decode.JOB.log \
-    aslp-nnet-forward $nnet_forward_opts --class-frame-counts=$class_frame_counts --use-gpu=$use_gpu "$nnet" "$feats" ark:- \| \
+    $forward_tool $nnet_forward_opts --class-frame-counts=$class_frame_counts --use-gpu=$use_gpu "$nnet" "$feats" ark:- \| \
     latgen-faster-mapped$thread_string --min-active=$min_active --max-active=$max_active --max-mem=$max_mem --beam=$beam \
     --lattice-beam=$lattice_beam --acoustic-scale=$acwt --allow-partial=true --word-symbol-table=$graphdir/words.txt \
     $model $graphdir/HCLG.fst ark:- "ark:|gzip -c > $dir/lat.JOB.gz" || exit 1;

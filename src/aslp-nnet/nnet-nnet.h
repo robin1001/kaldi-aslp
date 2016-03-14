@@ -46,15 +46,32 @@ class Nnet {
  public:
   /// Perform forward pass through the network
   void Propagate(const CuMatrixBase<BaseFloat> &in, CuMatrix<BaseFloat> *out);
+  /// Perform forward pass with multi-input and multi-output
+  void Propagate(const std::vector<const CuMatrixBase<BaseFloat> *> &in, 
+        std::vector<CuMatrix<BaseFloat> *> *out); 
   /// Perform backward pass through the network
   void Backpropagate(const CuMatrixBase<BaseFloat> &out_diff, CuMatrix<BaseFloat> *in_diff);
+  /// Perform backward pass through the network
+  void Backpropagate(const std::vector<const CuMatrixBase<BaseFloat> *> &out_diff, 
+        std::vector<CuMatrix<BaseFloat> *> *in_diff);
   /// Perform forward pass through the network, don't keep buffers (use it when not training)
   void Feedforward(const CuMatrixBase<BaseFloat> &in, CuMatrix<BaseFloat> *out);
+  /// Perform forward pass through the network, don't keep buffers (use it when not training)
+  void Feedforward(const std::vector<const CuMatrixBase<BaseFloat> *> &in, 
+        std::vector<CuMatrix<BaseFloat> *> *out); 
 
   /// Dimensionality on network input (input feature dim.)
   int32 InputDim() const;
   /// Dimensionality of network outputs (posteriors | bn-features | etc.)
   int32 OutputDim() const;
+
+  int32 NumInput() const {
+    return input_.size();
+  }
+
+  int32 NumOutput() const {
+    return output_.size();
+  }
 
   /// Returns number of components-- think of this as similar to # of layers, but
   /// e.g. the nonlinearity and the linear part count as separate components,
@@ -140,12 +157,17 @@ class Nnet {
   }
 
  private:
+   void InitInputOutput();
   /// Vector which contains all the components composing the neural network,
   /// the components are for example: AffineTransform, Sigmoid, Softmax
   std::vector<Component*> components_;
+  /// Inputs, Outputs
+  std::vector<int32> input_, output_;
 
   std::vector<CuMatrix<BaseFloat> > propagate_buf_;  ///< buffers for forward pass
   std::vector<CuMatrix<BaseFloat> > backpropagate_buf_;  ///< buffers for backward pass
+  std::vector<CuMatrix<BaseFloat> > input_buf_, output_buf_,
+                                    input_diff_buf_, output_diff_buf_;
 
   /// Option class with hyper-parameters passed to UpdatableComponent(s)
   NnetTrainOptions opts_;

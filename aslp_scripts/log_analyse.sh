@@ -6,7 +6,7 @@
 sum=121
 stride=5
 
-. path.sh
+[ -f path.sh ] && . ./path.sh;
 . parse_options.sh || exit 1;
 
 if [ $# != 1 ]; then

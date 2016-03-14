@@ -1,4 +1,4 @@
-// nnet/nnet-nnet.cc
+// aslp-nnet/nnet-nnet.cc
 
 // Copyright 2011-2013  Brno University of Technology (Author: Karel Vesely)
 // Copyright 2016  ASLP (Author: zhangbinbin liwenpeng duwei)
@@ -35,11 +35,9 @@ Nnet::Nnet(const Nnet& other) {
   for(int32 i = 0; i < other.NumComponents(); i++) {
     components_.push_back(other.GetComponent(i).Copy());
   }
-  // create empty buffers
-  propagate_buf_.resize(NumComponents()+1);
-  backpropagate_buf_.resize(NumComponents()+1);
   // copy train opts
   SetTrainOptions(other.opts_);
+  InitInputOutput();
   Check();
 }
 
@@ -49,11 +47,9 @@ Nnet & Nnet::operator = (const Nnet& other) {
   for(int32 i = 0; i < other.NumComponents(); i++) {
     components_.push_back(other.GetComponent(i).Copy());
   }
-  // create empty buffers
-  propagate_buf_.resize(NumComponents()+1);
-  backpropagate_buf_.resize(NumComponents()+1);
   // copy train opts
   SetTrainOptions(other.opts_); 
+  InitInputOutput();
   Check();
   return *this;
 }
@@ -63,117 +59,162 @@ Nnet::~Nnet() {
   Destroy();
 }
 
+void Nnet::Propagate(const std::vector<const CuMatrixBase<BaseFloat> *> &in, 
+        std::vector<CuMatrix<BaseFloat> *> *out) {
+    KALDI_ASSERT(NULL != out);
+    
+    KALDI_ASSERT(in.size() == input_.size());
+    int num_frame = in[0]->NumRows();
+    // 1. Resize
+    for(int32 i=0; i<(int32)components_.size(); i++) {
+        input_buf_[i].Resize(num_frame, components_[i]->InputDim(), kSetZero);
+    }
+    // 2. Copy in to InputLayer
+    for (int i = 0; i < input_.size(); i++) {
+        int idx = input_[i];
+        input_buf_[idx].CopyFromMat(*(in[i]));
+    }
+    // 3. Do propagate
+    for(int32 i=0; i<(int32)components_.size(); i++) {
+        if (components_[i]->GetType() != Component::kInputLayer) {
+            const std::vector<int32> &input_idx = components_[i]->GetInput();
+            const std::vector<int32> &offset = components_[i]->GetOffset();
+            KALDI_ASSERT(input_idx.size() == offset.size());
+            for (int j = 0; j < input_idx.size(); j++) {
+                int out_len = components_[input_idx[j]]->OutputDim();
+                input_buf_[i].ColRange(offset[j], out_len).AddMat(1.0, 
+                    output_buf_[input_idx[j]]);
+            }
+        }
+        components_[i]->Propagate(input_buf_[i], &output_buf_[i]);
+    }
+    // 4. Copy to Output
+    for (int i = 0; i < output_.size(); i++) {
+        *((*out)[i]) = output_buf_[output_[i]];
+    }
+}
+
+void Nnet::Backpropagate(const std::vector<const CuMatrixBase<BaseFloat> *> &out_diff, 
+        std::vector<CuMatrix<BaseFloat> *> *in_diff) {
+    KALDI_ASSERT(out_diff.size() == output_.size());
+    int num_frame = out_diff[0]->NumRows();
+    // 1. Resize
+    for(int32 i=0; i<(int32)components_.size(); i++) {
+        output_diff_buf_[i].Resize(num_frame, components_[i]->OutputDim(), kSetZero);
+    }
+    // 2. Copy in to output buffer
+    for (int i = 0; i < output_.size(); i++) {
+        int idx = output_[i];
+        output_diff_buf_[idx].CopyFromMat(*(out_diff[i]));
+    }
+    // 3. Do BackPropagate
+    for (int32 i = NumComponents()-1; i >= 0; i--) {
+        components_[i]->Backpropagate(input_buf_[i], output_buf_[i],
+                            output_diff_buf_[i], &input_diff_buf_[i]);
+        if (components_[i]->IsUpdatable()) {
+            UpdatableComponent *uc = dynamic_cast<UpdatableComponent*>(components_[i]);
+            uc->Update(input_buf_[i], output_diff_buf_[i]);
+        }
+        if (components_[i]->GetType() != Component::kInputLayer) {
+            const std::vector<int32> &input_idx = components_[i]->GetInput();
+            const std::vector<int32> &offset = components_[i]->GetOffset();
+            KALDI_ASSERT(input_idx.size() == offset.size());
+            for (int j = 0; j < input_idx.size(); j++) {
+                KALDI_ASSERT(input_idx[j] >= 0);
+                KALDI_ASSERT(input_idx[j] <= NumComponents());
+                int out_len = components_[input_idx[j]]->OutputDim();
+                output_diff_buf_[input_idx[j]].AddMat(1.0, 
+                        input_diff_buf_[i].ColRange(offset[j], out_len));
+            }
+        }
+    }
+    // 4. Copy to in_diff
+    if (NULL == in_diff) return;
+    for (int i = 0; i < input_.size(); i++) {
+        if ((*in_diff)[i] != NULL) {
+            *((*in_diff)[i]) = input_diff_buf_[input_[i]];
+        }
+    }
+    //KALDI_LOG << "5. Done";
+}
+
+void Nnet::Feedforward(const std::vector<const CuMatrixBase<BaseFloat> *> &in, 
+        std::vector<CuMatrix<BaseFloat> *> *out) {
+    KALDI_ASSERT(NULL != out);
+    
+    KALDI_ASSERT(in.size() == input_.size());
+    int num_frame = in[0]->NumRows();
+    // 1. Resize
+    for(int32 i=0; i<(int32)components_.size(); i++) {
+        input_buf_[i].Resize(num_frame, components_[i]->InputDim(), kSetZero);
+    }
+    // 2. Copy in to InputLayer
+    for (int i = 0; i < input_.size(); i++) {
+        int idx = input_[i];
+        input_buf_[idx].CopyFromMat(*(in[i]));
+    }
+    // 3. Do propagate
+    for(int32 i=0; i<(int32)components_.size(); i++) {
+        if (components_[i]->GetType() != Component::kInputLayer) {
+            const std::vector<int32> &input_idx = components_[i]->GetInput();
+            const std::vector<int32> &offset = components_[i]->GetOffset();
+            KALDI_ASSERT(input_idx.size() == offset.size());
+            for (int j = 0; j < input_idx.size(); j++) {
+                int out_len = components_[input_idx[j]]->OutputDim();
+                input_buf_[i].ColRange(offset[j], out_len).AddMat(1.0, 
+                    output_buf_[input_idx[j]]);
+            }
+        }
+        components_[i]->Feedforward(input_buf_[i], &output_buf_[i]);
+    }
+    // 4. Copy to Output
+    for (int i = 0; i < output_.size(); i++) {
+        *((*out)[i]) = output_buf_[output_[i]];
+    }
+}
 
 void Nnet::Propagate(const CuMatrixBase<BaseFloat> &in, CuMatrix<BaseFloat> *out) {
-  KALDI_ASSERT(NULL != out);
-
-  if (NumComponents() == 0) {
-    (*out) = in; // copy 
-    return; 
-  }
-
-  // we need at least L+1 input buffers
-  KALDI_ASSERT((int32)propagate_buf_.size() >= NumComponents()+1);
-  
-  propagate_buf_[0].Resize(in.NumRows(), in.NumCols());
-  propagate_buf_[0].CopyFromMat(in);
-
-  for(int32 i=0; i<(int32)components_.size(); i++) {
-    components_[i]->Propagate(propagate_buf_[i], &propagate_buf_[i+1]);
-  }
-  
-  (*out) = propagate_buf_[components_.size()];
+    KALDI_ASSERT(NULL != out);
+    if (NumComponents() == 0) {
+        (*out) = in; // copy 
+        return; 
+    }
+    KALDI_ASSERT(input_.size() == 1);
+    KALDI_ASSERT(output_.size() == 1);
+    std::vector<const CuMatrixBase<BaseFloat> *> in_vec;
+    in_vec.push_back(&in);
+    std::vector<CuMatrix<BaseFloat> *> out_vec;
+    out_vec.push_back(out);
+    Propagate(in_vec, &out_vec);
 }
-
 
 void Nnet::Backpropagate(const CuMatrixBase<BaseFloat> &out_diff, CuMatrix<BaseFloat> *in_diff) {
-
-  //////////////////////////////////////
-  // Backpropagation
-  //
-
-  // 0 layers
-  if (NumComponents() == 0) { (*in_diff) = out_diff; return; }
-
-  KALDI_ASSERT((int32)propagate_buf_.size() == NumComponents()+1);
-  KALDI_ASSERT((int32)backpropagate_buf_.size() == NumComponents()+1);
-
-  // copy out_diff to last buffer
-  backpropagate_buf_[NumComponents()] = out_diff;
-  // backpropagate using buffers
-  for (int32 i = NumComponents()-1; i >= 0; i--) {
-    components_[i]->Backpropagate(propagate_buf_[i], propagate_buf_[i+1],
-                            backpropagate_buf_[i+1], &backpropagate_buf_[i]);
-    if (components_[i]->IsUpdatable()) {
-      UpdatableComponent *uc = dynamic_cast<UpdatableComponent*>(components_[i]);
-      uc->Update(propagate_buf_[i], backpropagate_buf_[i+1]);
-    }
-  }
-  // eventually export the derivative
-  if (NULL != in_diff) (*in_diff) = backpropagate_buf_[0];
-
-  //
-  // End of Backpropagation
-  //////////////////////////////////////
+    // 0 layers
+    if (NumComponents() == 0) { (*in_diff) = out_diff; return; }
+    KALDI_ASSERT(input_.size() == 1);
+    KALDI_ASSERT(output_.size() == 1);
+    std::vector<const CuMatrixBase<BaseFloat> *> out_diff_vec;
+    out_diff_vec.push_back(&out_diff);
+    std::vector<CuMatrix<BaseFloat> *> in_diff_vec;
+    in_diff_vec.push_back(in_diff);
+    Backpropagate(out_diff_vec, &in_diff_vec);
 }
 
-
-//void Nnet::Feedforward(const CuMatrixBase<BaseFloat> &in, CuMatrix<BaseFloat> *out) {
-//  KALDI_ASSERT(NULL != out);
-//
-//  if (NumComponents() == 0) { 
-//    out->Resize(in.NumRows(), in.NumCols());
-//    out->CopyFromMat(in); 
-//    return; 
-//  }
-//
-//  if (NumComponents() == 1) {
-//    components_[0]->Propagate(in, out);
-//    return;
-//  }
-//
-//  // we need at least 2 input buffers
-//  KALDI_ASSERT(propagate_buf_.size() >= 2);
-//
-//  // propagate by using exactly 2 auxiliary buffers
-//  int32 L = 0;
-//  components_[L]->Propagate(in, &propagate_buf_[L%2]);
-//  for(L++; L<=NumComponents()-2; L++) {
-//    components_[L]->Propagate(propagate_buf_[(L-1)%2], &propagate_buf_[L%2]);
-//  }
-//  components_[L]->Propagate(propagate_buf_[(L-1)%2], out);
-//  // release the buffers we don't need anymore
-//  propagate_buf_[0].Resize(0,0);
-//  propagate_buf_[1].Resize(0,0);
-//}
-
 void Nnet::Feedforward(const CuMatrixBase<BaseFloat> &in, CuMatrix<BaseFloat> *out) {
-  KALDI_ASSERT(NULL != out);
+    KALDI_ASSERT(NULL != out);
 
-  if (NumComponents() == 0) { 
-    out->Resize(in.NumRows(), in.NumCols());
-    out->CopyFromMat(in); 
-    return; 
-  }
-
-  if (NumComponents() == 1) {
-    components_[0]->Feedforward(in, out);
-    return;
-  }
-
-  // we need at least 2 input buffers
-  KALDI_ASSERT(propagate_buf_.size() >= 2);
-
-  // propagate by using exactly 2 auxiliary buffers
-  int32 L = 0;
-  components_[L]->Feedforward(in, &propagate_buf_[L%2]);
-  for(L++; L<=NumComponents()-2; L++) {
-    components_[L]->Feedforward(propagate_buf_[(L-1)%2], &propagate_buf_[L%2]);
-  }
-  components_[L]->Feedforward(propagate_buf_[(L-1)%2], out);
-  // release the buffers we don't need anymore
-  propagate_buf_[0].Resize(0,0);
-  propagate_buf_[1].Resize(0,0);
+    if (NumComponents() == 0) { 
+        out->Resize(in.NumRows(), in.NumCols());
+        out->CopyFromMat(in); 
+        return; 
+    }
+    KALDI_ASSERT(input_.size() == 1);
+    KALDI_ASSERT(output_.size() == 1);
+    std::vector<const CuMatrixBase<BaseFloat> *> in_vec;
+    in_vec.push_back(&in);
+    std::vector<CuMatrix<BaseFloat> *> out_vec;
+    out_vec.push_back(out);
+    Feedforward(in_vec, &out_vec);
 }
 
 int32 Nnet::OutputDim() const {
@@ -200,16 +241,15 @@ void Nnet::SetComponent(int32 c, Component *component) {
   KALDI_ASSERT(static_cast<size_t>(c) < components_.size());
   delete components_[c];
   components_[c] = component;
+  InitInputOutput();
   Check(); // Check that all the dimensions still match up.
 }
 
 void Nnet::AppendComponent(Component* dynamically_allocated_comp) {
   // append,
   components_.push_back(dynamically_allocated_comp);
-  // create training buffers,
-  propagate_buf_.resize(NumComponents()+1);
-  backpropagate_buf_.resize(NumComponents()+1);
   //
+  InitInputOutput();
   Check();
 }
 
@@ -218,10 +258,8 @@ void Nnet::AppendNnet(const Nnet& nnet_to_append) {
   for(int32 i=0; i<nnet_to_append.NumComponents(); i++) {
     AppendComponent(nnet_to_append.GetComponent(i).Copy());
   }
-  // create training buffers,
-  propagate_buf_.resize(NumComponents()+1);
-  backpropagate_buf_.resize(NumComponents()+1);
   //
+  InitInputOutput();
   Check();
 }
 
@@ -231,10 +269,8 @@ void Nnet::RemoveComponent(int32 component) {
   Component* ptr = components_[component];
   components_.erase(components_.begin()+component);
   delete ptr;
-  // create training buffers,
-  propagate_buf_.resize(NumComponents()+1);
-  backpropagate_buf_.resize(NumComponents()+1);
   // 
+  InitInputOutput();
   Check();
 }
 
@@ -422,11 +458,20 @@ void Nnet::Init(const std::string &file) {
     KALDI_VLOG(1) << conf_line; 
     std::istringstream(conf_line) >> std::ws >> token; // get 1st token,
     if (token == "<NnetProto>" || token == "</NnetProto>") continue; // ignored tokens,
-    AppendComponent(Component::Init(conf_line+"\n"));
+    //AppendComponent(Component::Init(conf_line+"\n"));
+    Component *comp = Component::Init(conf_line+"\n");
+    int id = comp->Id();
+    if (id >= components_.size()) components_.resize(id+1, NULL);
+    if (components_[id] != NULL) {
+      KALDI_ERR << "Component id " << id << " already be taken" 
+                << "the id must be unique"; 
+    }
+    components_[id] = comp;
     is >> std::ws;
   }
   // cleanup
   in.Close();
+  InitInputOutput();
   Check();
 }
 
@@ -447,19 +492,19 @@ void Nnet::Read(std::istream &is, bool binary) {
   // get the network layers from a factory
   Component *comp;
   while (NULL != (comp = Component::Read(is, binary))) {
-    if (NumComponents() > 0 && components_.back()->OutputDim() != comp->InputDim()) {
-      KALDI_ERR << "Dimensionality mismatch!"
-                << " Previous layer output:" << components_.back()->OutputDim()
-                << " Current layer input:" << comp->InputDim();
+    int id = comp->Id();
+    if (id >= components_.size()) components_.resize(id+1, NULL);
+    if (components_[id] != NULL) {
+      KALDI_ERR << "Component id " << id << " already be taken" 
+                << "the id must be unique"; 
     }
-    components_.push_back(comp);
+    // components i index = comp->Id(), in order
+    components_[id] = comp;
   }
-  // create empty buffers
-  propagate_buf_.resize(NumComponents()+1);
-  backpropagate_buf_.resize(NumComponents()+1);
   // reset learn rate
   opts_.learn_rate = 0.0;
   
+  InitInputOutput();
   Check(); //check consistency (dims...)
 }
 
@@ -497,7 +542,14 @@ std::string Nnet::Info() const {
          << Component::TypeToMarker(components_[i]->GetType()) 
          << ", input-dim " << components_[i]->InputDim()
          << ", output-dim " << components_[i]->OutputDim()
-         << ", " << components_[i]->Info() << std::endl;
+         << ", id " << components_[i]->Id();
+    const std::vector<int32> &input_idx = components_[i]->GetInput();
+    const std::vector<int32> &offset = components_[i]->GetOffset();
+    ostr << ", input ";
+    for (int j = 0; j < input_idx.size(); j++) {
+      ostr << input_idx[j] << ":" << offset[j] << ",";
+    }
+    ostr << "  " << components_[i]->Info() << std::endl;
   }
   return ostr.str();
 }
@@ -518,11 +570,11 @@ std::string Nnet::InfoPropagate() const {
   std::ostringstream ostr;
   // forward-pass buffer stats
   ostr << "### Forward propagation buffer content :\n";
-  ostr << "[0] output of <Input> " << MomentStatistics(propagate_buf_[0]) << std::endl;
+  ostr << "[0] output of <Input> " << MomentStatistics(input_buf_[0]) << std::endl;
   for (int32 i=0; i<NumComponents(); i++) {
     ostr << "["<<1+i<< "] output of " 
          << Component::TypeToMarker(components_[i]->GetType())
-         << MomentStatistics(propagate_buf_[i+1]) << std::endl;
+         << MomentStatistics(output_buf_[i]) << std::endl;
     // nested networks too...
     //if (Component::kParallelComponent == components_[i]->GetType()) {
     //  ostr << dynamic_cast<ParallelComponent*>(components_[i])->InfoPropagate();
@@ -535,11 +587,11 @@ std::string Nnet::InfoBackPropagate() const {
   std::ostringstream ostr;
   // forward-pass buffer stats
   ostr << "### Backward propagation buffer content :\n";
-  ostr << "[0] diff of <Input> " << MomentStatistics(backpropagate_buf_[0]) << std::endl;
+  ostr << "[0] diff of <Input> " << MomentStatistics(output_diff_buf_[0]) << std::endl;
   for (int32 i=0; i<NumComponents(); i++) {
     ostr << "["<<1+i<< "] diff-output of " 
          << Component::TypeToMarker(components_[i]->GetType())
-         << MomentStatistics(backpropagate_buf_[i+1]) << std::endl;
+         << MomentStatistics(output_diff_buf_[i]) << std::endl;
     // nested networks too...
     //if (Component::kParallelComponent == components_[i]->GetType()) {
     //  ostr << dynamic_cast<ParallelComponent*>(components_[i])->InfoBackPropagate();
@@ -548,18 +600,43 @@ std::string Nnet::InfoBackPropagate() const {
   return ostr.str();
 }
 
-
-
 void Nnet::Check() const {
-  // check we have correct number of buffers,
-  KALDI_ASSERT(propagate_buf_.size() == NumComponents()+1);
-  KALDI_ASSERT(backpropagate_buf_.size() == NumComponents()+1);
-  // check dims,
-  for (size_t i = 0; i + 1 < components_.size(); i++) {
-    KALDI_ASSERT(components_[i] != NULL);
-    int32 output_dim = components_[i]->OutputDim(),
-      next_input_dim = components_[i+1]->InputDim();
-    KALDI_ASSERT(output_dim == next_input_dim);
+  // Check must have input and output
+  if (input_.size() < 1) {
+    KALDI_ERR << "Must have at least one InputLayer";
+  }
+  if (output_.size() < 1) {
+    KALDI_ERR << "Must have at least one OutputLayer";
+  }
+  // Check index == id && none null component
+  for (int i = 0; i < NumComponents(); i++) {
+    if (components_[i] == NULL) {
+      KALDI_ERR << "Component id must be consistant, but have no id " << i;
+    }
+    if (components_[i]->Id() != i) {
+      KALDI_ERR << "Component id not equal index id, May be error in Read";
+    }
+  }
+  // Check layer's input id must less than layer' id
+  for (int i = 0; i < NumComponents(); i++) {
+    if (components_[i]->GetType() == Component::kInputLayer) continue;
+    const std::vector<int32> &input_idx = components_[i]->GetInput();
+    const std::vector<int32> &offset = components_[i]->GetOffset();
+    KALDI_ASSERT(input_idx.size() == offset.size());
+    for (int j = 0; j < input_idx.size(); j++) {
+      int idx = input_idx[j];
+      if (components_[idx]->Id() >= components_[i]->Id()) {
+        KALDI_ERR << "Input id must be less than Component id, case " 
+                  << " <Id> " << i << " <Input> " << idx;
+      }
+      int32 out_dim = components_[idx]->OutputDim();
+      if (offset[j] + out_dim > components_[i]->InputDim()) {
+        KALDI_ERR << "Component " << idx << " outputdim + offset must be less than "
+                  << "offset " << offset[j] << " "
+                  << "outdim " << out_dim << " "
+                  << "Component " << i << " inputdim";
+      }
+    }
   }
   // check for nan/inf in network weights,
   Vector<BaseFloat> weights;
@@ -579,8 +656,10 @@ void Nnet::Destroy() {
     delete components_[i];
   }
   components_.resize(0);
-  propagate_buf_.resize(0);
-  backpropagate_buf_.resize(0);
+  input_buf_.resize(0);
+  input_diff_buf_.resize(0);
+  output_buf_.resize(0);
+  output_diff_buf_.resize(0);
 }
 
 
@@ -592,6 +671,26 @@ void Nnet::SetTrainOptions(const NnetTrainOptions& opts) {
       dynamic_cast<UpdatableComponent&>(GetComponent(l)).SetTrainOptions(opts_);
     }
   }
+}
+
+void Nnet::InitInputOutput() {
+    // Reset input_ and output_
+    input_.clear();
+    output_.clear();
+    for (int i = 0; i < NumComponents(); i++) {
+        if (components_[i] == NULL) continue;
+        if (components_[i]->GetType() == Component::kInputLayer) {
+            input_.push_back(components_[i]->Id());
+        }
+        else if (components_[i]->GetType() == Component::kOutputLayer) {
+            output_.push_back(components_[i]->Id());
+        }
+    } 
+    // create empty buffers
+    input_buf_.resize(NumComponents());
+    output_buf_.resize(NumComponents());
+    input_diff_buf_.resize(NumComponents());
+    output_diff_buf_.resize(NumComponents());
 }
 
  
