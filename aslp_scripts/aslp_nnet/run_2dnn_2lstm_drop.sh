@@ -3,12 +3,12 @@
 # Copyright 2016  ASLP (Author: zhangbinbin)
 # Apache 2.0
 
-stage=3
+stage=1
 feat_dir=data_fbank
 gmmdir=exp/tri2b
-dir=exp/dnn_fbank_sync10
+dir=exp/dnn_fbank_2nn_2lstm_drop_1024
 ali=${gmmdir}_ali
-num_cv_utt=3484
+num_cv_utt=500
 
 echo "$0 $@"  # Print the command line for logging
 [ -f cmd.sh ] && . ./cmd.sh;
@@ -40,9 +40,9 @@ fi
 if [ $stage -le 1 ]; then
     echo "Preparing alignment and feats"
         #--delta_opts "--delta-order=2" \
+        #--splice_opts "--left-context=5 --right-context=5" \
     aslp_scripts/aslp_nnet/prepare_feats_ali.sh \
         --cmvn_opts "--norm-means=true --norm-vars=true" \
-        --splice_opts "--left-context=5 --right-context=5" \
         $feat_dir/train_tr $feat_dir/train_cv data/lang $ali $ali $dir || exit 1;
 fi
 
@@ -51,64 +51,45 @@ fi
     echo "$dir/train.conf(config file for nn training): no such file" && exit 1 
 source $dir/train.conf
 
-# Prerain nnet(dnn, cnn, lstm)
+# Prepare lstm init nnet
 if [ $stage -le 2 ]; then
     echo "Pretraining nnet"
     num_feat=$(feat-to-dim "$feats_tr" -) 
     num_tgt=$(hmm-info --print-args=false $ali/final.mdl | grep pdfs | awk '{ print $NF }')
-    hid_dim=1024        # number of neurons per layer,
-    hid_layers=4        # nr. of hidden layers (before sotfmax or bottleneck),
+    cell_dim=1024 # number of neurons per layer,
+    recurrent_dim=512
     echo $num_feat $num_tgt
-cat > $dir/hidden.conf <<EOF
-<NnetProto>
-<AffineTransform> <InputDim> $hid_dim <OutputDim> $hid_dim <BiasMean> -2.000000 <BiasRange> 4.000000 <ParamStddev> 0.1
-<Sigmoid> <InputDim> $hid_dim <OutputDim> $hid_dim 
-</NnetProto>
-EOF
 
-# Init nnet.proto with 3 layers
+# Init nnet.proto with 2 lstm layers
 cat > $dir/nnet.proto <<EOF
 <NnetProto>
-<AffineTransform> <InputDim> $num_feat <OutputDim> $hid_dim <BiasMean> -2.000000 <BiasRange> 4.000000 <ParamStddev> 0.1
-<Sigmoid> <InputDim> $hid_dim <OutputDim> $hid_dim 
-<AffineTransform> <InputDim> $hid_dim <OutputDim> $num_tgt <BiasMean> -2.000000 <BiasRange> 4.000000 <ParamStddev> 0.1
+<AffineTransform> <InputDim> $num_feat <OutputDim> 1024 <BiasMean> -2.000000 <BiasRange> 4.000000 <ParamStddev> 0.1
+<BatchNormalization> <InputDim> 1024 <OutputDim> 1024 
+<Sigmoid> <InputDim> 1024 <OutputDim> 1024 
+<AffineTransform> <InputDim> 1024 <OutputDim> 512 <BiasMean> -2.000000 <BiasRange> 4.000000 <ParamStddev> 0.1
+<BatchNormalization> <InputDim> 512 <OutputDim> 512
+<Sigmoid> <InputDim> 512 <OutputDim> 512
+<LstmProjectedStreams> <InputDim> 512 <OutputDim> 512 <CellDim> 1024 <ParamScale> 0.010000 <ClipGradient> 5.000000
+<BatchNormalization> <InputDim> 512 <OutputDim> 512
+<LstmProjectedStreams> <InputDim> 512 <OutputDim> 512 <CellDim> 1024 <ParamScale> 0.010000 <ClipGradient> 5.000000
+<BatchNormalization> <InputDim> 512 <OutputDim> 512
+<AffineTransform> <InputDim> 512 <OutputDim> $num_tgt <BiasMean> 0.0 <BiasRange> 0.0 <ParamStddev> 0.040000
 <Softmax> <InputDim> $num_tgt <OutputDim> $num_tgt
 </NnetProto>
 EOF
-    #"$train_cmd" $dir/log/pretrain.log \
-    aslp_scripts/aslp_nnet/pretrain.sh --train-tool "aslp-nnet-train-simple" \
-        --learn-rate 0.008 \
-        --momentum 0.0 \
-        --minibatch_size 256 \
-        --train-tool-opts "--report-period=60000" \
-        --iters_per_epoch 2 \
-        "$feats_tr" "$labels_tr" $hid_layers $dir
+
 fi
 
 # Train nnet(dnn, cnn, lstm)
 if [ $stage -le 3 ]; then
-    # Preprocessing for 2-card mpi-sync train
-    cp $dir/train.conf $dir/train.conf.JOB
-    sed -i -e 's:train.scp:train.scp.JOB:g' $dir/train.conf.JOB
-    source $dir/train.conf.JOB
-    train_scp=$dir/train.scp
-    utils/split_scp.pl $train_scp $train_scp.0 $train_scp.1
-
     echo "Training nnet"
-    [ ! -f $dir/nnet/pretrain.final.nnet ] && \
-        echo "$dir/nnet/pretrain.final.nnet: no such file" && exit 1
     nnet_init=$dir/nnet/train.nnet.init
-    [ -e $nnet_init ] && rm $nnet_init
-    ln -s $(basename $dir/nnet/pretrain.final.nnet) $nnet_init
+    aslp-nnet-init $dir/nnet.proto $nnet_init
     #"$train_cmd" $dir/log/train.log \
-    aslp_scripts/aslp_nnet/train_scheduler_mpi.sh \
-        --train-tool "aslp-nnet-train-simple-mpi" \
-        --cv-tool "aslp-nnet-train-simple" \
-        --sync-period 10 \
-        --learn-rate 0.008 \
-        --momentum 0.0 \
-        --minibatch_size 256 \
-        --train-tool-opts "--report-period=60000" \
+    aslp_scripts/aslp_nnet/train_scheduler.sh --train-tool "aslp-nnet-train-lstm-streams" \
+        --learn-rate 0.00001 \
+        --momentum 0.9 \
+        --train-tool-opts "--batch-size=40 --num-stream=64 --targets-delay=5 --report-period=200 --drop-len=1024" \
         $nnet_init "$feats_tr" "$feats_cv" "$labels_tr" "$labels_cv" $dir
 fi
 
@@ -120,4 +101,3 @@ if [ $stage -le 4 ]; then
     aslp_scripts/score_basic.sh --cmd "$decode_cmd" $feat_dir/test \
         $gmmdir/graph $dir/decode_test3000 || exit 1;
 fi
-

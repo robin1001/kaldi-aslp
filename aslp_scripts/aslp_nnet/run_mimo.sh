@@ -1,17 +1,18 @@
 #!/bin/bash
 
 # Copyright 2016  ASLP (Author: zhangbinbin)
+# Created on 2016-03-10
 # Apache 2.0
 
-stage=3
+stage=4
 feat_dir=data_fbank
 gmmdir=exp/tri2b
-dir=exp/dnn_fbank_sync10
+dir=exp/dnn_fbank_multitask
 ali=${gmmdir}_ali
-num_cv_utt=3484
+num_cv_utt=500
 
 echo "$0 $@"  # Print the command line for logging
-[ -f cmd.sh ] && . ./cmd.sh;
+[ -f cmd.sh ] && . ./cmd.sh; 
 [ -f path.sh ] && . ./path.sh; 
 . parse_options.sh || exit 1;
 
@@ -56,59 +57,53 @@ if [ $stage -le 2 ]; then
     echo "Pretraining nnet"
     num_feat=$(feat-to-dim "$feats_tr" -) 
     num_tgt=$(hmm-info --print-args=false $ali/final.mdl | grep pdfs | awk '{ print $NF }')
+    num_phone=$(am-info $ali/final.mdl | grep phones | awk '{print $NF}')
     hid_dim=1024        # number of neurons per layer,
     hid_layers=4        # nr. of hidden layers (before sotfmax or bottleneck),
-    echo $num_feat $num_tgt
-cat > $dir/hidden.conf <<EOF
-<NnetProto>
-<AffineTransform> <InputDim> $hid_dim <OutputDim> $hid_dim <BiasMean> -2.000000 <BiasRange> 4.000000 <ParamStddev> 0.1
-<Sigmoid> <InputDim> $hid_dim <OutputDim> $hid_dim 
-</NnetProto>
-EOF
 
 # Init nnet.proto with 3 layers
 cat > $dir/nnet.proto <<EOF
 <NnetProto>
-<AffineTransform> <InputDim> $num_feat <OutputDim> $hid_dim <BiasMean> -2.000000 <BiasRange> 4.000000 <ParamStddev> 0.1
-<Sigmoid> <InputDim> $hid_dim <OutputDim> $hid_dim 
-<AffineTransform> <InputDim> $hid_dim <OutputDim> $num_tgt <BiasMean> -2.000000 <BiasRange> 4.000000 <ParamStddev> 0.1
-<Softmax> <InputDim> $num_tgt <OutputDim> $num_tgt
+<InputLayer> <InputDim> $num_feat <OutputDim> $num_feat <Id> 0 <Input> -1
+<AffineTransform> <InputDim> $num_feat <OutputDim> 1024 <Id> 1 <Input> 0 <BiasMean> -2.000000 <BiasRange> 4.000000 <ParamStddev> 0.1
+<BatchNormalization> <InputDim> 1024 <OutputDim> 1024 <Id> 2 <Input> 1
+<Sigmoid> <InputDim> 1024 <OutputDim> 1024 <Id> 3 <Input> 2
+<AffineTransform> <InputDim> 1024 <OutputDim> 1024 <Id> 4 <Input> 3 <BiasMean> -2.000000 <BiasRange> 4.000000 <ParamStddev> 0.1
+<BatchNormalization> <InputDim> 1024 <OutputDim> 1024 <Id> 5 <Input> 4
+<Sigmoid> <InputDim> 1024 <OutputDim> 1024 <Id> 6 <Input> 5
+<AffineTransform> <InputDim> 1024 <OutputDim> 1024 <Id> 7 <Input> 6 <BiasMean> -2.000000 <BiasRange> 4.000000 <ParamStddev> 0.1
+<BatchNormalization> <InputDim> 1024 <OutputDim> 1024 <Id> 8 <Input> 7
+<Sigmoid> <InputDim> 1024 <OutputDim> 1024 <Id> 9 <Input> 8
+<AffineTransform> <InputDim> 1024 <OutputDim> 1024 <Id> 10 <Input> 9 <BiasMean> -2.000000 <BiasRange> 4.000000 <ParamStddev> 0.1
+<BatchNormalization> <InputDim> 1024 <OutputDim> 1024 <Id> 11 <Input> 10
+<Sigmoid> <InputDim> 1024 <OutputDim> 1024 <Id> 12 <Input> 11
+<AffineTransform> <InputDim> 1024 <OutputDim> 1024 <Id> 13 <Input> 12 <BiasMean> -2.000000 <BiasRange> 4.000000 <ParamStddev> 0.1
+<BatchNormalization> <InputDim> 1024 <OutputDim> 1024 <Id> 14 <Input> 13
+<Sigmoid> <InputDim> 1024 <OutputDim> 1024 <Id> 15 <Input> 14
+<AffineTransform> <InputDim> 1024 <OutputDim> $num_phone <Id> 16 <Input> 15 <BiasMean> -2.000000 <BiasRange> 4.000000 <ParamStddev> 0.1
+<Softmax> <InputDim> $num_phone <OutputDim> $num_phone <Id> 17 <Input> 16
+<AffineTransform> <InputDim> 1024 <OutputDim> $num_tgt <Id> 18 <Input> 15 <BiasMean> -2.000000 <BiasRange> 4.000000 <ParamStddev> 0.1
+<Softmax> <InputDim> $num_tgt <OutputDim> $num_tgt <Id> 19 <Input> 18
+<OutputLayer> <InputDim> $num_phone <OutputDim> $num_phone <Id> 20 <Input> 17
+<OutputLayer> <InputDim> $num_tgt <OutputDim> $num_tgt <Id> 21 <Input> 19
 </NnetProto>
 EOF
-    #"$train_cmd" $dir/log/pretrain.log \
-    aslp_scripts/aslp_nnet/pretrain.sh --train-tool "aslp-nnet-train-simple" \
-        --learn-rate 0.008 \
-        --momentum 0.0 \
-        --minibatch_size 256 \
-        --train-tool-opts "--report-period=60000" \
-        --iters_per_epoch 2 \
-        "$feats_tr" "$labels_tr" $hid_layers $dir
+
 fi
 
+# Attention: For multi input or multi output trainning , You should manual modify train.conf 
+#            and train_scheduler_mimo.sh to import your input and output variable
 # Train nnet(dnn, cnn, lstm)
 if [ $stage -le 3 ]; then
-    # Preprocessing for 2-card mpi-sync train
-    cp $dir/train.conf $dir/train.conf.JOB
-    sed -i -e 's:train.scp:train.scp.JOB:g' $dir/train.conf.JOB
-    source $dir/train.conf.JOB
-    train_scp=$dir/train.scp
-    utils/split_scp.pl $train_scp $train_scp.0 $train_scp.1
-
     echo "Training nnet"
-    [ ! -f $dir/nnet/pretrain.final.nnet ] && \
-        echo "$dir/nnet/pretrain.final.nnet: no such file" && exit 1
     nnet_init=$dir/nnet/train.nnet.init
-    [ -e $nnet_init ] && rm $nnet_init
-    ln -s $(basename $dir/nnet/pretrain.final.nnet) $nnet_init
+    aslp-nnet-init $dir/nnet.proto $nnet_init
     #"$train_cmd" $dir/log/train.log \
-    aslp_scripts/aslp_nnet/train_scheduler_mpi.sh \
-        --train-tool "aslp-nnet-train-simple-mpi" \
-        --cv-tool "aslp-nnet-train-simple" \
-        --sync-period 10 \
+    aslp_scripts/aslp_nnet/train_scheduler_mimo.sh --train-tool "aslp-nnet-train-frame-mimo" \
         --learn-rate 0.008 \
-        --momentum 0.0 \
+        --momentum 0.9 \
         --minibatch_size 256 \
-        --train-tool-opts "--report-period=60000" \
+        --train-tool-opts "--objective-function=xent:xent --report-period=60000" \
         $nnet_init "$feats_tr" "$feats_cv" "$labels_tr" "$labels_cv" $dir
 fi
 
@@ -116,8 +111,9 @@ fi
 if [ $stage -le 4 ]; then
     aslp_scripts/aslp_nnet/decode.sh --nj 2 --num-threads 12 \
         --cmd "$decode_cmd" --acwt 0.0666667 \
+        --nnet-forward-opts "--no-softmax=false --apply-log=true" \
+        --forward-tool "aslp-nnet-forward-mimo" \
         $gmmdir/graph $feat_dir/test $dir/decode_test3000 || exit 1;
     aslp_scripts/score_basic.sh --cmd "$decode_cmd" $feat_dir/test \
         $gmmdir/graph $dir/decode_test3000 || exit 1;
 fi
-

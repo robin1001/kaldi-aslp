@@ -5,13 +5,13 @@
 
 stage=3
 feat_dir=data_fbank
-cv_utt_percent=10 # default 10% of total utterances 
 gmmdir=exp/tri2b
 dir=exp/dnn_fbank_2lstm
 ali=${gmmdir}_ali
 num_cv_utt=500
 
 echo "$0 $@"  # Print the command line for logging
+[ -f cmd.sh ] && . ./cmd.sh;
 [ -f path.sh ] && . ./path.sh; 
 . parse_options.sh || exit 1;
 
