@@ -48,12 +48,21 @@ class LossItf {
             const CuMatrixBase<BaseFloat> &net_out, 
             const Posterior &target,
             CuMatrix<BaseFloat> *diff) = 0;
-  
+  /// Evaluate without frame weight, add for simplify the train interface
+  virtual void Eval(const CuMatrixBase<BaseFloat> &net_out, 
+            const Posterior &target,
+            CuMatrix<BaseFloat> *diff) {
+    tmp_frame_weights_.Resize(target.size(), kUndefined);
+    tmp_frame_weights_.Set(1.0);
+    Eval(tmp_frame_weights_, net_out, target, diff);
+  }
   /// Generate string with error report,
   virtual std::string Report() = 0;
 
   /// Get loss value (frame average),
   virtual BaseFloat AvgLoss() = 0;
+ protected:
+  Vector<BaseFloat> tmp_frame_weights_; 
 };
 
 
