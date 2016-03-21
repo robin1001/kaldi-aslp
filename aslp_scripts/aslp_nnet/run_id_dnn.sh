@@ -3,15 +3,15 @@
 # Copyright 2016  ASLP (Author: zhangbinbin)
 # Apache 2.0
 
-stage=1
+stage=4
 feat_dir=data_fbank
 gmmdir=exp/tri2b
-dir=exp/dnn_fbank_2nn_2lstm
+dir=exp/dnn_fbank_id
 ali=${gmmdir}_ali
 num_cv_utt=500
 
 echo "$0 $@"  # Print the command line for logging
-[ -f cmd.sh ] && . ./cmd.sh;
+[ -f cmd.sh ] && . ./cmd.sh; 
 [ -f path.sh ] && . ./path.sh; 
 . parse_options.sh || exit 1;
 
@@ -40,9 +40,9 @@ fi
 if [ $stage -le 1 ]; then
     echo "Preparing alignment and feats"
         #--delta_opts "--delta-order=2" \
-        #--splice_opts "--left-context=5 --right-context=5" \
     aslp_scripts/aslp_nnet/prepare_feats_ali.sh \
         --cmvn_opts "--norm-means=true --norm-vars=true" \
+        --splice_opts "--left-context=5 --right-context=5" \
         $feat_dir/train_tr $feat_dir/train_cv data/lang $ali $ali $dir || exit 1;
 fi
 
@@ -51,32 +51,36 @@ fi
     echo "$dir/train.conf(config file for nn training): no such file" && exit 1 
 source $dir/train.conf
 
-# Prepare lstm init nnet
+# Prerain nnet(dnn, cnn, lstm)
 if [ $stage -le 2 ]; then
     echo "Pretraining nnet"
     num_feat=$(feat-to-dim "$feats_tr" -) 
     num_tgt=$(hmm-info --print-args=false $ali/final.mdl | grep pdfs | awk '{ print $NF }')
-    cell_dim=1024 # number of neurons per layer,
-    recurrent_dim=512
-    echo $num_feat $num_tgt
+    hid_dim=1024        # number of neurons per layer,
+    hid_layers=4        # nr. of hidden layers (before sotfmax or bottleneck),
 
-# Init nnet.proto with 2 lstm layers
+# Init nnet.proto with 3 layers
 cat > $dir/nnet.proto <<EOF
 <NnetProto>
 <InputLayer> <InputDim> $num_feat <OutputDim> $num_feat <Id> 0 <Input> -1
 <AffineTransform> <InputDim> $num_feat <OutputDim> 1024 <Id> 1 <Input> 0 <BiasMean> -2.000000 <BiasRange> 4.000000 <ParamStddev> 0.1
 <BatchNormalization> <InputDim> 1024 <OutputDim> 1024 <Id> 2 <Input> 1
 <Sigmoid> <InputDim> 1024 <OutputDim> 1024 <Id> 3 <Input> 2
-<AffineTransform> <InputDim> 1024 <OutputDim> 512 <Id> 4 <Input> 3 <BiasMean> -2.000000 <BiasRange> 4.000000 <ParamStddev> 0.1
-<BatchNormalization> <InputDim> 512 <OutputDim> 512 <Id> 5 <Input> 4
-<Sigmoid> <InputDim> 512 <OutputDim> 512 <Id> 6 <Input> 5
-<LstmProjectedStreams> <InputDim> 512 <OutputDim> 512 <Id> 7 <Input> 6 <CellDim> 1024 <ParamScale> 0.010000 <ClipGradient> 5.000000
-<BatchNormalization> <InputDim> 512 <OutputDim> 512 <Id> 8 <Input> 7
-<LstmProjectedStreams> <InputDim> 512 <OutputDim> 512 <Id> 9 <Input> 8 <CellDim> 1024 <ParamScale> 0.010000 <ClipGradient> 5.000000
-<BatchNormalization> <InputDim> 512 <OutputDim> 512 <Id> 10 <Input> 9
-<AffineTransform> <InputDim> 512 <OutputDim> $num_tgt <Id> 11 <Input> 10 <BiasMean> 0.0 <BiasRange> 0.0 <ParamStddev> 0.040000
-<Softmax> <InputDim> $num_tgt <OutputDim> $num_tgt <Id> 12 <Input> 11 
-<OutputLayer> <InputDim> $num_tgt <OutputDim> $num_tgt <Id> 13 <Input> 12
+<AffineTransform> <InputDim> 1024 <OutputDim> 1024 <Id> 4 <Input> 3 <BiasMean> -2.000000 <BiasRange> 4.000000 <ParamStddev> 0.1
+<BatchNormalization> <InputDim> 1024 <OutputDim> 1024 <Id> 5 <Input> 4
+<Sigmoid> <InputDim> 1024 <OutputDim> 1024 <Id> 6 <Input> 5
+<AffineTransform> <InputDim> 1024 <OutputDim> 1024 <Id> 7 <Input> 6 <BiasMean> -2.000000 <BiasRange> 4.000000 <ParamStddev> 0.1
+<BatchNormalization> <InputDim> 1024 <OutputDim> 1024 <Id> 8 <Input> 7
+<Sigmoid> <InputDim> 1024 <OutputDim> 1024 <Id> 9 <Input> 8
+<AffineTransform> <InputDim> 1024 <OutputDim> 1024 <Id> 10 <Input> 9 <BiasMean> -2.000000 <BiasRange> 4.000000 <ParamStddev> 0.1
+<BatchNormalization> <InputDim> 1024 <OutputDim> 1024 <Id> 11 <Input> 10
+<Sigmoid> <InputDim> 1024 <OutputDim> 1024 <Id> 12 <Input> 11
+<AffineTransform> <InputDim> 1024 <OutputDim> 1024 <Id> 13 <Input> 12 <BiasMean> -2.000000 <BiasRange> 4.000000 <ParamStddev> 0.1
+<BatchNormalization> <InputDim> 1024 <OutputDim> 1024 <Id> 14 <Input> 13
+<Sigmoid> <InputDim> 1024 <OutputDim> 1024 <Id> 15 <Input> 14
+<AffineTransform> <InputDim> 1024 <OutputDim> $num_tgt <Id> 16 <Input> 15 <BiasMean> -2.000000 <BiasRange> 4.000000 <ParamStddev> 0.1
+<Softmax> <InputDim> $num_tgt <OutputDim> $num_tgt <Id> 17 <Input> 16
+<OutputLayer> <InputDim> $num_tgt <OutputDim> $num_tgt <Id> 18 <Input> 17
 </NnetProto>
 EOF
 
@@ -88,10 +92,11 @@ if [ $stage -le 3 ]; then
     nnet_init=$dir/nnet/train.nnet.init
     aslp-nnet-init $dir/nnet.proto $nnet_init
     #"$train_cmd" $dir/log/train.log \
-    aslp_scripts/aslp_nnet/train_scheduler.sh --train-tool "aslp-nnet-train-lstm-streams" \
-        --learn-rate 0.00001 \
+    aslp_scripts/aslp_nnet/train_scheduler.sh --train-tool "aslp-nnet-train-frame" \
+        --learn-rate 0.008 \
         --momentum 0.9 \
-        --train-tool-opts "--batch-size=40 --num-stream=64 --targets-delay=5 --report-period=200" \
+        --minibatch_size 256 \
+        --train-tool-opts "--report-period=60000" \
         $nnet_init "$feats_tr" "$feats_cv" "$labels_tr" "$labels_cv" $dir
 fi
 

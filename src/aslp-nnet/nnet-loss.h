@@ -34,8 +34,12 @@ namespace aslp_nnet {
 
 class LossItf {
  public:
-  LossItf() { }
-  virtual ~LossItf() { }
+  LossItf() { 
+    tmp_frame_weights_ = new Vector<BaseFloat>;
+  }
+  virtual ~LossItf() { 
+    delete tmp_frame_weights_;
+  }
 
   /// Evaluate cross entropy using target-matrix (supports soft labels),
   virtual void Eval(const VectorBase<BaseFloat> &frame_weights, 
@@ -52,9 +56,9 @@ class LossItf {
   virtual void Eval(const CuMatrixBase<BaseFloat> &net_out, 
             const Posterior &target,
             CuMatrix<BaseFloat> *diff) {
-    tmp_frame_weights_.Resize(target.size(), kUndefined);
-    tmp_frame_weights_.Set(1.0);
-    Eval(tmp_frame_weights_, net_out, target, diff);
+    tmp_frame_weights_->Resize(target.size(), kUndefined);
+    tmp_frame_weights_->Set(1.0);
+    Eval(*tmp_frame_weights_, net_out, target, diff);
   }
   /// Generate string with error report,
   virtual std::string Report() = 0;
@@ -62,7 +66,7 @@ class LossItf {
   /// Get loss value (frame average),
   virtual BaseFloat AvgLoss() = 0;
  protected:
-  Vector<BaseFloat> tmp_frame_weights_; 
+  Vector<BaseFloat> *tmp_frame_weights_; 
 };
 
 

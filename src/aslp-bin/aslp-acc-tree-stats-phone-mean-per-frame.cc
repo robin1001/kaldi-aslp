@@ -1,4 +1,4 @@
-// aslp-bin/aslp-acc-tree-stats-mean.cc
+// aslp-bin/aslp-acc-tree-stats-mean-per-frame.cc
 
 // Copyright 2009-2011  Microsoft Corporation, GoVivace Inc.
 //                2013  Johns Hopkins University (author: Daniel Povey)
@@ -133,7 +133,9 @@ void AccumulateTreeStatsPhone(const TransitionModel &trans_model,
           (*stats)[evec] = new GaussClusterable(dim * num_state, var_floor);
       }
       BaseFloat weight = 1.0;
-      (*stats)[evec]->AddStats(concate_features, weight);
+      for (int t = 0; t < split_alignment[i+P].size(); t++) {
+        (*stats)[evec]->AddStats(concate_features, weight);
+      }
     }
   }
   KALDI_ASSERT(cur_pos == static_cast<int>(alignment.size()));
@@ -153,9 +155,9 @@ int main(int argc, char *argv[]) {
   try {
     const char *usage =
         "Accumulate statistics using mean stats for phonetic-context tree building.\n"
-        "Usage:  aslp-acc-tree-stats-phone-mean [options] model-in features-rspecifier alignments-rspecifier [tree-accs-out]\n"
+        "Usage:  aslp-acc-tree-stats-phone-mean-per-frame [options] model-in features-rspecifier alignments-rspecifier [tree-accs-out]\n"
         "e.g.: \n"
-        " aslp-acc-tree-stats-phone-mean 1.mdl scp:train.scp ark:1.ali 1.tacc\n";
+        " aslp-acc-tree-stats-phone-mean-per-frame 1.mdl scp:train.scp ark:1.ali 1.tacc\n";
     ParseOptions po(usage);
     bool binary = true;
     float var_floor = 0.01;
