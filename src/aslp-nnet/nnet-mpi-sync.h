@@ -10,7 +10,7 @@
 #include "mpi.h"
 
 #include "base/kaldi-common.h"
-#include "cudamatrix/cu-common.h"
+#include "aslp-cudamatrix/cu-common.h"
 
 namespace kaldi {
 namespace aslp_nnet {

@@ -22,8 +22,8 @@
 #ifndef ASLP_NNET_NNET_ACTIVATION_H_
 #define ASLP_NNET_NNET_ACTIVATION_H_
 
-#include "cudamatrix/cu-math.h"
-#include "cudamatrix/cu-rand.h"
+#include "aslp-cudamatrix/cu-math.h"
+#include "aslp-cudamatrix/cu-rand.h"
 #include "util/text-utils.h"
 
 #include "aslp-nnet/nnet-component.h"

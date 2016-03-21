@@ -26,8 +26,8 @@
 
 #include "base/kaldi-common.h"
 #include "matrix/matrix-lib.h"
-#include "cudamatrix/cu-matrix.h"
-#include "cudamatrix/cu-vector.h"
+#include "aslp-cudamatrix/cu-matrix.h"
+#include "aslp-cudamatrix/cu-vector.h"
 
 #include "aslp-nnet/nnet-trnopts.h"
 

@@ -21,7 +21,7 @@
 #include "base/kaldi-common.h"
 #include "util/common-utils.h"
 #include "base/timer.h"
-#include "cudamatrix/cu-device.h"
+#include "aslp-cudamatrix/cu-device.h"
 
 #include "aslp-nnet/nnet-trnopts.h"
 #include "aslp-nnet/nnet-nnet.h"

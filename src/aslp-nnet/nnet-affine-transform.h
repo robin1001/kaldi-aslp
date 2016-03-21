@@ -23,7 +23,7 @@
 #define ASLP_NNET_NNET_AFFINE_TRANSFORM_H_
 
 
-#include "cudamatrix/cu-math.h"
+#include "aslp-cudamatrix/cu-math.h"
 
 #include "aslp-nnet/nnet-component.h"
 #include "aslp-nnet/nnet-utils.h"

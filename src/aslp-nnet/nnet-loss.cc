@@ -20,7 +20,7 @@
 #include <sstream>
 #include <iterator>
 
-#include "cudamatrix/cu-math.h"
+#include "aslp-cudamatrix/cu-math.h"
 #include "hmm/posterior.h"
 
 #include "aslp-nnet/nnet-loss.h"

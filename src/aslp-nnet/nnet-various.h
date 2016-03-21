@@ -22,7 +22,7 @@
 #ifndef ASLP_NNET_NNET_VARIOUS_H_
 #define ASLP_NNET_NNET_VARIOUS_H_
 
-#include "cudamatrix/cu-math.h"
+#include "aslp-cudamatrix/cu-math.h"
 #include "util/text-utils.h"
 
 #include "aslp-nnet/nnet-component.h"

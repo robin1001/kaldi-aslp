@@ -1,4 +1,4 @@
-// aslp-cudamatrix/cu-nnet-mpi-sync.cu
+// aslp-aslp-cudamatrix/cu-nnet-mpi-sync.cu
 
 // Copyright 2016 ASLP (author: zhangbinbin)
 

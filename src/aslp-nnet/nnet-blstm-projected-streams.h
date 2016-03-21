@@ -23,7 +23,7 @@
 #ifndef ASLP_NNET_NNET_BLSTM_PROJECTED_STREAMS_H_
 #define ASLP_NNET_NNET_BLSTM_PROJECTED_STREAMS_H_
 
-#include "cudamatrix/cu-math.h"
+#include "aslp-cudamatrix/cu-math.h"
 
 #include "aslp-nnet/nnet-component.h"
 #include "aslp-nnet/nnet-utils.h"

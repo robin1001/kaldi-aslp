@@ -10,7 +10,7 @@
 #include "base/kaldi-common.h"
 #include "util/common-utils.h"
 #include "base/kaldi-math.h"
-#include "cudamatrix/cu-matrix.h"
+#include "aslp-cudamatrix/cu-matrix.h"
 #include "hmm/posterior.h"
 
 #include "aslp-nnet/nnet-trnopts.h"

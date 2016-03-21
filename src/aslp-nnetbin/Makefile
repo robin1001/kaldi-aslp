@@ -32,7 +32,7 @@ OBJFILES =
 
 TESTFILES =
 
-ADDLIBS = ../aslp-nnet/aslp-nnet.a $(KALDI_DIR)/cudamatrix/kaldi-cudamatrix.a \
+ADDLIBS = ../aslp-nnet/aslp-nnet.a ../aslp-cudamatrix/aslp-cudamatrix.a \
           $(KALDI_DIR)/lat/kaldi-lat.a $(KALDI_DIR)/hmm/kaldi-hmm.a \
           $(KALDI_DIR)/tree/kaldi-tree.a $(KALDI_DIR)/matrix/kaldi-matrix.a \
           $(KALDI_DIR)/util/kaldi-util.a $(KALDI_DIR)/base/kaldi-base.a 
