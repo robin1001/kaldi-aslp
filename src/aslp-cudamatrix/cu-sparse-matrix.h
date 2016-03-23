@@ -20,8 +20,8 @@
 
 
 
-#ifndef ASLP_CUDAMATRIX_CU_SPARSE_MATRIX_H_
-#define ASLP_CUDAMATRIX_CU_SPARSE_MATRIX_H_
+#ifndef KALDI_CUDAMATRIX_CU_SPARSE_MATRIX_H_
+#define KALDI_CUDAMATRIX_CU_SPARSE_MATRIX_H_
 
 #include <sstream>
 #include <vector>
@@ -150,4 +150,4 @@ class CuSparseMatrix {
 
 }  // namespace
 
-#endif  // ASLP_CUDAMATRIX_CU_SPARSE_MATRIX_H_
+#endif  // KALDI_CUDAMATRIX_CU_SPARSE_MATRIX_H_

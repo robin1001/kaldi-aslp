@@ -20,8 +20,8 @@
 
 
 
-#ifndef ASLP_CUDAMATRIX_CU_COMMON_H_
-#define ASLP_CUDAMATRIX_CU_COMMON_H_
+#ifndef KALDI_CUDAMATRIX_CU_COMMON_H_
+#define KALDI_CUDAMATRIX_CU_COMMON_H_
 #include "aslp-cudamatrix/cu-matrixdim.h" // for CU1DBLOCK and CU2DBLOCK
 
 #include <iostream>

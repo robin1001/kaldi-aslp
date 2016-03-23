@@ -19,8 +19,8 @@
 
 
 
-#ifndef ASLP_CUDAMATRIX_CU_VALUE_H_
-#define ASLP_CUDAMATRIX_CU_VALUE_H_
+#ifndef KALDI_CUDAMATRIX_CU_VALUE_H_
+#define KALDI_CUDAMATRIX_CU_VALUE_H_
 
 #include <aslp-cudamatrix/cu-device.h>
 
@@ -85,4 +85,4 @@ class CuValue {
 
 
 
-#endif  // ASLP_CUDAMATRIX_CU_VALUE_H_
+#endif  // KALDI_CUDAMATRIX_CU_VALUE_H_

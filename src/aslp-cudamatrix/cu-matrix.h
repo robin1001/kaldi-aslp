@@ -23,8 +23,8 @@
 
 
 
-#ifndef ASLP_CUDAMATRIX_CU_MATRIX_H_
-#define ASLP_CUDAMATRIX_CU_MATRIX_H_
+#ifndef KALDI_CUDAMATRIX_CU_MATRIX_H_
+#define KALDI_CUDAMATRIX_CU_MATRIX_H_
 
 #include <sstream>
 #include <vector>

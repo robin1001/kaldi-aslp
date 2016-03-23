@@ -106,7 +106,7 @@ class Component {
  /// General interface of a component  
  public:
   Component(int32 input_dim, int32 output_dim) 
-      : input_dim_(input_dim), output_dim_(output_dim) { }
+      : input_dim_(input_dim), output_dim_(output_dim), id_(-1) { }
   virtual ~Component() { }
 
   /// Copy component (deep copy).
@@ -138,6 +138,11 @@ class Component {
   }
   void SetInput(const std::vector<int32> &input) {
     input_ = input;
+  }
+  void SetMonoInput(int id) {
+    KALDI_ASSERT(input_.size() == 0);
+    input_.push_back(id);
+    offset_.push_back(0);
   }
   const std::vector<int32> & GetOffset() const {
     return offset_;

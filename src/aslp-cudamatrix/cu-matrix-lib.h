@@ -19,8 +19,8 @@
 
 
 
-#ifndef ASLP_CUDAMATRIX_CU_MATRIX_LIB_H_
-#define ASLP_CUDAMATRIX_CU_MATRIX_LIB_H_
+#ifndef KALDI_CUDAMATRIX_CU_MATRIX_LIB_H_
+#define KALDI_CUDAMATRIX_CU_MATRIX_LIB_H_
 
 #include "aslp-cudamatrix/cu-vector.h"
 #include "aslp-cudamatrix/cu-matrix.h"

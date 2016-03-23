@@ -24,8 +24,8 @@
 
 
 
-#ifndef ASLP_CUDAMATRIX_CU_KERNELS_ANSI_H_
-#define ASLP_CUDAMATRIX_CU_KERNELS_ANSI_H_
+#ifndef KALDI_CUDAMATRIX_CU_KERNELS_ANSI_H_
+#define KALDI_CUDAMATRIX_CU_KERNELS_ANSI_H_
 
 #include "aslp-cudamatrix/cu-matrixdim.h"
 

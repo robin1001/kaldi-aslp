@@ -13,7 +13,7 @@ BINFILES = aslp-nnet-info aslp-nnet-init \
          aslp-nnet-insert \
          aslp-nnet-train-simple \
          aslp-nnet-forward \
-         aslp-nnet-train-lstm-streams \
+         aslp-nnet-train-lstm-streams aslp-nnet-train-blstm-streams \
          aslp-nnet-train-frame aslp-nnet-train-frame-mimo \
          aslp-nnet-forward-mimo \
          aslp-nnet-train-ctc aslp-nnet-train-ctc-streams

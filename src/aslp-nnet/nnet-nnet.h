@@ -155,6 +155,8 @@ class Nnet {
   const NnetTrainOptions& GetTrainOptions() const {
     return opts_;
   }
+  /// Automatic complete simple feedforward net, assign id and input for each layer
+  void AutoComplete(); 
 
  private:
    void InitInputOutput();

@@ -19,8 +19,8 @@
 
 
 
-#ifndef ASLP_CUDAMATRIX_CU_RAND_H_
-#define ASLP_CUDAMATRIX_CU_RAND_H_
+#ifndef KALDI_CUDAMATRIX_CU_RAND_H_
+#define KALDI_CUDAMATRIX_CU_RAND_H_
 
 
 #include "aslp-cudamatrix/cu-matrix.h"

@@ -20,6 +20,7 @@
 
 #include "aslp-nnet/nnet-nnet.h"
 #include "aslp-nnet/nnet-component.h"
+#include "aslp-nnet/nnet-io.h"
 #include "aslp-nnet/nnet-activation.h"
 #include "aslp-nnet/nnet-affine-transform.h"
 #include "aslp-nnet/nnet-various.h"
@@ -446,11 +447,47 @@ void Nnet::SetSeqLengths(const std::vector<int32> &sequence_lengths) {
   }
 }
 
+void Nnet::AutoComplete() {
+    bool have_input = false, have_output = false;
+    for (int i = 0; i < components_.size(); i++) {
+        if (components_[i]->GetType() == Component::kInputLayer) have_input = true;
+        if (components_[i]->GetType() == Component::kOutputLayer) have_output = true;
+    }
+    // Optional add InputLayer
+    if (!have_input) {
+        int input_dim = components_[0]->InputDim();
+        Component *in_comp = new InputLayer(input_dim, input_dim);
+        in_comp->SetId(0);
+        in_comp->SetMonoInput(-1);
+        components_.insert(components_.begin(), in_comp);
+    }
+    KALDI_ASSERT(components_[0]->Id() == 0);
+    // Auto assign id and input
+    for (int i = 1; i < components_.size(); i++) {
+        //KALDI_LOG << components_[i]->Id();
+        KALDI_ASSERT(components_[i]->Id() < 0);
+        components_[i]->SetId(i);
+        components_[i]->SetMonoInput(i-1);
+    }
+    // Optional add OutputLayer
+    if (!have_output) {
+        int num_layers = components_.size();
+        int output_dim = components_[num_layers - 1]->OutputDim();
+        Component *out_comp = new OutputLayer(output_dim, output_dim);
+        out_comp->SetId(num_layers);
+        out_comp->SetMonoInput(num_layers-1);
+        components_.push_back(out_comp);
+    }
+    KALDI_ASSERT(components_[components_.size()-1]->Id() == components_.size()-1);
+}
+
 void Nnet::Init(const std::string &file) {
   Input in(file);
   std::istream &is = in.Stream();
   // do the initialization with config lines,
   std::string conf_line, token;
+  // flags Have "<Id>" and "<Input>" field in every component
+  bool simple_net = true;
   while (!is.eof()) {
     KALDI_ASSERT(is.good());
     std::getline(is, conf_line); // get a line from config file,
@@ -461,14 +498,26 @@ void Nnet::Init(const std::string &file) {
     //AppendComponent(Component::Init(conf_line+"\n"));
     Component *comp = Component::Init(conf_line+"\n");
     int id = comp->Id();
-    if (id >= components_.size()) components_.resize(id+1, NULL);
-    if (components_[id] != NULL) {
-      KALDI_ERR << "Component id " << id << " already be taken" 
-                << "the id must be unique"; 
+    if (id >= 0) {
+      if (id >= components_.size()) components_.resize(id+1, NULL);
+      if (components_[id] != NULL) {
+        KALDI_ERR << "Component id " << id << " already be taken" 
+                  << "the id must be unique"; 
+      }
+      components_[id] = comp;
+      simple_net = false;
     }
-    components_[id] = comp;
+    else {
+      // Check network is not graph net
+      if (!simple_net) {
+        KALDI_ERR << "You use graph net config, every layer must have <Id> and <Input> field";
+      }
+      components_.push_back(comp);
+    }
     is >> std::ws;
   }
+  // Automatic assgin id and input for simple net
+  if (simple_net) AutoComplete();
   // cleanup
   in.Close();
   InitInputOutput();

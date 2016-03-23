@@ -20,8 +20,8 @@
 
 
 
-#ifndef ASLP_CUDAMATRIX_CU_MATRIXDIM_H_
-#define ASLP_CUDAMATRIX_CU_MATRIXDIM_H_
+#ifndef KALDI_CUDAMATRIX_CU_MATRIXDIM_H_
+#define KALDI_CUDAMATRIX_CU_MATRIXDIM_H_
 
 /*
  * Typedefs needed for ANSI-C interface of CUDA wrappers

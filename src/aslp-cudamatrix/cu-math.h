@@ -20,8 +20,8 @@
 
 
 
-#ifndef ASLP_CUDAMATRIX_CU_MATH_H_
-#define ASLP_CUDAMATRIX_CU_MATH_H_
+#ifndef KALDI_CUDAMATRIX_CU_MATH_H_
+#define KALDI_CUDAMATRIX_CU_MATH_H_
 #include "aslp-cudamatrix/cu-common.h"
 #include "aslp-cudamatrix/cu-array.h"
 #include "aslp-cudamatrix/cu-device.h"
