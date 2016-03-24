@@ -448,20 +448,14 @@ void Nnet::SetSeqLengths(const std::vector<int32> &sequence_lengths) {
 }
 
 void Nnet::AutoComplete() {
-    bool have_input = false, have_output = false;
-    for (int i = 0; i < components_.size(); i++) {
-        if (components_[i]->GetType() == Component::kInputLayer) have_input = true;
-        if (components_[i]->GetType() == Component::kOutputLayer) have_output = true;
-    }
     // Optional add InputLayer
-    if (!have_input) {
-        int input_dim = components_[0]->InputDim();
-        Component *in_comp = new InputLayer(input_dim, input_dim);
-        in_comp->SetId(0);
-        in_comp->SetMonoInput(-1);
-        components_.insert(components_.begin(), in_comp);
-    }
+    int input_dim = components_[0]->InputDim();
+    Component *in_comp = new InputLayer(input_dim, input_dim);
+    in_comp->SetId(0);
+    in_comp->SetMonoInput(-1);
+    components_.insert(components_.begin(), in_comp);
     KALDI_ASSERT(components_[0]->Id() == 0);
+    
     // Auto assign id and input
     for (int i = 1; i < components_.size(); i++) {
         //KALDI_LOG << components_[i]->Id();
@@ -469,15 +463,14 @@ void Nnet::AutoComplete() {
         components_[i]->SetId(i);
         components_[i]->SetMonoInput(i-1);
     }
+
     // Optional add OutputLayer
-    if (!have_output) {
-        int num_layers = components_.size();
-        int output_dim = components_[num_layers - 1]->OutputDim();
-        Component *out_comp = new OutputLayer(output_dim, output_dim);
-        out_comp->SetId(num_layers);
-        out_comp->SetMonoInput(num_layers-1);
-        components_.push_back(out_comp);
-    }
+    int num_layers = components_.size();
+    int output_dim = components_[num_layers - 1]->OutputDim();
+    Component *out_comp = new OutputLayer(output_dim, output_dim);
+    out_comp->SetId(num_layers);
+    out_comp->SetMonoInput(num_layers-1);
+    components_.push_back(out_comp);
     KALDI_ASSERT(components_[components_.size()-1]->Id() == components_.size()-1);
 }
 
@@ -498,20 +491,25 @@ void Nnet::Init(const std::string &file) {
     //AppendComponent(Component::Init(conf_line+"\n"));
     Component *comp = Component::Init(conf_line+"\n");
     int id = comp->Id();
-    if (id >= 0) {
+    // If the layer's id have been inited, or is InputLayer or OutputLayer, it is 
+    // not a simple_net
+    if (id >= 0 || comp->GetType() == Component::kInputLayer || 
+          comp->GetType() == Component::kOutputLayer) {
+      simple_net = false;
+    }
+    if (!simple_net) {
+      if (id < 0) {
+        KALDI_ERR << "You use graph net config, the nnet proto must have InputLayer and OutputLayer "
+                     "And every layer must have <Id> and <Input> field ";
+      }
       if (id >= components_.size()) components_.resize(id+1, NULL);
       if (components_[id] != NULL) {
         KALDI_ERR << "Component id " << id << " already be taken" 
                   << "the id must be unique"; 
       }
       components_[id] = comp;
-      simple_net = false;
     }
     else {
-      // Check network is not graph net
-      if (!simple_net) {
-        KALDI_ERR << "You use graph net config, every layer must have <Id> and <Input> field";
-      }
       components_.push_back(comp);
     }
     is >> std::ws;

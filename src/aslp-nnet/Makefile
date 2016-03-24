@@ -11,7 +11,8 @@ TESTFILES = nnet-randomizer-test nnet-component-test
 
 OBJFILES = nnet-nnet.o nnet-component.o nnet-loss.o \
            nnet-randomizer.o nnet-pdf-prior.o \
-           data-reader.o ctc-loss.o
+           data-reader.o ctc-loss.o \
+           nnet-recurrent-component.o
 
 LIBNAME = aslp-nnet
 

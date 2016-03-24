@@ -89,7 +89,9 @@ class Component {
     kBatchNormalization = 0x0f00,
     kInputLayer,
     kOutputLayer,
-    kScaleLayer
+    kScaleLayer,
+    kLstm,
+    kBLstm
   } ComponentType;
   /// A pair of type and marker 
   struct key_value {

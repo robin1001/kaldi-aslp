@@ -63,8 +63,8 @@ int main(int argc, char *argv[]) {
     std::string objective_function = "xent";
     po.Register("objective-function", &objective_function, "Objective function : xent|mse");
 
-    int32 num_streams = 4;
-    po.Register("num_streams", &num_streams, "Number of sequences processed in parallel");
+    int32 num_stream = 4;
+    po.Register("num-stream", &num_stream, "Number of sequences processed in parallel");
 
     double frame_limit = 100000;
     po.Register("frame-limit", &frame_limit, "Max number of frames to be processed");
@@ -72,6 +72,9 @@ int main(int argc, char *argv[]) {
     std::string use_gpu = "yes";
     // po.Register("use-gpu", &use_gpu, "yes|no|optional, only has effect if compiled with CUDA");
 
+    // Add dummy randomizer options, to make the tool compatible with standard scripts
+    NnetDataRandomizerOptions rnd_opts;
+    rnd_opts.Register(&po);
     bool randomize = false;
     po.Register("randomize", &randomize, "Dummy option, for compatibility...");
     //
@@ -130,10 +133,10 @@ int main(int argc, char *argv[]) {
     Timer time;
     KALDI_LOG << (crossvalidate?"CROSS-VALIDATION":"TRAINING") << " STARTED";
     // Feature matrix of every utterance
-    std::vector< Matrix<BaseFloat> > feats_utt(num_streams);
+    std::vector< Matrix<BaseFloat> > feats_utt(num_stream);
     // Label vector of every utterance
-    std::vector< Posterior > labels_utt(num_streams);
-    std::vector< Vector<BaseFloat> > weights_utt(num_streams);
+    std::vector< Posterior > labels_utt(num_stream);
+    std::vector< Vector<BaseFloat> > weights_utt(num_stream);
 
     int32 feat_dim = nnet.InputDim();
 
@@ -200,7 +203,7 @@ int main(int argc, char *argv[]) {
         sequence_index++;
         // If the total number of frames reaches frame_limit, then stop adding more sequences, regardless of whether
         // the number of utterances reaches num_sequence or not.
-        if (frame_num_utt.size() == num_streams || frame_num_utt.size() * max_frame_num > frame_limit) {
+        if (frame_num_utt.size() == num_stream || frame_num_utt.size() * max_frame_num > frame_limit) {
             feature_reader.Next(); break;
         }
       }
