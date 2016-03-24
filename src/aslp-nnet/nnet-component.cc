@@ -161,7 +161,7 @@ Component* Component::NewComponentOfType(ComponentType comp_type,
       ans = new Lstm(input_dim, output_dim);
       break;
     case Component::kBLstm:
-      //ans = new BLstm(input_dim, output_dim);
+      ans = new BLstm(input_dim, output_dim);
       break;
     case Component::kUnknown :
     default :

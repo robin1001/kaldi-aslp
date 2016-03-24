@@ -70,7 +70,7 @@ int main(int argc, char *argv[]) {
     po.Register("frame-limit", &frame_limit, "Max number of frames to be processed");
 
     std::string use_gpu = "yes";
-    // po.Register("use-gpu", &use_gpu, "yes|no|optional, only has effect if compiled with CUDA");
+    po.Register("use-gpu", &use_gpu, "yes|no|optional, only has effect if compiled with CUDA");
 
     // Add dummy randomizer options, to make the tool compatible with standard scripts
     NnetDataRandomizerOptions rnd_opts;

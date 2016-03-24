@@ -591,12 +591,14 @@ void BLstm::InitData(std::istream &is) {
     f_w_gifo_x_.Resize(4*ncell_, input_dim_, kUndefined);
     f_w_gifo_r_.Resize(4*ncell_, ncell_, kUndefined);
 
+    // init weight and bias (Uniform)
     InitMatParam(f_w_gifo_x_, param_scale);
     InitMatParam(f_w_gifo_r_, param_scale);
     // backward direction
     b_w_gifo_x_.Resize(4*ncell_, input_dim_, kUndefined);
     b_w_gifo_r_.Resize(4*ncell_, ncell_, kUndefined);
 
+    // init weight and bias (Uniform)
     InitMatParam(b_w_gifo_x_, param_scale);
     InitMatParam(b_w_gifo_r_, param_scale);
 
@@ -607,6 +609,7 @@ void BLstm::InitData(std::istream &is) {
     InitVecParam(f_bias_, param_scale);
     InitVecParam(b_bias_, param_scale);
 
+    // init weight and bias (Uniform)
     // forward direction
     f_peephole_i_c_.Resize(ncell_, kUndefined);
     f_peephole_f_c_.Resize(ncell_, kUndefined);

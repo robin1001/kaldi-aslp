@@ -26,6 +26,7 @@
 #include "aslp-nnet/nnet-various.h"
 #include "aslp-nnet/nnet-lstm-projected-streams.h"
 #include "aslp-nnet/nnet-blstm-projected-streams.h"
+#include "aslp-nnet/nnet-recurrent-component.h"
 
 namespace kaldi {
 namespace aslp_nnet {
@@ -442,6 +443,10 @@ void Nnet::SetSeqLengths(const std::vector<int32> &sequence_lengths) {
   for (int32 c=0; c < NumComponents(); c++) {
     if (GetComponent(c).GetType() == Component::kBLstmProjectedStreams) {
       BLstmProjectedStreams& comp = dynamic_cast<BLstmProjectedStreams&>(GetComponent(c));
+      comp.SetSeqLengths(sequence_lengths);
+    }
+    else if (GetComponent(c).GetType() == Component::kBLstm) {
+      BLstm &comp = dynamic_cast<BLstm&>(GetComponent(c));
       comp.SetSeqLengths(sequence_lengths);
     }
   }
