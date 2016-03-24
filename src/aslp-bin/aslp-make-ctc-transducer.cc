@@ -379,12 +379,17 @@ int main(int argc, char *argv[]) {
     ReadKaldiObject(model_filename, &trans_model);
 
     std::vector<int32> disambig_syms_out;
+    int blank_phone = trans_model.NumPhones();
     //get blank's transition-id
     int32 trans_state =
-        trans_model.TripleToTransitionState(1, 0, 0);
+        trans_model.TripleToTransitionState(blank_phone, 0, 0);
     int32 trans_id =
         trans_model.PairToTransitionId(trans_state, 0);
-
+    KALDI_ASSERT(trans_model.TransitionIdToPdfClass(trans_id) == 0);
+    std::cerr << "blank_phone " << blank_phone << "\n" 
+              << "trans_state " << trans_state << "\n" 
+              << "trans_id " << trans_id << "\n"
+              << "blank pdf " << trans_model.TransitionIdToPdfClass(trans_id) << "\n";
     // The work gets done here.
     fst::VectorFst<fst::StdArc> *H = GetCtcTransducer (ilabel_info,
                                                      ctx_dep,

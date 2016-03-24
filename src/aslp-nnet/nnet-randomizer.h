@@ -24,8 +24,8 @@
 
 #include "base/kaldi-math.h"
 #include "itf/options-itf.h"
-#include "cudamatrix/cu-matrix.h"
-#include "cudamatrix/cu-math.h"
+#include "aslp-cudamatrix/cu-matrix.h"
+#include "aslp-cudamatrix/cu-math.h"
 
 namespace kaldi {
 namespace aslp_nnet {

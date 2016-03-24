@@ -31,6 +31,7 @@
 
 #include "aslp-nnet/nnet-batch-normalization.h"
 #include "aslp-nnet/nnet-io.h"
+#include "aslp-nnet/nnet-recurrent-component.h"
 
 #include <sstream>
 
@@ -62,6 +63,8 @@ const struct Component::key_value Component::kMarkerMap[] = {
   { Component::kInputLayer, "<InputLayer>"},
   { Component::kOutputLayer, "<OutputLayer>"},
   { Component::kScaleLayer, "<ScaleLayer>"},
+  { Component::kLstm, "<Lstm>"},
+  { Component::kBLstm, "<BLstm>"},
 };
 
 
@@ -154,6 +157,12 @@ Component* Component::NewComponentOfType(ComponentType comp_type,
     case Component::kScaleLayer:
       ans = new ScaleLayer(input_dim, output_dim);
       break;
+    case Component::kLstm:
+      ans = new Lstm(input_dim, output_dim);
+      break;
+    case Component::kBLstm:
+      ans = new BLstm(input_dim, output_dim);
+      break;
     case Component::kUnknown :
     default :
       KALDI_ERR << "Missing type: " << TypeToMarker(comp_type);
@@ -174,39 +183,41 @@ Component* Component::Init(const std::string &conf_line) {
   ReadBasicType(is, false, &input_dim); 
   ExpectToken(is, false, "<OutputDim>");
   ReadBasicType(is, false, &output_dim);
-  int32 id;
-  ExpectToken(is, false, "<Id>");
-  ReadBasicType(is, false, &id);
-  std::string input_string;
-  ExpectToken(is, false, "<Input>");
-  ReadToken(is, false, &input_string);
-  std::vector<std::string> sub_input_string;
-  SplitStringToVector(input_string, ",", true, &sub_input_string);
-  int32 num_input = sub_input_string.size();
-  std::vector<int32> input(num_input, 0),
-                     offset(num_input, 0);
-  // Parse inputs
-  for (int i = 0; i < num_input; i++) {
-    std::vector<std::string> field;
-    SplitStringToVector(sub_input_string[i], ":", true, &field);
-    KALDI_ASSERT(field.size() >= 1);
-    KALDI_ASSERT(field.size() <= 2);
-    ConvertStringToInteger(field[0], &input[i]);
-    if (field.size() > 1) {
-      ConvertStringToInteger(field[1], &offset[i]);
-    }
-    KALDI_VLOG(3) << "layerId " << id << " "
-                  << "inputId " << input[i] << " "
-                  << "offset " << offset[i];
-  }
-
   Component *ans = NewComponentOfType(component_type, input_dim, output_dim);
+  // Optional Id and 
+  if (conf_line.find("<Id>") != std::string::npos) {
+    int32 id;
+    ExpectToken(is, false, "<Id>");
+    ReadBasicType(is, false, &id);
+    std::string input_string;
+    ExpectToken(is, false, "<Input>");
+    ReadToken(is, false, &input_string);
+    std::vector<std::string> sub_input_string;
+    SplitStringToVector(input_string, ",", true, &sub_input_string);
+    int32 num_input = sub_input_string.size();
+    std::vector<int32> input(num_input, 0),
+                       offset(num_input, 0);
+    // Parse inputs
+    for (int i = 0; i < num_input; i++) {
+      std::vector<std::string> field;
+      SplitStringToVector(sub_input_string[i], ":", true, &field);
+      KALDI_ASSERT(field.size() >= 1);
+      KALDI_ASSERT(field.size() <= 2);
+      ConvertStringToInteger(field[0], &input[i]);
+      if (field.size() > 1) {
+        ConvertStringToInteger(field[1], &offset[i]);
+      }
+      KALDI_VLOG(3) << "layerId " << id << " "
+                    << "inputId " << input[i] << " "
+                    << "offset " << offset[i];
+    }
+    ans->SetId(id);
+    ans->SetInput(input);
+    ans->SetOffset(offset);
+  }
 
   // initialize internal data with the remaining part of config line
   ans->InitData(is);
-  ans->SetId(id);
-  ans->SetInput(input);
-  ans->SetOffset(offset);
   return ans;
 }
 

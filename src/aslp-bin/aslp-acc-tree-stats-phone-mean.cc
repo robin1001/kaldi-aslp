@@ -83,10 +83,15 @@ void AccumulateTreeStatsPhone(const TransitionModel &trans_model,
         if (is_ctx_dep || j == P)
           evec.push_back(std::make_pair(static_cast<EventKeyType>(j), static_cast<EventValueType>(phone)));
       }
-      //binbin concatenating 3 states central phone as feature vector, 39 * 3
-      std::vector<Vector<BaseFloat> > sum_stats(3, Vector<BaseFloat>(dim));
+      //KALDI_LOG << central_phone << " " << evec.size(); 
+      // CI Phone(SIL,SP or SPN may) has more than 3 states
+      int num_state = trans_model.GetTopo().NumPdfClasses(central_phone);
+      //KALDI_LOG << "num_state " << num_state;
 
-      std::vector <int> nums(3, 0);
+      //binbin concatenating 3 states central phone as feature vector, 39 * 3
+      std::vector<Vector<BaseFloat> > sum_stats(num_state, Vector<BaseFloat>(dim));
+
+      std::vector <int> nums(num_state, 0);
       int state = 0;
       //std::cerr << "result assign ";
       for (int j = 0; j < static_cast<int>(split_alignment[i+P].size());j++) {
@@ -98,37 +103,34 @@ void AccumulateTreeStatsPhone(const TransitionModel &trans_model,
           int32 pdf_class_pre = trans_model.TransitionIdToPdfClass(split_alignment[i+P][j-1]);
           int32 pdf_class = trans_model.TransitionIdToPdfClass(split_alignment[i+P][j]);
           if (pdf_class != pdf_class_pre) state++;
-          nums[state]++;
-          sum_stats[state].AddVec(1.0, features.Row(cur_pos)); 
-          //std::cerr << state << " ";
+          // In some case, state >= num_state, havn't find the reason
+          if (state < num_state) {
+            nums[state]++;
+            //std::cerr << state << " ";
+            sum_stats[state].AddVec(1.0, features.Row(cur_pos)); 
+          }
         }
         cur_pos++;
       }
       //std::cerr << "\n";
-      
-      KALDI_ASSERT(2 == state); //only 3 states
-      KALDI_ASSERT(nums[0] + nums[1] + nums[2] == split_alignment[i+P].size()); //only 3 states
       for (int k = 0; k < sum_stats.size(); k++) {
         sum_stats[k].Scale(1.0f / nums[k]); 
       }
-      //concatenating feature
-      //KALDI_LOG << features.NumRows() << " " 
-      //          << cur_pos << " " << split_alignment[i+P].size() << " " 
-      //          << middle[0] << " " <<  middle[1] << " " << middle[2];
 
-      Vector<BaseFloat> concate_features(dim * 3);
-      concate_features.Range(0, dim).CopyFromVec(sum_stats[0]);
-      concate_features.Range(dim, dim).CopyFromVec(sum_stats[1]);
-      concate_features.Range(2*dim, dim).CopyFromVec(sum_stats[2]);
+      Vector<BaseFloat> concate_features(dim * num_state);
+      for (int j = 0; j < num_state; j++) {
+        concate_features.Range(j*dim, dim).CopyFromVec(sum_stats[j]);
+      }
       //for (int k = 0; k < concate_features.Dim(); k++) {
       //  std::cerr << concate_features(k) << " ";
       //}
       //std::cerr << "\n";
-      
-      evec.push_back(std::make_pair(static_cast<EventKeyType>(kPdfClass), static_cast<EventValueType>(0)));
+
+      //evec.push_back(std::make_pair(static_cast<EventKeyType>(kPdfClass), static_cast<EventValueType>(0)));
+      evec.push_back(std::make_pair(static_cast<EventKeyType>(kPdfClass), static_cast<EventValueType>(central_phone)));
       std::sort(evec.begin(), evec.end());
       if (stats->count(evec) == 0) {
-          (*stats)[evec] = new GaussClusterable(dim * 3, var_floor);
+          (*stats)[evec] = new GaussClusterable(dim * num_state, var_floor);
       }
       BaseFloat weight = 1.0;
       (*stats)[evec]->AddStats(concate_features, weight);

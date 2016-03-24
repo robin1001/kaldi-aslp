@@ -39,8 +39,8 @@ fi
 # This script will make $dir/train.conf automaticlly
 if [ $stage -le 1 ]; then
     echo "Preparing alignment and feats"
+        #--delta_opts "--delta-order=2" \
     aslp_scripts/aslp_nnet/prepare_feats_ali.sh \
-        --delta_opts "--delta-order=2" \
         --cmvn_opts "--norm-means=true --norm-vars=true" \
         --splice_opts "--left-context=5 --right-context=5" \
         $feat_dir/train_tr $feat_dir/train_cv data/lang $ali $ali $dir || exit 1;
@@ -63,19 +63,21 @@ if [ $stage -le 2 ]; then
 # Init nnet.proto with 2 lstm layers
 cat > $dir/nnet.proto <<EOF
 <NnetProto>
-<ConvolutionalComponent> <InputDim> $num_feat <OutputDim> 4096 <PatchDim> 9 <PatchStep> 1 <PatchStride> 40 <BiasMean> -2.000000 <BiasRange> 4.000000 <ParamStddev> 0.1 <MaxNorm> 30
-<MaxPoolingComponent> <InputDim> 4096 <OutputDim> 1024 <PoolSize> 4 <PoolStep> 4 <PoolStride> 128
-<BatchNormalization> <InputDim> 1024 <OutputDim> 1024
-<Sigmoid> <InputDim> 1024 <OutputDim> 1024
-<AffineTransform> <InputDim> 1024 <OutputDim> 512 <BiasMean> -2.000000 <BiasRange> 4.000000 <ParamStddev> 0.1
-<BatchNormalization> <InputDim> 512 <OutputDim> 512
-<Sigmoid> <InputDim> 512 <OutputDim> 512
-<LstmProjectedStreams> <InputDim> 512 <OutputDim> 512 <CellDim> 1024 <ParamScale> 0.010000 <ClipGradient> 5.000000
-<BatchNormalization> <InputDim> 512 <OutputDim> 512
-<LstmProjectedStreams> <InputDim> 512 <OutputDim> 512 <CellDim> 1024 <ParamScale> 0.010000 <ClipGradient> 5.000000
-<BatchNormalization> <InputDim> 512 <OutputDim> 512
-<AffineTransform> <InputDim> 512 <OutputDim> $num_tgt <BiasMean> 0.0 <BiasRange> 0.0 <ParamStddev> 0.040000
-<Softmax> <InputDim> $num_tgt <OutputDim> $num_tgt
+<InputLayer> <InputDim> $num_feat <OutputDim> $num_feat <Id> 0 <Input> -1
+<ConvolutionalComponent> <InputDim> $num_feat <OutputDim> 4096 <Id> 1 <Input> 0 <PatchDim> 9 <PatchStep> 1 <PatchStride> 40 <BiasMean> -2.000000 <BiasRange> 4.000000 <ParamStddev> 0.1 <MaxNorm> 30
+<MaxPoolingComponent> <InputDim> 4096 <OutputDim> 1024 <Id> 2 <Input> 1 <PoolSize> 4 <PoolStep> 4 <PoolStride> 128
+<BatchNormalization> <InputDim> 1024 <OutputDim> 1024 <Id> 3 <Input> 2
+<Sigmoid> <InputDim> 1024 <OutputDim> 1024 <Id> 4 <Input> 3
+<AffineTransform> <InputDim> 1024 <OutputDim> 512 <Id> 5 <Input> 4 <BiasMean> -2.000000 <BiasRange> 4.000000 <ParamStddev> 0.1
+<BatchNormalization> <InputDim> 512 <OutputDim> 512 <Id> 6 <Input> 5
+<Sigmoid> <InputDim> 512 <OutputDim> 512 <Id> 7 <Input> 6
+<LstmProjectedStreams> <InputDim> 512 <OutputDim> 512 <Id> 8 <Input> 7 <CellDim> 1024 <ParamScale> 0.010000 <ClipGradient> 5.000000
+<BatchNormalization> <InputDim> 512 <OutputDim> 512 <Id> 9 <Input> 8
+<LstmProjectedStreams> <InputDim> 512 <OutputDim> 512 <Id> 10 <Input> 9 <CellDim> 1024 <ParamScale> 0.010000 <ClipGradient> 5.000000
+<BatchNormalization> <InputDim> 512 <OutputDim> 512 <Id> 11 <Input> 10
+<AffineTransform> <InputDim> 512 <OutputDim> $num_tgt <Id> 12 <Input> 11 <BiasMean> 0.0 <BiasRange> 0.0 <ParamStddev> 0.040000
+<Softmax> <InputDim> $num_tgt <OutputDim> $num_tgt <Id> 13 <Input> 12
+<OutputLayer> <InputDim> $num_tgt <OutputDim> $num_tgt <Id> 14 <Input> 13
 </NnetProto>
 EOF
 

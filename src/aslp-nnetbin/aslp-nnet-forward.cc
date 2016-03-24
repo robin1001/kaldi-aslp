@@ -50,7 +50,7 @@ int main(int argc, char *argv[]) {
 
     bool no_softmax = false;
     po.Register("no-softmax", &no_softmax, "No softmax on MLP output (or remove it if found), the pre-softmax activations will be used as log-likelihoods, log-priors will be subtracted");
-    bool apply_log = false;
+    bool apply_log = true;
     po.Register("apply-log", &apply_log, "Transform MLP output to logscale");
 
     std::string use_gpu="no";
@@ -87,15 +87,15 @@ int main(int argc, char *argv[]) {
     Nnet nnet;
     nnet.Read(model_filename);
     // optionally remove softmax,
-    Component::ComponentType last_type = nnet.GetComponent(nnet.NumComponents()-1).GetType();
-    if (no_softmax) {
-      if (last_type == Component::kSoftmax || last_type == Component::kBlockSoftmax) {
-        KALDI_LOG << "Removing " << Component::TypeToMarker(last_type) << " from the nnet " << model_filename;
-        nnet.RemoveComponent(nnet.NumComponents()-1);
-      } else {
-        KALDI_WARN << "Cannot remove softmax using --no-softmax=true, as the last component is " << Component::TypeToMarker(last_type);
-      }
-    }
+    //Component::ComponentType last_type = nnet.GetComponent(nnet.NumComponents()-1).GetType();
+    //if (no_softmax) {
+    //  if (last_type == Component::kSoftmax || last_type == Component::kBlockSoftmax) {
+    //    KALDI_LOG << "Removing " << Component::TypeToMarker(last_type) << " from the nnet " << model_filename;
+    //    nnet.RemoveComponent(nnet.NumComponents()-1);
+    //  } else {
+    //    KALDI_WARN << "Cannot remove softmax using --no-softmax=true, as the last component is " << Component::TypeToMarker(last_type);
+    //  }
+    //}
 
     // avoid some bad option combinations,
     if (apply_log && no_softmax) {

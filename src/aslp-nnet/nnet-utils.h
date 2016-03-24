@@ -26,8 +26,8 @@
 #include <algorithm>
 
 #include "base/kaldi-common.h"
-#include "cudamatrix/cu-matrix.h"
-#include "cudamatrix/cu-array.h"
+#include "aslp-cudamatrix/cu-matrix.h"
+#include "aslp-cudamatrix/cu-array.h"
 #include "hmm/posterior.h"
 #include "hmm/transition-model.h"
 

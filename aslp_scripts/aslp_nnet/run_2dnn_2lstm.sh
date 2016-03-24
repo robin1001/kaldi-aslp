@@ -3,7 +3,7 @@
 # Copyright 2016  ASLP (Author: zhangbinbin)
 # Apache 2.0
 
-stage=4
+stage=1
 feat_dir=data_fbank
 gmmdir=exp/tri2b
 dir=exp/dnn_fbank_2nn_2lstm
@@ -63,18 +63,20 @@ if [ $stage -le 2 ]; then
 # Init nnet.proto with 2 lstm layers
 cat > $dir/nnet.proto <<EOF
 <NnetProto>
-<AffineTransform> <InputDim> $num_feat <OutputDim> 1024 <BiasMean> -2.000000 <BiasRange> 4.000000 <ParamStddev> 0.1
-<BatchNormalization> <InputDim> 1024 <OutputDim> 1024 
-<Sigmoid> <InputDim> 1024 <OutputDim> 1024 
-<AffineTransform> <InputDim> 1024 <OutputDim> 512 <BiasMean> -2.000000 <BiasRange> 4.000000 <ParamStddev> 0.1
-<BatchNormalization> <InputDim> 512 <OutputDim> 512
-<Sigmoid> <InputDim> 512 <OutputDim> 512
-<LstmProjectedStreams> <InputDim> 512 <OutputDim> 512 <CellDim> 1024 <ParamScale> 0.010000 <ClipGradient> 5.000000
-<BatchNormalization> <InputDim> 512 <OutputDim> 512
-<LstmProjectedStreams> <InputDim> 512 <OutputDim> 512 <CellDim> 1024 <ParamScale> 0.010000 <ClipGradient> 5.000000
-<BatchNormalization> <InputDim> 512 <OutputDim> 512
-<AffineTransform> <InputDim> 512 <OutputDim> $num_tgt <BiasMean> 0.0 <BiasRange> 0.0 <ParamStddev> 0.040000
-<Softmax> <InputDim> $num_tgt <OutputDim> $num_tgt
+<InputLayer> <InputDim> $num_feat <OutputDim> $num_feat <Id> 0 <Input> -1
+<AffineTransform> <InputDim> $num_feat <OutputDim> 1024 <Id> 1 <Input> 0 <BiasMean> -2.000000 <BiasRange> 4.000000 <ParamStddev> 0.1
+<BatchNormalization> <InputDim> 1024 <OutputDim> 1024 <Id> 2 <Input> 1
+<Sigmoid> <InputDim> 1024 <OutputDim> 1024 <Id> 3 <Input> 2
+<AffineTransform> <InputDim> 1024 <OutputDim> 512 <Id> 4 <Input> 3 <BiasMean> -2.000000 <BiasRange> 4.000000 <ParamStddev> 0.1
+<BatchNormalization> <InputDim> 512 <OutputDim> 512 <Id> 5 <Input> 4
+<Sigmoid> <InputDim> 512 <OutputDim> 512 <Id> 6 <Input> 5
+<LstmProjectedStreams> <InputDim> 512 <OutputDim> 512 <Id> 7 <Input> 6 <CellDim> 1024 <ParamScale> 0.010000 <ClipGradient> 5.000000
+<BatchNormalization> <InputDim> 512 <OutputDim> 512 <Id> 8 <Input> 7
+<LstmProjectedStreams> <InputDim> 512 <OutputDim> 512 <Id> 9 <Input> 8 <CellDim> 1024 <ParamScale> 0.010000 <ClipGradient> 5.000000
+<BatchNormalization> <InputDim> 512 <OutputDim> 512 <Id> 10 <Input> 9
+<AffineTransform> <InputDim> 512 <OutputDim> $num_tgt <Id> 11 <Input> 10 <BiasMean> 0.0 <BiasRange> 0.0 <ParamStddev> 0.040000
+<Softmax> <InputDim> $num_tgt <OutputDim> $num_tgt <Id> 12 <Input> 11 
+<OutputLayer> <InputDim> $num_tgt <OutputDim> $num_tgt <Id> 13 <Input> 12
 </NnetProto>
 EOF
 
@@ -97,6 +99,7 @@ fi
 if [ $stage -le 4 ]; then
     aslp_scripts/aslp_nnet/decode.sh --nj 2 --num-threads 12 \
         --cmd "$decode_cmd" --acwt 0.0666667 \
+        --nnet-forward-opts "--no-softmax=false --apply-log=true" \
         $gmmdir/graph $feat_dir/test $dir/decode_test3000 || exit 1;
     aslp_scripts/score_basic.sh --cmd "$decode_cmd" $feat_dir/test \
         $gmmdir/graph $dir/decode_test3000 || exit 1;

@@ -23,9 +23,9 @@
 #ifndef ASLP_NNET_NNET_LSTM_PROJECTED_STREAMS_H_
 #define ASLP_NNET_NNET_LSTM_PROJECTED_STREAMS_H_
 
-#include "nnet/nnet-component.h"
-#include "nnet/nnet-utils.h"
-#include "cudamatrix/cu-math.h"
+#include "aslp-nnet/nnet-component.h"
+#include "aslp-nnet/nnet-utils.h"
+#include "aslp-cudamatrix/cu-math.h"
 
 /*************************************
  * x: input neuron

@@ -13,9 +13,10 @@ BINFILES = aslp-nnet-info aslp-nnet-init \
          aslp-nnet-insert \
          aslp-nnet-train-simple \
          aslp-nnet-forward \
-         aslp-nnet-train-lstm-streams \
+         aslp-nnet-train-lstm-streams aslp-nnet-train-blstm-streams \
          aslp-nnet-train-frame aslp-nnet-train-frame-mimo \
-         aslp-nnet-forward-mimo
+         aslp-nnet-forward-mimo \
+         aslp-nnet-train-ctc aslp-nnet-train-ctc-streams
 
 #        nnet-train-perutt \
 #        nnet-train-mmi-sequential \
@@ -32,7 +33,7 @@ OBJFILES =
 
 TESTFILES =
 
-ADDLIBS = ../aslp-nnet/aslp-nnet.a $(KALDI_DIR)/cudamatrix/kaldi-cudamatrix.a \
+ADDLIBS = ../aslp-nnet/aslp-nnet.a ../aslp-cudamatrix/aslp-cudamatrix.a \
           $(KALDI_DIR)/lat/kaldi-lat.a $(KALDI_DIR)/hmm/kaldi-hmm.a \
           $(KALDI_DIR)/tree/kaldi-tree.a $(KALDI_DIR)/matrix/kaldi-matrix.a \
           $(KALDI_DIR)/util/kaldi-util.a $(KALDI_DIR)/base/kaldi-base.a 
