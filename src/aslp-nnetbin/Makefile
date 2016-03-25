@@ -16,7 +16,8 @@ BINFILES = aslp-nnet-info aslp-nnet-init \
          aslp-nnet-train-lstm-streams aslp-nnet-train-blstm-streams \
          aslp-nnet-train-frame aslp-nnet-train-frame-mimo \
          aslp-nnet-forward-mimo \
-         aslp-nnet-train-ctc aslp-nnet-train-ctc-streams
+         aslp-nnet-train-ctc aslp-nnet-train-ctc-streams \
+         aslp-nnet-train-blstm-parallel
 
 #        nnet-train-perutt \
 #        nnet-train-mmi-sequential \

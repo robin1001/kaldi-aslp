@@ -132,7 +132,7 @@ int main(int argc, char *argv[]) {
             << ", " << time.Elapsed()/60 << " min, fps" << total_frames/time.Elapsed()
             << "]";  
 
-        loss->Report();
+        KALDI_LOG << loss->Report();
         if (loss != NULL) delete loss;
 
 #if HAVE_CUDA==1
