@@ -152,6 +152,9 @@ int main(int argc, char *argv[]) {
       if (!KALDI_ISFINITE(feats_transf.Sum())) { // check there's no nan/inf,
         KALDI_ERR << "NaN or inf found in transformed-features for " << utt;
       }
+      std::vector<int> frame_num_utt;
+      frame_num_utt.push_back(feats_transf.NumRows());
+      nnet.SetSeqLengths(frame_num_utt);
 
       // fwd-pass, nnet,
       nnet.Feedforward(feats_transf, &nnet_out);
