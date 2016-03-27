@@ -227,6 +227,11 @@ void Lstm::ResetLstmStreams(const std::vector<int32> &stream_reset_flag) {
     }
 }
 
+void Lstm::SetSeqLengths(const std::vector<int32> &sequence_lengths) {
+    nstream_ = sequence_lengths.size();
+    prev_nnet_state_.Resize(nstream_, 7*ncell_, kSetZero);
+}
+
 void Lstm::PropagateFnc(const CuMatrixBase<BaseFloat> &in, CuMatrixBase<BaseFloat> *out) {
     static bool do_stream_reset = false;
     if (nstream_ == 0) {

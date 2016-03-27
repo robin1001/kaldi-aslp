@@ -436,6 +436,10 @@ void Nnet::ResetLstmStreams(const std::vector<int32> &stream_reset_flag) {
       LstmProjectedStreams& comp = dynamic_cast<LstmProjectedStreams&>(GetComponent(c));
       comp.ResetLstmStreams(stream_reset_flag);
     }    
+    else if (GetComponent(c).GetType() == Component::kLstm) {
+      Lstm& comp = dynamic_cast<Lstm&>(GetComponent(c));
+      comp.ResetLstmStreams(stream_reset_flag);
+    }
   }
 }
 
@@ -447,6 +451,14 @@ void Nnet::SetSeqLengths(const std::vector<int32> &sequence_lengths) {
     }
     else if (GetComponent(c).GetType() == Component::kBLstm) {
       BLstm &comp = dynamic_cast<BLstm&>(GetComponent(c));
+      comp.SetSeqLengths(sequence_lengths);
+    }
+    else if (GetComponent(c).GetType() == Component::kLstmProjectedStreams) {
+      LstmProjectedStreams &comp = dynamic_cast<LstmProjectedStreams&>(GetComponent(c));
+      comp.SetSeqLengths(sequence_lengths);
+    }
+    else if (GetComponent(c).GetType() == Component::kLstm) {
+      Lstm &comp = dynamic_cast<Lstm&>(GetComponent(c));
       comp.SetSeqLengths(sequence_lengths);
     }
   }

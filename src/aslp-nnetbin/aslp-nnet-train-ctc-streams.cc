@@ -19,6 +19,7 @@
 #include "aslp-nnet/nnet-trnopts.h"
 #include "aslp-nnet/nnet-nnet.h"
 #include "aslp-nnet/ctc-loss.h"
+#include "aslp-nnet/nnet-randomizer.h"
 #include "base/kaldi-common.h"
 #include "util/common-utils.h"
 #include "base/timer.h"
@@ -34,9 +35,9 @@ int main(int argc, char *argv[]) {
             "Perform one iteration of CTC training by SGD.\n"
             "The updates are done per-utterance and by processing multiple utterances in parallel.\n"
             "\n"
-            "Usage: train-ctc-parallel [options] <feature-rspecifier> <labels-rspecifier> <model-in> [<model-out>]\n"
+            "Usage: aslp-nnet-train-ctc-streams [options] <feature-rspecifier> <labels-rspecifier> <model-in> [<model-out>]\n"
             "e.g.: \n"
-            "train-ctc-parallel scp:feature.scp ark:labels.ark nnet.init nnet.iter1\n";
+            "aslp-nnet-train-ctc-streams scp:feature.scp ark:labels.ark nnet.init nnet.iter1\n";
 
         ParseOptions po(usage);
 
@@ -54,8 +55,15 @@ int main(int argc, char *argv[]) {
         double frame_limit = 100000;
         po.Register("frame-limit", &frame_limit, "Max number of frames to be processed");
 
+        // Add dummy randomizer options, to make the tool compatible with standard scripts
+        NnetDataRandomizerOptions rnd_opts;
+        rnd_opts.Register(&po);
+        bool randomize = false;
+        po.Register("randomize", &randomize, "Dummy option, for compatibility...");
         int32 report_step=100;
         po.Register("report-step", &report_step, "Step (number of sequences) for status reporting");
+        int report_period = 200; // 200 sentence with one report 
+        po.Register("report-period", &report_period, "Number of sentence for one report log, default(200)");
         int drop_len = 0;
         po.Register("drop-len", &drop_len, "if Sentence frame length greater than drop_len,"
                                            "then drop it, default(0, no drop)");
@@ -108,6 +116,8 @@ int main(int argc, char *argv[]) {
         int32 feat_dim = net.InputDim();
 
         int32 num_done = 0, num_no_tgt_mat = 0, num_other_error = 0;
+        int32 num_sentence = 0;
+
         while (1) {
 
             std::vector<int> frame_num_utt;
@@ -173,6 +183,12 @@ int main(int argc, char *argv[]) {
 
             num_done += cur_sequence_num;
             total_frames += feat_mat_host.NumRows();
+            num_sentence += cur_sequence_num;
+            // Report likelyhood
+            if (num_sentence >= report_period) {
+                KALDI_LOG << ctc.Report();
+                num_sentence -= report_period;
+            }
 
             if (feature_reader.Done()) break; // end loop of while(1)
         }

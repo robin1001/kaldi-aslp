@@ -33,7 +33,8 @@ class Ctc {
 public:
     Ctc() : frames_(0), sequences_num_(0), ref_num_(0), error_num_(0), 
     frames_progress_(0), ref_num_progress_(0), error_num_progress_(0),
-    sequences_progress_(0), obj_progress_(0.0), report_step_(100) { }
+    sequences_progress_(0), obj_progress_(0.0), report_step_(100),
+    obj_(0) { }
     ~Ctc() { }
 
     /// CTC training over a single sequence from the labels. The errors are returned to [diff]
@@ -76,6 +77,8 @@ private:
     double obj_progress_;              // registry for the optimization objective
 
     int32 report_step_;                // report obj and accuracy every so many sequences/utterances
+
+    double obj_;
 
     std::vector<int32> label_expand_;  // expanded version of the label sequence
     CuMatrix<BaseFloat> alpha_;        // alpha values

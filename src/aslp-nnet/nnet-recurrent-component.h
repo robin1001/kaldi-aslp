@@ -49,6 +49,8 @@ public:
     std::string Info() const; 
     std::string InfoGradient() const; 
     void ResetLstmStreams(const std::vector<int32> &stream_reset_flag); 
+    // For compatible with whole sentence train(like ctc train or lstm who sentence train
+    void SetSeqLengths(const std::vector<int32> &sequence_lengths); 
     void PropagateFnc(const CuMatrixBase<BaseFloat> &in, 
                       CuMatrixBase<BaseFloat> *out); 
     void BackpropagateFnc(const CuMatrixBase<BaseFloat> &in, 

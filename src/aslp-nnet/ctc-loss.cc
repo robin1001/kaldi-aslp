@@ -78,6 +78,7 @@ void Ctc::Eval(const CuMatrixBase<BaseFloat> &net_out, const std::vector<int32> 
     diff->AddMat(-1.0, net_out_tmp);
 
     // update registries
+    obj_ += pzx;
     obj_progress_ += pzx;
     sequences_progress_ += 1;
     sequences_num_ += 1;
@@ -87,7 +88,7 @@ void Ctc::Eval(const CuMatrixBase<BaseFloat> &net_out, const std::vector<int32> 
     // progressive reporting
     {
         if (sequences_progress_ >= report_step_) {
-            KALDI_VLOG(1) << "After " << sequences_num_ << " sequences (" << frames_/(100.0 * 3600) << "Hr): "
+            KALDI_LOG << "Progress " << sequences_num_ << " sequences (" << frames_/(100.0 * 3600) << "Hr): "
                 << " Obj(log[Pzx]) = " << obj_progress_/sequences_progress_
                 << " Obj(frame) = " << obj_progress_/frames_progress_
                 << " TokenAcc = " << 100.0*(1.0 - error_num_progress_/ref_num_progress_) << "%";
@@ -172,6 +173,7 @@ void Ctc::EvalParallel(const std::vector<int32> &frame_num_utt, const CuMatrixBa
     diff->AddMat(-1.0, net_out_tmp);
 
     // update registries
+    obj_ += pzx.Sum();
     obj_progress_ += pzx.Sum();
     sequences_progress_ += num_sequence;
     sequences_num_ += num_sequence;
@@ -183,7 +185,7 @@ void Ctc::EvalParallel(const std::vector<int32> &frame_num_utt, const CuMatrixBa
     // progressive reporting
     {
         if (sequences_progress_ > report_step_) {
-            KALDI_VLOG(1) << "After " << sequences_num_ << " sequences (" << frames_/(100.0 * 3600) << "Hr):"
+            KALDI_LOG << "Progress " << sequences_num_ << " sequences (" << frames_/(100.0 * 3600) << "Hr):"
                 << " Obj(log[Pzx]) = " << obj_progress_/sequences_progress_
                 << " Obj(frame) = " << obj_progress_/frames_progress_
                 << " TokenAcc = " << 100.0*(1.0 - error_num_progress_/ref_num_progress_) << "%";
@@ -280,7 +282,9 @@ void Ctc::ErrorRateMSeq(const std::vector<int> &frame_num_utt, const CuMatrixBas
 
 std::string Ctc::Report() {
     std::ostringstream oss;
-    oss << "\nTOKEN_ACCURACY >> " << 100.0*(1.0 - error_num_/ref_num_) << "% <<";
+    oss << " Obj(log[Pzx]) = " << obj_/sequences_num_
+        << " Obj(frame) = " << obj_/frames_ 
+        << " TOKEN_ACCURACY >> " << 100.0*(1.0 - error_num_/ref_num_) << " % <<";
     return oss.str(); 
 }
 

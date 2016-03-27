@@ -304,6 +304,11 @@ class LstmProjectedStreams : public UpdatableComponent {
       }
     }
   }
+  // For compatible with whole sentence train(like ctc train or lstm who sentence train
+  void SetSeqLengths(const std::vector<int32> &sequence_lengths) {
+    nstream_ = sequence_lengths.size();
+    prev_nnet_state_.Resize(nstream_, 7*ncell_ + 1*nrecur_, kSetZero);
+  }
 
   void PropagateFnc(const CuMatrixBase<BaseFloat> &in, CuMatrixBase<BaseFloat> *out) {
     int DEBUG = 0;
