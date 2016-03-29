@@ -97,6 +97,8 @@ int main(int argc, char *argv[]) {
     int drop_len = 0;
     po.Register("drop-len", &drop_len, "if Sentence frame length greater than drop_len,"
                 "then drop it, default(0, no drop)");
+    int skip_width = 0;
+    po.Register("skip-width", &skip_width, "num of frame for one skip(default 0, not use skip)");
     
     po.Read(argc, argv);
 
@@ -208,11 +210,25 @@ int main(int argc, char *argv[]) {
                     continue;
                 }
 
+                // Use skip
+                if (skip_width > 1) {
+                    int skip_len = (feat_transf.NumRows() - 1) / skip_width + 1;
+                    CuMatrix<BaseFloat> skip_feat(skip_len, feat_transf.NumCols());
+                    Posterior skip_target(skip_len);
+                    for (int i = 0; i < skip_len; i++) {
+                        skip_feat.Row(i).CopyFromVec(feat_transf.Row(i * skip_width));
+                        skip_target[i] = target[i * skip_width];
+                    }
+                    feats[s].Resize(skip_feat.NumRows(), skip_feat.NumCols());
+                    skip_feat.CopyToMat(&feats[s]); 
+                    targets[s] = skip_target;
+                } else {
+                    feats[s].Resize(feat_transf.NumRows(), feat_transf.NumCols());
+                    feat_transf.CopyToMat(&feats[s]); 
+                    targets[s] = target;
+                }
                 // checks ok, put the data in the buffers,
                 keys[s] = key;
-                feats[s].Resize(feat_transf.NumRows(), feat_transf.NumCols());
-                feat_transf.CopyToMat(&feats[s]); 
-                targets[s] = target;
                 curt[s] = 0;
                 lent[s] = feats[s].NumRows();
                 new_utt_flags[s] = 1;  // a new utterance feeded to this stream

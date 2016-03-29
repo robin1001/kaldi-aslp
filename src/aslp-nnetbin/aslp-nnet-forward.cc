@@ -62,6 +62,10 @@ int main(int argc, char *argv[]) {
 
     int32 time_shift = 0;
     po.Register("time-shift", &time_shift, "LSTM : repeat last input frame N-times, discrad N initial output frames."); 
+    float scale_blank = 0.0;
+    po.Register("scale-blank", &scale_blank, "scale the blank posterior for CTC decoding"); 
+    int skip_width = 0;
+    po.Register("skip-width", &skip_width, "num of frame for one skip(default 0, not use skip)");
 
     po.Read(argc, argv);
 
@@ -115,6 +119,7 @@ int main(int argc, char *argv[]) {
     BaseFloatMatrixWriter feature_writer(feature_wspecifier);
 
     CuMatrix<BaseFloat> feats, feats_transf, nnet_out;
+    CuMatrix<BaseFloat> skip_feat, skip_out;
     Matrix<BaseFloat> nnet_out_host;
 
 
@@ -153,11 +158,32 @@ int main(int argc, char *argv[]) {
         KALDI_ERR << "NaN or inf found in transformed-features for " << utt;
       }
       std::vector<int> frame_num_utt;
-      frame_num_utt.push_back(feats_transf.NumRows());
-      nnet.SetSeqLengths(frame_num_utt);
+      // Use skip prediction
+      if (skip_width > 1) {
+        int skip_len = (feats_transf.NumRows() - 1) / skip_width + 1;
+        skip_feat.Resize(skip_len, feats_transf.NumCols()); 
+        for (int i = 0; i < skip_len; i++) {
+          skip_feat.Row(i).CopyFromVec(feats_transf.Row(i * skip_width));
+        }
+        frame_num_utt.push_back(skip_feat.NumRows());
+        nnet.SetSeqLengths(frame_num_utt);
+        nnet.Feedforward(skip_feat, &skip_out);
+        nnet_out.Resize(feats_transf.NumRows(), skip_out.NumCols());
+        for (int i = 0; i < skip_len; i++) {
+          for (int j = 0; j < skip_width; j++) {
+            int idx = i * skip_width + j;
+            if (idx < nnet_out.NumRows()) {
+              nnet_out.Row(idx).CopyFromVec(skip_out.Row(i));
+            }
+          }
+        }
+      } else {
+        frame_num_utt.push_back(feats_transf.NumRows());
+        nnet.SetSeqLengths(frame_num_utt);
+        // fwd-pass, nnet,
+        nnet.Feedforward(feats_transf, &nnet_out);
+      }
 
-      // fwd-pass, nnet,
-      nnet.Feedforward(feats_transf, &nnet_out);
       if (!KALDI_ISFINITE(nnet_out.Sum())) { // check there's no nan/inf,
         KALDI_ERR << "NaN or inf found in nn-output for " << utt;
       }
@@ -171,6 +197,11 @@ int main(int argc, char *argv[]) {
         }
         nnet_out.Add(1e-20); // avoid log(0),
         nnet_out.ApplyLog();
+      }
+
+      // scale the blank posterior for CTC decode
+      if (scale_blank > 0.0) {
+        nnet_out.ColRange(0, 1).Add(-scale_blank);
       }
      
       // subtract log-priors from log-posteriors or pre-softmax,
