@@ -148,7 +148,6 @@ int main(int argc, char *argv[]) {
                 KALDI_ERR << "NaN or inf found in transformed-features for " << utt;
             }
             std::vector<int> frame_num_utt;
-            nnet_out.Resize(feats_transf.NumRows(), skip_out.NumCols());
 
             // Use split skip prediction
             for (int skip_offset = 0; skip_offset < skip_width; skip_offset++) {
