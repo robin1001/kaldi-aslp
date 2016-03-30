@@ -12,6 +12,7 @@
 #include "base/kaldi-math.h"
 #include "aslp-cudamatrix/cu-matrix.h"
 #include "hmm/posterior.h"
+#include "itf/options-itf.h"
 
 #include "aslp-nnet/nnet-trnopts.h"
 #include "aslp-nnet/nnet-randomizer.h"
@@ -44,6 +45,31 @@ private:
     bool read_done_;
 };
 
+//struct SequenceDataReaderOptions {
+//    int32 drop_len;  // Size of a single mini-batch.
+//    int32 skip_width;
+//    int32 
+//    SequenceDataReaderOptions(): drop_len(0), skip_width(1) {}
+//    void Register(OptionsItf *opts) {
+//        opts->Register("drop-len", &drop_len, "if Sentence frame length greater than drop_len,"
+//                                              "then drop it, default(0, no drop)");
+//        opts->Register("skip-width", &skip_width, "num of frame for one skip(default 1, no skip)");
+//    }
+//};
+//
+//class SequenceDataReader {
+//public:
+//    SequenceDataReader(const std::string &feature_rspecifier, 
+//                    const std::string &targets_rspecifier,
+//                    const SequenceDataReaderOptions &read_opts);
+//    ~SequenceDataReader();
+//    void FillRandomizer(); 
+//    bool Done();
+//private:
+//    SequentialBaseFloatMatrixReader *feature_reader_;
+//    RandomAccessPosteriorReader *target_reader_;
+//    const NnetDataRandomizerOptions &read_opts_;
+//};
 
 
 } // namespace aslp_nnet
