@@ -229,6 +229,7 @@ fst::VectorFst<fst::StdArc> *GetHmmAsCtcFst(
             trans_model.TripleToTransitionState(phone, hmm_state, pdf);
         int32 trans_id =
             trans_model.PairToTransitionId(trans_state, trans_idx);
+        //KALDI_LOG << phone << " " << hmm_state << " " << pdf << " " << trans_id;
         //log_prob = trans_model.GetTransitionLogProbIgnoringSelfLoops(trans_id);
         log_prob = trans_model.GetTransitionLogProb(trans_id);
         // log_prob is a negative number (or zero)...
@@ -303,6 +304,7 @@ fst::VectorFst<fst::StdArc> *GetCtcTransducer (const std::vector<std::vector<int
       fst->AddState();
       fst->SetStart(0);
       fst->SetFinal(1, Weight::One());
+      //KALDI_LOG << disambig_sym_left;
       fst->AddArc(0, Arc(disambig_sym_left, disambig_sym_left, Weight::One(), 1));
       fsts[j] = fst;
     } else {  // Real phone-in-context.
