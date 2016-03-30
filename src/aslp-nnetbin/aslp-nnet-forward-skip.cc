@@ -147,7 +147,6 @@ int main(int argc, char *argv[]) {
             if (!KALDI_ISFINITE(feats_transf.Sum())) { // check there's no nan/inf,
                 KALDI_ERR << "NaN or inf found in transformed-features for " << utt;
             }
-            std::vector<int> frame_num_utt;
 
             // Use split skip prediction
             for (int skip_offset = 0; skip_offset < skip_width; skip_offset++) {
@@ -156,6 +155,7 @@ int main(int argc, char *argv[]) {
                 for (int i = 0; i < skip_len; i++) {
                     skip_feat.Row(i).CopyFromVec(feats_transf.Row(i * skip_width + skip_offset));
                 }
+                std::vector<int> frame_num_utt;
                 frame_num_utt.push_back(skip_feat.NumRows());
                 nnet.SetSeqLengths(frame_num_utt);
                 nnet.Feedforward(skip_feat, &skip_out);
