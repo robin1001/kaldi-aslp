@@ -67,6 +67,9 @@ int main(int argc, char *argv[]) {
         int drop_len = 0;
         po.Register("drop-len", &drop_len, "if Sentence frame length greater than drop_len,"
                                            "then drop it, default(0, no drop)");
+        int skip_width = 0;
+        po.Register("skip-width", &skip_width, "num of frame for one skip(default 0, not use skip)");
+    
 
         std::string use_gpu="yes";
         //po.Register("use-gpu", &use_gpu, "yes|no|optional, only has effect if compiled with CUDA"); 
@@ -118,6 +121,7 @@ int main(int argc, char *argv[]) {
         int32 num_done = 0, num_no_tgt_mat = 0, num_other_error = 0;
         int32 num_sentence = 0;
 
+
         while (1) {
 
             std::vector<int> frame_num_utt;
@@ -131,11 +135,24 @@ int main(int argc, char *argv[]) {
                     num_no_tgt_mat++;
                     continue;
                 }
+
                 // Get feature / target pair
-                Matrix<BaseFloat> mat = feature_reader.Value();
-                if (drop_len > 0 && mat.NumRows() > drop_len) {
+                Matrix<BaseFloat> raw_mat = feature_reader.Value();;
+                if (drop_len > 0 && raw_mat.NumRows() > drop_len) {
                     KALDI_WARN << utt << ", too long, droped";
                     continue;
+                }
+
+                Matrix<BaseFloat> mat; 
+                
+                if (skip_width > 1) {
+                    int skip_len = (raw_mat.NumRows() - 1) / skip_width + 1;
+                    mat.Resize(skip_len, raw_mat.NumCols());
+                    for (int i = 0; i < skip_len; i++) {
+                        mat.Row(i).CopyFromVec(raw_mat.Row(i * skip_width));
+                     }
+                } else {
+                    mat = raw_mat;
                 }
 
                 std::vector<int32> targets = targets_reader.Value(utt);
