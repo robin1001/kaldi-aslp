@@ -214,6 +214,49 @@ private:
 
 };
 
+
+//class RowConv: public UpdatableComponent {
+//public:
+//    RowConv(int32 input_dim, int32 output_dim) :
+//        UpdatableComponent(input_dim, output_dim),
+//        nstream_(0), left_ctx_(0), right_ctx_(0)
+//    { }
+//
+//    ~RowConv() { }
+//
+//    Component* Copy() const { return new BLstm(*this); }
+//    ComponentType GetType() const { return kBLstm; }
+//
+//    /// set the utterance length used for parallel training
+//    void SetSeqLengths(const std::vector<int32> &sequence_lengths); 
+//    void InitData(std::istream &is); 
+//
+//    void ReadData(std::istream &is, bool binary); 
+//    void WriteData(std::ostream &os, bool binary) const; 
+//    int32 NumParams() const; 
+//
+//    void GetParams(Vector<BaseFloat>* wei_copy) const; 
+//    void GetGpuParams(std::vector<std::pair<BaseFloat *, int> > *params); 
+//    std::string Info() const; 
+//
+//    void PropagateFnc(const CuMatrixBase<BaseFloat> &in, 
+//                      CuMatrixBase<BaseFloat> *out); 
+//    void BackpropagateFnc(const CuMatrixBase<BaseFloat> &in, 
+//                          const CuMatrixBase<BaseFloat> &out,
+//                          const CuMatrixBase<BaseFloat> &out_diff, 
+//                          CuMatrixBase<BaseFloat> *in_diff); 
+//
+//    void Update(const CuMatrixBase<BaseFloat> &input, 
+//                const CuMatrixBase<BaseFloat> &diff); 
+//private:
+//    // dims
+//    int32 nstream_;
+//    int left_ctx_, right_ctx_;
+//    CuMatrix<BaseFloat> w_;
+//};
+//
+
+
 } // namespace aslp_nnet
 } // namespace kaldi
 
