@@ -13,7 +13,8 @@ BINFILES = aslp-acc-tree-stats-phone-median aslp-acc-tree-stats-phone-mean \
 		   aslp-acc-tree-stats-cd-phone-kmeans aslp-acc-tree-stats-cd-phone-viterbi \
 		   aslp-make-ctc-transducer aslp-make-h3-transducer \
 		   aslp-tree-bind-info aslp-convert-ali \
-           aslp-acc-tree-stats-phone-mean-per-frame
+           aslp-acc-tree-stats-phone-mean-per-frame \
+           aslp-copy-vector-from-matrix
 
 TESTFILES = 
 

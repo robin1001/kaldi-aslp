@@ -12,12 +12,13 @@ LDLIBS += $(CUDA_LDLIBS)
 BINFILES = aslp-nnet-info aslp-nnet-init \
          aslp-nnet-insert \
          aslp-nnet-train-simple \
-         aslp-nnet-forward \
+         aslp-nnet-forward aslp-nnet-forward-skip \
          aslp-nnet-train-lstm-streams aslp-nnet-train-blstm-streams \
          aslp-nnet-train-frame aslp-nnet-train-frame-mimo \
          aslp-nnet-forward-mimo \
          aslp-nnet-train-ctc aslp-nnet-train-ctc-streams \
-         aslp-nnet-train-blstm-parallel
+         aslp-nnet-train-blstm-parallel \
+         aslp-nnet-train-lstm-streams-skip
 
 #        nnet-train-perutt \
 #        nnet-train-mmi-sequential \
