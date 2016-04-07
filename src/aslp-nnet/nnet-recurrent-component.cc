@@ -1420,6 +1420,167 @@ void BLstm::Update(const CuMatrixBase<BaseFloat> &input,
     /* For L2 regularization see "vanishing & exploding difficulties" in nnet-lstm-projected-streams.h */
 }
 
+//void BLstm::InitData(std::istream &is) {
+//    // parse config
+//    std::string token;
+//    while (!is.eof()) {
+//        ReadToken(is, false, &token);
+//        if (token == "<LeftContext>")
+//            ReadBasicType(is, false, &left_ctx_);
+//        else if (token == "<RightContext>")
+//            ReadBasicType(is, false, &param_scale);
+//        else KALDI_ERR << "Unknown token " << token << ", a typo in config?"
+//            << " (LeftContext|RightContext)";
+//        is >> std::ws;
+//    }
+//    w_.Resize( 
+//    w_.SetRandUniform();  // uniform in [0, 1]
+//}
+//
+//
+//void BLstm::ReadData(std::istream &is, bool binary) {
+//    ExpectToken(is, binary, "<ClipGradient>");
+//    ReadBasicType(is, binary, &clip_gradient_);
+//    // ExpectToken(is, binary, "<DropoutRate>");
+//    // ReadBasicType(is, binary, &dropout_rate_);
+//
+//    // reading parameters corresponding to forward direction
+//    f_w_gifo_x_.Read(is, binary);
+//    f_w_gifo_r_.Read(is, binary);
+//    f_bias_.Read(is, binary);
+//
+//    f_peephole_i_c_.Read(is, binary);
+//    f_peephole_f_c_.Read(is, binary);
+//    f_peephole_o_c_.Read(is, binary);
+//
+//    // init delta buffers
+//    f_w_gifo_x_corr_.Resize(4*ncell_, input_dim_, kSetZero);
+//    f_w_gifo_r_corr_.Resize(4*ncell_, ncell_, kSetZero);
+//    f_bias_corr_.Resize(4*ncell_, kSetZero);
+//
+//    f_peephole_i_c_corr_.Resize(ncell_, kSetZero);
+//    f_peephole_f_c_corr_.Resize(ncell_, kSetZero);
+//    f_peephole_o_c_corr_.Resize(ncell_, kSetZero);
+//
+//    // reading parameters corresponding to backward direction
+//    b_w_gifo_x_.Read(is, binary);
+//    b_w_gifo_r_.Read(is, binary);
+//    b_bias_.Read(is, binary);
+//
+//    b_peephole_i_c_.Read(is, binary);
+//    b_peephole_f_c_.Read(is, binary);
+//    b_peephole_o_c_.Read(is, binary);
+//
+//    // init delta buffers
+//    b_w_gifo_x_corr_.Resize(4*ncell_, input_dim_, kSetZero);
+//    b_w_gifo_r_corr_.Resize(4*ncell_, ncell_, kSetZero);
+//    b_bias_corr_.Resize(4*ncell_, kSetZero);
+//
+//    b_peephole_i_c_corr_.Resize(ncell_, kSetZero);
+//    b_peephole_f_c_corr_.Resize(ncell_, kSetZero);
+//    b_peephole_o_c_corr_.Resize(ncell_, kSetZero);
+//}
+//
+//
+//void BLstm::WriteData(std::ostream &os, bool binary) const {
+//    WriteToken(os, binary, "<ClipGradient>");
+//    WriteBasicType(os, binary, clip_gradient_);
+//    // WriteToken(os, binary, "<DropoutRate>");
+//    // WriteBasicType(os, binary, dropout_rate_);
+//
+//    // writing parameters corresponding to forward direction
+//    f_w_gifo_x_.Write(os, binary);
+//    f_w_gifo_r_.Write(os, binary);
+//    f_bias_.Write(os, binary);
+//
+//    f_peephole_i_c_.Write(os, binary);
+//    f_peephole_f_c_.Write(os, binary);
+//    f_peephole_o_c_.Write(os, binary);
+//
+//    // writing parameters corresponding to backward direction
+//    b_w_gifo_x_.Write(os, binary);
+//    b_w_gifo_r_.Write(os, binary);
+//    b_bias_.Write(os, binary);
+//
+//    b_peephole_i_c_.Write(os, binary);
+//    b_peephole_f_c_.Write(os, binary);
+//    b_peephole_o_c_.Write(os, binary);
+//
+//}
+//
+//
+//int32 BLstm::NumParams() const {
+//    return 2*( f_w_gifo_x_.NumRows() * f_w_gifo_x_.NumCols() +
+//            f_w_gifo_r_.NumRows() * f_w_gifo_r_.NumCols() +
+//            f_bias_.Dim() +
+//            f_peephole_i_c_.Dim() +
+//            f_peephole_f_c_.Dim() +
+//            f_peephole_o_c_.Dim());
+//}
+//
+//
+//void BLstm::GetParams(Vector<BaseFloat>* wei_copy) const {
+//    wei_copy->Resize(NumParams());
+//    int32 offset, len;
+//
+//    // Copying parameters corresponding to forward direction
+//    offset = 0;  len = f_w_gifo_x_.NumRows() * f_w_gifo_x_.NumCols();
+//    wei_copy->Range(offset, len).CopyRowsFromMat(f_w_gifo_x_);
+//
+//    offset += len; len =f_w_gifo_r_.NumRows() * f_w_gifo_r_.NumCols();
+//    wei_copy->Range(offset, len).CopyRowsFromMat(f_w_gifo_r_);
+//
+//    offset += len; len = f_bias_.Dim();
+//    wei_copy->Range(offset, len).CopyFromVec(f_bias_);
+//
+//    offset += len; len = f_peephole_i_c_.Dim();
+//    wei_copy->Range(offset, len).CopyFromVec(f_peephole_i_c_);
+//
+//    offset += len; len = f_peephole_f_c_.Dim();
+//    wei_copy->Range(offset, len).CopyFromVec(f_peephole_f_c_);
+//
+//    offset += len; len = f_peephole_o_c_.Dim();
+//    wei_copy->Range(offset, len).CopyFromVec(f_peephole_o_c_);
+//
+//    // Copying parameters corresponding to backward direction
+//    offset += len; len = b_w_gifo_x_.NumRows() * b_w_gifo_x_.NumCols();
+//    wei_copy->Range(offset, len).CopyRowsFromMat(b_w_gifo_x_);
+//
+//    offset += len; len = b_w_gifo_r_.NumRows() * b_w_gifo_r_.NumCols();
+//    wei_copy->Range(offset, len).CopyRowsFromMat(b_w_gifo_r_);
+//
+//    offset += len; len = b_bias_.Dim();
+//    wei_copy->Range(offset, len).CopyFromVec(b_bias_);
+//
+//    offset += len; len = b_peephole_i_c_.Dim();
+//    wei_copy->Range(offset, len).CopyFromVec(b_peephole_i_c_);
+//
+//    offset += len; len = b_peephole_f_c_.Dim();
+//    wei_copy->Range(offset, len).CopyFromVec(b_peephole_f_c_);
+//
+//    offset += len; len = b_peephole_o_c_.Dim();
+//    wei_copy->Range(offset, len).CopyFromVec(b_peephole_o_c_);
+//
+//    return;
+//}
+//
+//void BLstm::GetGpuParams(std::vector<std::pair<BaseFloat *, int> > *params) {
+//    params->clear();
+//    // Forward params
+//    params->push_back(std::make_pair(f_w_gifo_x_.Data(), f_w_gifo_x_.NumRows() * f_w_gifo_x_.Stride()));
+//    params->push_back(std::make_pair(f_w_gifo_r_.Data(), f_w_gifo_r_.NumRows() * f_w_gifo_r_.Stride()));
+//    params->push_back(std::make_pair(f_bias_.Data(), f_bias_.Dim()));
+//    params->push_back(std::make_pair(f_peephole_i_c_.Data(), f_peephole_i_c_.Dim()));
+//    params->push_back(std::make_pair(f_peephole_f_c_.Data(), f_peephole_f_c_.Dim()));
+//    params->push_back(std::make_pair(f_peephole_o_c_.Data(), f_peephole_o_c_.Dim()));
+//    // Backward params
+//    params->push_back(std::make_pair(b_w_gifo_x_.Data(), b_w_gifo_x_.NumRows() * b_w_gifo_x_.Stride()));
+//    params->push_back(std::make_pair(b_w_gifo_r_.Data(), b_w_gifo_r_.NumRows() * b_w_gifo_r_.Stride()));
+//    params->push_back(std::make_pair(b_bias_.Data(), b_bias_.Dim()));
+//    params->push_back(std::make_pair(b_peephole_i_c_.Data(), b_peephole_i_c_.Dim()));
+//    params->push_back(std::make_pair(b_peephole_f_c_.Data(), b_peephole_f_c_.Dim()));
+//    params->push_back(std::make_pair(b_peephole_o_c_.Data(), b_peephole_o_c_.Dim()));
+//}
 
 
 } // namespace aslp_nnet
