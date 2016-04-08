@@ -25,6 +25,8 @@ dst_ali_dir=$3
 
 [ ! -d $dst_ali_dir ] && mkdir -p $dst_ali_dir;
 
+# Attention: Default the first phone(SP) is used as fake blank phone
+
 # Get number of mono phones
 num_phone=$(am-info $src_ali_dir/final.mdl | grep phones | awk '{print $NF}')
 
@@ -43,12 +45,13 @@ for x in $src_ali_dir/ali.*.gz; do
 {
     file_name=$(basename $x)
     aslp-convert-ali $src_ali_dir/final.mdl $dst_ali_dir/final.mdl $dst_ali_dir/tree \
-        "ark:gunzip -c $src_ali_dir/$file_name |" "ark:|gzip -c > $dst_ali_dir/$file_name"
+        "ark:gunzip -c $src_ali_dir/$file_name |" ark:- | \
+    aslp-ali-to-pdf $dst_ali_dir/final.mdl ark:- "ark:|gzip -c > $dst_ali_dir/$file_name"
 } &
 done
 wait
 
 # Make decode graph
-aslp_scripts/cd_phone/make_h3_graph.sh data/lang_test \
+aslp_scripts/ctc/make_ctc_graph.sh data/lang_test \
     $dst_ali_dir $dst_ali_dir/graph
 

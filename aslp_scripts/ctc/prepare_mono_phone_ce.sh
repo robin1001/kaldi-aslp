@@ -20,9 +20,6 @@ dst_ali_dir=$2
 
 [ ! -d $dst_ali_dir ] && mkdir -p $dst_ali_dir;
 
-# Attention: All the last phone in the model or tree file are fake phones
-# it is used to fake blank id
-
 # Get number of mono phones
 num_phone=$(am-info $src_ali_dir/final.mdl | grep phones | awk '{print $NF}')
 

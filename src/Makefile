@@ -1,5 +1,5 @@
 
-SUBDIRS = aslp-cudamatrix aslp-nnet aslp-nnetbin
+SUBDIRS = aslp-bin aslp-cudamatrix aslp-nnet aslp-nnetbin
 
 all:
 	for dir in $(SUBDIRS); do \

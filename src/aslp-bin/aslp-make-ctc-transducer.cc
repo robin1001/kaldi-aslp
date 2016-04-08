@@ -381,7 +381,8 @@ int main(int argc, char *argv[]) {
     ReadKaldiObject(model_filename, &trans_model);
 
     std::vector<int32> disambig_syms_out;
-    int blank_phone = trans_model.NumPhones();
+    //int blank_phone = trans_model.NumPhones();
+    int blank_phone = 1; // use the first phone as blank phone
     //get blank's transition-id
     int32 trans_state =
         trans_model.TripleToTransitionState(blank_phone, 0, 0);
