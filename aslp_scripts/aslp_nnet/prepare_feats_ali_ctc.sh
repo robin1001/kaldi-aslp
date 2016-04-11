@@ -13,6 +13,7 @@ delta_opts= #eg. "--delta-order=2" # (optional) adds 'add-deltas' to input featu
 splice_opts= #eg. "--left-context=4 --right-context=4"
 
 labels=
+sort_by_len=true
 
 # data processing, misc.
 copy_feats=false # resave the train/cv features into /tmp (disabled by default),
@@ -84,7 +85,9 @@ else
   labels_cv="ark:gunzip -c $alidir_cv/ali.*.gz |"
   # Attention: here use phone count, but for decode convenient, the outfile name is the same name with pdf 
   # get phone-counts, used later for decoding/aligning,
-  analyze-counts --verbose=1 --binary=false "$labels_tr" $dir/ali_train_pdf.counts 2>$dir/log/analyze_counts_pdf.log || exit 1
+  copy-int-vector "ark:gunzip -c $alidir/ali.*.gz |" ark,t:- | \
+    awk '{line=$0; gsub(" "," 0 ",line); print line " 0";}' | \
+    analyze-counts --verbose=1 --binary=false ark:- $dir/ali_train_pdf.counts 2>$dir/log/analyze_counts_pdf.log || exit 1
   # copy the old transition model, will be needed by decoder,
   copy-transition-model --binary=false $alidir/final.mdl $dir/final.mdl || exit 1
   # copy the tree
@@ -99,14 +102,22 @@ if [ "$copy_feats" == "true" ]; then
   tmpdir=$(mktemp -d $copy_feats_tmproot)
   copy-feats scp:$data/feats.scp ark,scp:$tmpdir/train.ark,$dir/train_sorted.scp || exit 1
   copy-feats scp:$data_cv/feats.scp ark,scp:$tmpdir/cv.ark,$dir/cv.scp || exit 1
-  trap "echo \"# Removing features tmpdir $tmpdir @ $(hostname)\"; ls $tmpdir; rm -r $tmpdir" EXIT
+  #trap "echo "# Removing features tmpdir $tmpdir @ $(hostname)\"; ls $tmpdir; rm -r $tmpdir" EXIT
 else
   # or copy the list,
   cp $data/feats.scp $dir/train_sorted.scp
   cp $data_cv/feats.scp $dir/cv.scp
 fi
 # shuffle the list,
-utils/shuffle_list.pl --srand ${seed:-777} <$dir/train_sorted.scp >$dir/train.scp
+
+if $sort_by_len; then
+    feat-to-len scp:$data/feats.scp ark,t:- | awk '{print $2}' > $dir/tr_len.tmp || exit 1;
+    paste -d " " $data/feats.scp $dir/tr_len.tmp | sort -k3 -n - | awk '{print $1 " " $2}' > $dir/train.scp || exit 1;
+    feat-to-len scp:$data_cv/feats.scp ark,t:- | awk '{print $2}' > $dir/cv_len.tmp || exit 1;
+    paste -d " " $data_cv/feats.scp $dir/cv_len.tmp | sort -k3 -n - | awk '{print $1 " " $2}' > $dir/cv.scp || exit 1;
+else
+    utils/shuffle_list.pl --srand ${seed:-777} <$dir/train_sorted.scp >$dir/train.scp
+fi
 
 # create a 10k utt subset for global cmvn estimates,
 head -n 10000 $dir/train.scp > $dir/train.scp.10k

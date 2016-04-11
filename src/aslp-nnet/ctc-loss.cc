@@ -188,7 +188,7 @@ void Ctc::EvalParallel(const std::vector<int32> &frame_num_utt, const CuMatrixBa
             KALDI_LOG << "Progress " << sequences_num_ << " sequences (" << frames_/(100.0 * 3600) << "Hr):"
                 << " Obj(log[Pzx]) = " << obj_progress_/sequences_progress_
                 << " Obj(frame) = " << obj_progress_/frames_progress_
-                << " TokenAcc = " << 100.0*(1.0 - error_num_progress_/ref_num_progress_) << "%";
+                << " TokenAcc = " << 100.0*(1.0 - error_num_progress_/ref_num_progress_) << " %";
             // reset
             sequences_progress_ = 0;
             frames_progress_ = 0;
