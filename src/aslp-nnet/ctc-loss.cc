@@ -171,6 +171,11 @@ void Ctc::EvalParallel(const std::vector<int32> &frame_num_utt, const CuMatrixBa
     diff->CopyFromMat(ctc_err_);
 
     diff->AddMat(-1.0, net_out_tmp);
+    //{
+    //    Output ko("eesen.diff", false);
+    //    diff->Write(ko.Stream(), false);
+    //    KALDI_ERR << "Write eesen diff";
+    //}
 
     // update registries
     obj_ += -pzx.Sum();
