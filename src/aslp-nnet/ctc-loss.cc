@@ -78,8 +78,8 @@ void Ctc::Eval(const CuMatrixBase<BaseFloat> &net_out, const std::vector<int32> 
     diff->AddMat(-1.0, net_out_tmp);
 
     // update registries
-    obj_ += pzx;
-    obj_progress_ += pzx;
+    obj_ += -pzx;
+    obj_progress_ += -pzx;
     sequences_progress_ += 1;
     sequences_num_ += 1;
     frames_progress_ += num_frames;
@@ -173,18 +173,19 @@ void Ctc::EvalParallel(const std::vector<int32> &frame_num_utt, const CuMatrixBa
     diff->AddMat(-1.0, net_out_tmp);
 
     // update registries
-    obj_ += pzx.Sum();
-    obj_progress_ += pzx.Sum();
+    obj_ += -pzx.Sum();
+    obj_progress_ += -pzx.Sum();
     sequences_progress_ += num_sequence;
     sequences_num_ += num_sequence;
     for (int s = 0; s < num_sequence; s++) {
         frames_progress_ += frame_num_utt[s];
         frames_ += frame_num_utt[s];
+        //KALDI_LOG << pzx(s);
     }
 
     // progressive reporting
     {
-        if (sequences_progress_ > report_step_) {
+        if (sequences_progress_ >= report_step_) {
             KALDI_LOG << "Progress " << sequences_num_ << " sequences (" << frames_/(100.0 * 3600) << "Hr):"
                 << " Obj(log[Pzx]) = " << obj_progress_/sequences_progress_
                 << " Obj(frame) = " << obj_progress_/frames_progress_

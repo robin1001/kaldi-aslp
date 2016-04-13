@@ -17,7 +17,7 @@ OBJFILES = nnet-nnet.o nnet-component.o nnet-loss.o \
 
 LIBNAME = aslp-nnet
 
-ADDLIBS = ../aslp-cudamatrix/aslp-cudamatrix.a ../warp-ctc/warp-ctc.a \
+ADDLIBS = ../aslp-cudamatrix/aslp-cudamatrix.a ../warp-ctc/build/libwarpctc.a \
           $(KALDI_DIR)/matrix/kaldi-matrix.a \
           $(KALDI_DIR)/base/kaldi-base.a \
           $(KALDI_DIR)/util/kaldi-util.a 

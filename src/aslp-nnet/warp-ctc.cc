@@ -32,6 +32,8 @@ namespace aslp_nnet {
 
 void WarpCtc::Eval(const std::vector<int32> &frame_num_utt, const CuMatrixBase<BaseFloat> &net_out,
         std::vector< std::vector<int32> > &labels, CuMatrix<BaseFloat> *diff) {
+    KALDI_ASSERT(labels.size() == frame_num_utt.size());
+    KALDI_ASSERT(diff != NULL);
     if (use_gpu_) {
         EvalGpu(frame_num_utt, net_out, labels, diff);
     } else {
@@ -42,6 +44,8 @@ void WarpCtc::Eval(const std::vector<int32> &frame_num_utt, const CuMatrixBase<B
 void WarpCtc::EvalGpu(const std::vector<int32> &frame_num_utt, const CuMatrixBase<BaseFloat> &net_out,
         std::vector< std::vector<int32> > &labels, CuMatrix<BaseFloat> *diff) {
     diff->Resize(net_out.NumRows(), net_out.NumCols());
+    //KALDI_LOG << net_out.NumCols() << " " << net_out.Stride();
+    //KALDI_LOG << net_out.NumRows();
 
     // Prepare label, feat and their length
     const int minibatch = labels.size();
@@ -54,8 +58,7 @@ void WarpCtc::EvalGpu(const std::vector<int32> &frame_num_utt, const CuMatrixBas
     }
     int alphabet_size = net_out.NumCols();
     const std::vector<int> &lengths = frame_num_utt;
-    //std::vector<float> costs(minibatch);
-    CuVector<BaseFloat> costs(minibatch, kSetZero);
+    std::vector<float> costs(minibatch);
 
     // Create ctc compute info
     cudaStream_t stream;
@@ -64,6 +67,22 @@ void WarpCtc::EvalGpu(const std::vector<int32> &frame_num_utt, const CuMatrixBas
     ctcComputeInfo info;
     info.loc = CTC_GPU;
     info.stream = stream;
+
+    // Because kaldi cumatrix align, the NumCols may not equal it's allocated,
+    // the real allocated width represented as Stride() in CuMatrix
+    // But warp ctc doesn't support this, so here we have to allocated another
+    // buf, and copy net_out to it
+    float *acts_gpu;
+    throw_on_error(cudaMalloc((void **)&acts_gpu, 
+                        net_out.NumRows() * net_out.NumCols() * sizeof(float)),
+                   "cudaMalloc");
+    for (int i = 0; i < net_out.NumRows(); i++) {
+        throw_on_error(cudaMemcpyAsync(acts_gpu + i * net_out.NumCols(),
+                                       net_out.Data() + i * net_out.Stride(),
+                                       net_out.NumCols() * sizeof(float),
+                                       cudaMemcpyDeviceToDevice, stream),
+                       "cudaMemcpyAsync");
+    }
 
     // Allocate workspace
     size_t gpu_alloc_bytes;
@@ -78,39 +97,58 @@ void WarpCtc::EvalGpu(const std::vector<int32> &frame_num_utt, const CuMatrixBas
     char *ctc_gpu_workspace;
     throw_on_error(cudaMalloc((void **)&ctc_gpu_workspace, gpu_alloc_bytes),
                    "cudaMalloc");
+    float *grads_gpu;
+    throw_on_error(cudaMalloc((void **)&grads_gpu, 
+                              diff->NumRows() * diff->NumCols() * sizeof(float)),
+                   "cudaMalloc");
 
     // Compute ctc error
-    throw_on_error(compute_ctc_loss(net_out.Data(), diff->Data(),
+    throw_on_error(compute_ctc_loss(acts_gpu, grads_gpu,
                                     flat_labels.data(), 
                                     label_lengths.data(),
                                     lengths.data(),
                                     alphabet_size,
                                     minibatch,
-                                    costs.Data(),
+                                    costs.data(),
                                     ctc_gpu_workspace,
                                     info),
                    "Error: compute_ctc_loss");
+
+    // Copy grads_gpu to diff matrix
+    //for (int i = 0; i < diff->NumRows(); i++) {
+    //    throw_on_error(cudaMemcpyAsync(diff->Data() + i * diff->Stride(),
+    //                                   grads_gpu + i * diff->NumCols(),
+    //                                   diff->NumCols() * sizeof(float),
+    //                                   cudaMemcpyDeviceToDevice, stream),
+    //                   "cudaMemcpyAsync");
+    //}
+    //Matrix<BaseFloat> cpu_diff(diff->NumRows(), diff->NumCols());
+    //diff->CopyToMat(&cpu_diff);
 
     throw_on_error(cudaStreamSynchronize(stream), 
                    "cudaStreamSynchronize");
     throw_on_error(cudaFree(ctc_gpu_workspace),
                    "cudaFree");
+    throw_on_error(cudaFree(acts_gpu),
+                   "cudaFree");
+    throw_on_error(cudaFree(grads_gpu),
+                   "cudaFree");
     throw_on_error(cudaStreamDestroy(stream),
                    "cudaStreamDestroy");
-
     // Statistic
-    obj_ += costs.Sum();
-    obj_progress_ += costs.Sum();
+    for (int i = 0; i < minibatch; i++) {
+        obj_ += costs[i];
+        obj_progress_ += costs[i];
+        frames_progress_ += frame_num_utt[i];
+        frames_ += frame_num_utt[i];
+        //KALDI_LOG << costs[i];
+    }
     sequences_progress_ += minibatch;
     sequences_num_ += minibatch;
-    for (int s = 0; s < minibatch; s++) {
-        frames_progress_ += frame_num_utt[s];
-        frames_ += frame_num_utt[s];
-    }
 
     // Progress report
     {
-        if (sequences_progress_ > report_step_) {
+        if (sequences_progress_ >= report_step_) {
             KALDI_LOG << "Progress " << sequences_num_ << " sequences (" << frames_/(100.0 * 3600) << "Hr):"
                 << " Obj(log[Pzx]) = " << obj_progress_/sequences_progress_
                 << " Obj(frame) = " << obj_progress_/frames_progress_
@@ -140,8 +178,7 @@ void WarpCtc::EvalCpu(const std::vector<int32> &frame_num_utt, const CuMatrixBas
     }
     int alphabet_size = net_out.NumCols();
     const std::vector<int> &lengths = frame_num_utt;
-    //std::vector<float> costs(minibatch);
-    CuVector<BaseFloat> costs(minibatch, kSetZero);
+    std::vector<float> costs(minibatch);
 
     // Create ctc compute info
     ctcComputeInfo info;
@@ -166,23 +203,27 @@ void WarpCtc::EvalCpu(const std::vector<int32> &frame_num_utt, const CuMatrixBas
                                     lengths.data(),
                                     alphabet_size,
                                     minibatch,
-                                    costs.Data(),
+                                    costs.data(),
                                     ctc_cpu_workspace,
                                     info),
                    "Error: compute_ctc_loss");
+
+    free(ctc_cpu_workspace);
+
     // Statistic
-    obj_ += costs.Sum();
-    obj_progress_ += costs.Sum();
+    for (int i = 0; i < minibatch; i++) {
+        obj_ += costs[i];
+        obj_progress_ += costs[i];
+        frames_progress_ += frame_num_utt[i];
+        frames_ += frame_num_utt[i];
+        //KALDI_LOG << costs[i];
+    }
     sequences_progress_ += minibatch;
     sequences_num_ += minibatch;
-    for (int s = 0; s < minibatch; s++) {
-        frames_progress_ += frame_num_utt[s];
-        frames_ += frame_num_utt[s];
-    }
 
     // Progress report
     {
-        if (sequences_progress_ > report_step_) {
+        if (sequences_progress_ >= report_step_) {
             KALDI_LOG << "Progress " << sequences_num_ << " sequences (" << frames_/(100.0 * 3600) << "Hr):"
                 << " Obj(log[Pzx]) = " << obj_progress_/sequences_progress_
                 << " Obj(frame) = " << obj_progress_/frames_progress_

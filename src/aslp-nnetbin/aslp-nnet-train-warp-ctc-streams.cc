@@ -58,7 +58,7 @@ int main(int argc, char *argv[]) {
     
 
         std::string use_gpu="yes";
-        //po.Register("use-gpu", &use_gpu, "yes|no|optional, only has effect if compiled with CUDA"); 
+        po.Register("use-gpu", &use_gpu, "yes|no|optional, only has effect if compiled with CUDA"); 
 
         po.Read(argc, argv);
 
