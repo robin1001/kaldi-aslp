@@ -133,6 +133,9 @@ void WarpCtc::EvalGpu(const std::vector<int32> &frame_num_utt, const CuMatrixBas
     //    cpu_diff.Write(ko.Stream(), false);
     //    KALDI_ERR << "Write gpu diff";
     //}
+    // Clip gradient
+    diff->ApplyFloor(-1.0);
+    diff->ApplyCeiling(1.0);
 
     throw_on_error(cudaStreamSynchronize(stream), 
                    "cudaStreamSynchronize");
@@ -144,6 +147,11 @@ void WarpCtc::EvalGpu(const std::vector<int32> &frame_num_utt, const CuMatrixBas
                    "cudaFree");
     throw_on_error(cudaStreamDestroy(stream),
                    "cudaStreamDestroy");
+    // Clip cost
+    for (int i = 0; i < minibatch; i++) {
+        if (costs[i] < -10000) costs[i] = -10000;
+        if (costs[i] > 10000) costs[i] = 10000;
+    }
     // Statistic
     for (int i = 0; i < minibatch; i++) {
         obj_ += costs[i];
@@ -223,7 +231,14 @@ void WarpCtc::EvalCpu(const std::vector<int32> &frame_num_utt, const CuMatrixBas
     //    diff->Write(ko.Stream(), false);
     //    KALDI_ERR << "Write cpu diff";
     //}
+    diff->ApplyFloor(-1.0);
+    diff->ApplyCeiling(1.0);
 
+    // Clip cost
+    for (int i = 0; i < minibatch; i++) {
+        if (costs[i] < -10000) costs[i] = -10000;
+        if (costs[i] > 10000) costs[i] = 10000;
+    }
     // Statistic
     for (int i = 0; i < minibatch; i++) {
         obj_ += costs[i];

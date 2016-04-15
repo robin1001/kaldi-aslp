@@ -76,6 +76,11 @@ void Ctc::Eval(const CuMatrixBase<BaseFloat> &net_out, const std::vector<int32> 
     diff->CopyFromMat(ctc_err_);
 
     diff->AddMat(-1.0, net_out_tmp);
+    diff->ApplyFloor(-1.0);
+    diff->ApplyCeiling(1.0);
+
+    if (pzx < -10000) pzx = -10000;
+    if (pzx > 10000) pzx = 10000;
 
     // update registries
     obj_ += -pzx;
@@ -171,6 +176,8 @@ void Ctc::EvalParallel(const std::vector<int32> &frame_num_utt, const CuMatrixBa
     diff->CopyFromMat(ctc_err_);
 
     diff->AddMat(-1.0, net_out_tmp);
+    diff->ApplyFloor(-1.0);
+    diff->ApplyCeiling(1.0);
     //{
     //    Output ko("eesen.diff", false);
     //    diff->Write(ko.Stream(), false);
@@ -178,6 +185,8 @@ void Ctc::EvalParallel(const std::vector<int32> &frame_num_utt, const CuMatrixBa
     //}
 
     // update registries
+    pzx.ApplyFloor(-10000);
+    pzx.ApplyCeiling(10000);
     obj_ += -pzx.Sum();
     obj_progress_ += -pzx.Sum();
     sequences_progress_ += num_sequence;

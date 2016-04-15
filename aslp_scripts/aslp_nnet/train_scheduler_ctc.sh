@@ -74,13 +74,18 @@ mlp_base=${mlp_init##*/}; mlp_base=${mlp_base%.*}
 [ -e $dir/.learn_rate ] && learn_rate=$(cat $dir/.learn_rate)
 
 # cross-validation on original network,
-log=$dir/log/iter00.initial.log; hostname>$log
-$train_tool --cross-validate=true --randomize=false --verbose=$verbose $train_tool_opts \
-  "$feats_cv" "$labels_cv" $mlp_best \
-  2>> $log
-
-acc=$(cat $dir/log/iter00.initial.log | grep "TOKEN_ACCURACY" | tail -n 1 | awk '{ print $11; }')
-echo "CROSSVAL TOKEN_ACCURACY $(printf "%.4f" $acc)"
+if [ -e $dir/.init_cv ]; then
+    acc=$(cat $dir/.init_cv)
+    echo "CROSSVAL TOKEN_ACCURACY $(printf "%.4f" $acc)"
+else
+    log=$dir/log/iter00.initial.log; hostname>$log
+    $train_tool --cross-validate=true --randomize=false --verbose=$verbose $train_tool_opts \
+        "$feats_cv" "$labels_cv" $mlp_best \
+        2>> $log
+    acc=$(cat $dir/log/iter00.initial.log | grep "TOKEN_ACCURACY" | tail -n 1 | awk '{ print $11; }')
+    echo "CROSSVAL TOKEN_ACCURACY $(printf "%.4f" $acc)"
+    echo "$acc" >> $dir/.init_cv
+fi
 
 # resume lr-halving,
 halving=0
@@ -89,7 +94,7 @@ halving=0
 # training,
 for iter in $(seq -w $max_iters); do
   echo "ITERATION $iter: " `date`
-  echo "VLOG[1] (Just-for-log-analysis) Progress 0 sequences (0Hr): Obj(log[Pzx]) = 0 Obj(frame) = 0 TokenAcc = 0%"
+  echo "VLOG[1] (Just-for-log-analysis) Progress 0 sequences (0Hr): Obj(log[Pzx]) = 0 Obj(frame) = 0 TokenAcc = 0 %"
   mlp_next=$dir/nnet/${mlp_base}_iter${iter}
   
   # skip iteration (epoch) if already done,
