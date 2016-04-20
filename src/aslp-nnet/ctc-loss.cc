@@ -108,8 +108,14 @@ void Ctc::Eval(const CuMatrixBase<BaseFloat> &net_out, const std::vector<int32> 
 
 }
 
-void Ctc::EvalParallel(const std::vector<int32> &frame_num_utt, const CuMatrixBase<BaseFloat> &net_out,
-        std::vector< std::vector<int32> > &label, CuMatrix<BaseFloat> *diff) {
+//void Ctc::EvalParallel(const std::vector<int32> &frame_num_utt, const CuMatrixBase<BaseFloat> &net_out,
+//        std::vector< std::vector<int32> > &label, CuMatrix<BaseFloat> *diff) {
+
+void Ctc::EvalParallel(const std::vector<std::string> &utt, 
+                       const std::vector<int32> &frame_num_utt, 
+                       const CuMatrixBase<BaseFloat> &net_out,
+                       std::vector< std::vector<int32> > &label, 
+                       CuMatrix<BaseFloat> *diff) {
     diff->Resize(net_out.NumRows(), net_out.NumCols());
 
     int32 num_sequence = frame_num_utt.size();  // number of sequences
@@ -176,8 +182,6 @@ void Ctc::EvalParallel(const std::vector<int32> &frame_num_utt, const CuMatrixBa
     diff->CopyFromMat(ctc_err_);
 
     diff->AddMat(-1.0, net_out_tmp);
-    diff->ApplyFloor(-1.0);
-    diff->ApplyCeiling(1.0);
     //{
     //    Output ko("eesen.diff", false);
     //    diff->Write(ko.Stream(), false);
@@ -185,17 +189,19 @@ void Ctc::EvalParallel(const std::vector<int32> &frame_num_utt, const CuMatrixBa
     //}
 
     // update registries
-    pzx.ApplyFloor(-10000);
-    pzx.ApplyCeiling(10000);
-    obj_ += -pzx.Sum();
-    obj_progress_ += -pzx.Sum();
-    sequences_progress_ += num_sequence;
-    sequences_num_ += num_sequence;
-    for (int s = 0; s < num_sequence; s++) {
-        frames_progress_ += frame_num_utt[s];
-        frames_ += frame_num_utt[s];
-        //KALDI_LOG << pzx(s);
-    }
+    pzx.Scale(-1);
+    Vector<BaseFloat> pzx_host(pzx);
+
+#if CTC_GRAD_CHECK == SUM_LOSS_CHECK
+    StatAndLossCheck(utt, frame_num_utt, pzx_host, diff);
+#elif CTC_GRAD_CHECK == AVG_LOSS_CHECK
+    StatAndAverageLossCheck(utt, frame_num_utt, pzx_host, diff);
+#else // Default stat only no check 
+    StatOnly(utt, frame_num_utt, pzx_host, diff);
+#endif
+    // Clip diff, ensure that it is reasonable
+    diff->ApplyFloor(-1.0);
+    diff->ApplyCeiling(1.0);
 
     // progressive reporting
     {
@@ -213,6 +219,108 @@ void Ctc::EvalParallel(const std::vector<int32> &frame_num_utt, const CuMatrixBa
         }
     }
 
+}
+
+void Ctc::StatAndAverageLossCheck(const std::vector<std::string> &utt, 
+                                  const std::vector<int32> &frame_num_utt, 
+                                  const Vector<BaseFloat> &pzx_host,
+                                  CuMatrix<BaseFloat> *diff) {
+    int32 num_sequence = frame_num_utt.size();  // number of sequences
+    for (int s = 0; s < num_sequence; s++) {
+        // Acc enough stat for check, no check
+        if (normal_num_ <= stat_period_ / 2) {  
+            normal_num_++;
+            double loss_per_frame = pzx_host(s) / frame_num_utt[s];
+            loss_sum_ += loss_per_frame;
+            loss_sum_bak_ += loss_per_frame;
+            loss_square_sum_ += loss_per_frame * loss_per_frame;
+            loss_square_sum_bak_ += loss_per_frame * loss_per_frame;
+            obj_ += pzx_host(s);
+            obj_progress_ += pzx_host(s);
+        }
+        // Check
+        else {
+            double loss_per_frame = pzx_host(s) / frame_num_utt[s];
+            double mean = loss_sum_ / normal_num_;
+            double sigma = sqrt(loss_square_sum_ / normal_num_);
+            // 3sigma criterion
+            if (loss_per_frame >= (mean-3*sigma) && 
+                    loss_per_frame <= (mean+3*sigma)) {
+                normal_num_++;
+                loss_sum_ += loss_per_frame;
+                loss_square_sum_ += loss_per_frame * loss_per_frame;
+                obj_ += pzx_host(s);
+                obj_progress_ += pzx_host(s);
+                // Reset the mean and sum for new stat
+                if (normal_num_ == stat_period_) {
+                   loss_sum_ -= loss_sum_bak_;
+                   loss_square_sum_ -= loss_square_sum_bak_;
+                   loss_sum_bak_ = loss_sum_;
+                   loss_square_sum_bak_ = loss_square_sum_;
+                   normal_num_ = stat_period_ / 2;
+                }
+            } 
+            else {
+                // avgloss is abnormal
+                KALDI_WARN << "Sequences " << utt[s]
+                    << " obj is abnormal(sum " << pzx_host(s) 
+                    << " per_frame " << loss_per_frame
+                    << " mean " << loss_sum_ / normal_num_
+                    << " sigma " << loss_square_sum_ / normal_num_ 
+                    << "), drop it's diff and stat";
+                for (int t = 0; t < frame_num_utt[s]; t++) {
+                    diff->Row(t*num_sequence+s).SetZero();
+                }
+            }
+        } // else
+
+        frames_ += frame_num_utt[s];
+        frames_progress_ += frame_num_utt[s];
+    }
+    sequences_progress_ += num_sequence;
+    sequences_num_ += num_sequence;
+}
+
+void Ctc::StatAndLossCheck(const std::vector<std::string> &utt, 
+                           const std::vector<int32> &frame_num_utt, 
+                           const Vector<BaseFloat> &pzx_host,
+                           CuMatrix<BaseFloat> *diff) {
+    int32 num_sequence = frame_num_utt.size();  // number of sequences
+    for (int s = 0; s < num_sequence; s++) {
+        //KALDI_LOG << pzx_host(s);
+        // If abnormal, drop the diff and statistic
+        if (pzx_host(s) > 5000 || pzx_host(s) < 0) { 
+            KALDI_WARN << "Sequences " << utt[s]
+                       << " obj is abnormal(" << pzx_host(s) 
+                       << "), drop it's diff and stat";
+            for (int t = 0; t < frame_num_utt[s]; t++) {
+                diff->Row(t*num_sequence+s).SetZero();
+            }
+        }
+        else {
+            obj_ += pzx_host(s);
+            obj_progress_ += pzx_host(s);
+        }
+        frames_ += frame_num_utt[s];
+        frames_progress_ += frame_num_utt[s];
+    }
+    sequences_progress_ += num_sequence;
+    sequences_num_ += num_sequence;
+}
+
+void Ctc::StatOnly(const std::vector<std::string> &utt, 
+        const std::vector<int32> &frame_num_utt, 
+        const Vector<BaseFloat> &pzx_host,
+        CuMatrix<BaseFloat> *diff) {
+    int32 num_sequence = frame_num_utt.size();  // number of sequences
+    for (int s = 0; s < num_sequence; s++) {
+        obj_ += pzx_host(s);
+        obj_progress_ += pzx_host(s);
+        frames_progress_ += frame_num_utt[s];
+        frames_ += frame_num_utt[s];
+    }
+    sequences_progress_ += num_sequence;
+    sequences_num_ += num_sequence;
 }
 
 void Ctc::ErrorRate(const CuMatrixBase<BaseFloat> &net_out, const std::vector<int32> &label, float* err_rate, std::vector<int32> *hyp) {

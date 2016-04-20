@@ -33,4 +33,5 @@ nnet-component.o: nnet-component.h \
 
 data-reader.o: data-reader.h
 warp-ctc.o: warp-ctc.h
+ctc-loss.o: ctc-loss.h
 

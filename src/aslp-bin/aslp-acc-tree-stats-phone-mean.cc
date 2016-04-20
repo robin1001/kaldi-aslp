@@ -117,8 +117,8 @@ void AccumulateTreeStatsPhone(const TransitionModel &trans_model,
         sum_stats[k].Scale(1.0f / nums[k]); 
       }
 
-      Vector<BaseFloat> concate_features(dim * num_state);
-      for (int j = 0; j < num_state; j++) {
+      Vector<BaseFloat> concate_features(dim * 3);
+      for (int j = 0; j < 3; j++) {
         concate_features.Range(j*dim, dim).CopyFromVec(sum_stats[j]);
       }
       //for (int k = 0; k < concate_features.Dim(); k++) {
@@ -126,11 +126,11 @@ void AccumulateTreeStatsPhone(const TransitionModel &trans_model,
       //}
       //std::cerr << "\n";
 
-      //evec.push_back(std::make_pair(static_cast<EventKeyType>(kPdfClass), static_cast<EventValueType>(0)));
-      evec.push_back(std::make_pair(static_cast<EventKeyType>(kPdfClass), static_cast<EventValueType>(central_phone)));
+      evec.push_back(std::make_pair(static_cast<EventKeyType>(kPdfClass), static_cast<EventValueType>(0)));
+      //evec.push_back(std::make_pair(static_cast<EventKeyType>(kPdfClass), static_cast<EventValueType>(central_phone)));
       std::sort(evec.begin(), evec.end());
       if (stats->count(evec) == 0) {
-          (*stats)[evec] = new GaussClusterable(dim * num_state, var_floor);
+          (*stats)[evec] = new GaussClusterable(dim * 3, var_floor);
       }
       BaseFloat weight = 1.0;
       (*stats)[evec]->AddStats(concate_features, weight);

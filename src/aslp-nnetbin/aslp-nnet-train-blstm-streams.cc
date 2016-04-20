@@ -83,6 +83,8 @@ int main(int argc, char *argv[]) {
     int drop_len = 0;
     po.Register("drop-len", &drop_len, "if Sentence frame length greater than drop_len,"
             "then drop it, default(0, no drop)");
+    int skip_width = 0;
+    po.Register("skip-width", &skip_width, "num of frame for one skip(default 0, not use skip)");
 
     po.Read(argc, argv);
 
@@ -157,13 +159,28 @@ int main(int argc, char *argv[]) {
           continue;
         }
         // Get feature / target pair
-        Matrix<BaseFloat> mat = feature_reader.Value();
-        if (drop_len > 0 && mat.NumRows() > drop_len) {
+        Matrix<BaseFloat> raw_mat = feature_reader.Value();
+        if (drop_len > 0 && raw_mat.NumRows() > drop_len) {
             KALDI_WARN << utt << ", too long, droped";
             feature_reader.Next();
             continue;
         }
-        Posterior targets  = targets_reader.Value(utt);
+        Posterior raw_targets = targets_reader.Value(utt);
+
+        Matrix<BaseFloat> mat; 
+        Posterior targets;
+        if (skip_width > 1) {
+            int skip_len = (raw_mat.NumRows() - 1) / skip_width + 1;
+            mat.Resize(skip_len, raw_mat.NumCols());
+            targets.resize(skip_len);
+            for (int i = 0; i < skip_len; i++) {
+                mat.Row(i).CopyFromVec(raw_mat.Row(i * skip_width));
+                targets[i] = raw_targets[i * skip_width];
+            }
+        } else {
+            mat = raw_mat;
+            targets = raw_targets;
+        }
 
         if (frame_weights != "") {
           weights = weights_reader.Value(utt);

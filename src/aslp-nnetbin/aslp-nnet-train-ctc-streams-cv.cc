@@ -148,7 +148,10 @@ int main(int argc, char *argv[]) {
             labels_utt.push_back(targets);
             std::vector <int> frame_num_utt;
             frame_num_utt.push_back(feats.NumRows());
-            ctc.EvalParallel(frame_num_utt, nnet_out, labels_utt, &obj_diff);
+            std::vector <std::string> key_utt;
+            key_utt.push_back(utt);
+            //ctc.EvalParallel(frame_num_utt, nnet_out, labels_utt, &obj_diff);
+            ctc.EvalParallel(key_utt, frame_num_utt, nnet_out, labels_utt, &obj_diff);
             ctc.ErrorRateMSeq(frame_num_utt, nnet_out, labels_utt);
 
             num_done += 1;
