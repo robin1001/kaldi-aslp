@@ -105,6 +105,7 @@ int main(int argc, char *argv[]) {
 
         std::vector< Matrix<BaseFloat> > feats_utt(num_stream);  // Feature matrix of every utterance
         std::vector< std::vector<int> > labels_utt(num_stream);  // Label vector of every utterance
+        std::vector< std::string> key_utt(num_stream);
         int32 feat_dim = net.InputDim();
 
         int32 num_done = 0, num_no_tgt_mat = 0, num_other_error = 0;
@@ -149,6 +150,7 @@ int main(int argc, char *argv[]) {
                 if (max_frame_num < mat.NumRows()) max_frame_num = mat.NumRows();
                 feats_utt[sequence_index] = mat;
                 labels_utt[sequence_index] = targets;
+                key_utt[sequence_index] = utt;
                 frame_num_utt.push_back(mat.NumRows());
                 sequence_index++;
                 // If the total number of frames reaches frame_limit, then stop adding more sequences, regardless of whether
@@ -177,7 +179,7 @@ int main(int argc, char *argv[]) {
                 net.Feedforward(CuMatrix<BaseFloat>(feat_mat_host), &net_out);
             }
             //net.Propagate(CuMatrix<BaseFloat>(feat_mat_host), &net_out);
-            ctc.Eval(frame_num_utt, net_out, labels_utt, &obj_diff);
+            ctc.Eval(key_utt, frame_num_utt, net_out, labels_utt, &obj_diff);
 
             // Error rates
             ctc.ErrorRate(frame_num_utt, net_out, labels_utt);

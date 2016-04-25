@@ -31,8 +31,9 @@ namespace aslp_nnet {
 
 #define SUM_LOSS_CHECK 0
 #define AVG_LOSS_CHECK 1
+#define NONE_LOSS_CHECK 2
 
-#define CTC_GRAD_CHECK 1
+#define CTC_GRAD_CHECK 0
 
 class Ctc {
 public:
@@ -42,7 +43,7 @@ public:
     obj_(0),
     loss_sum_(0), loss_square_sum_(0),
     loss_sum_bak_(0), loss_square_sum_bak_(0), 
-    normal_num_(0), stat_period_(200) { }
+    normal_num_(0), stat_period_(100) { }
     ~Ctc() { }
 
     /// CTC training over a single sequence from the labels. The errors are returned to [diff]

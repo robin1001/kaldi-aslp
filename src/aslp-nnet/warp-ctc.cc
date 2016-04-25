@@ -30,20 +30,26 @@ static inline void throw_on_error(cudaError_t error, const char* message) {
 namespace kaldi {
 namespace aslp_nnet {
 
-void WarpCtc::Eval(const std::vector<int32> &frame_num_utt, const CuMatrixBase<BaseFloat> &net_out,
-        std::vector< std::vector<int32> > &labels, CuMatrix<BaseFloat> *diff) {
+void WarpCtc::Eval(const std::vector<std::string> &utt,
+                   const std::vector<int32> &frame_num_utt, 
+                   const CuMatrixBase<BaseFloat> &net_out,
+                   const std::vector< std::vector<int32> > &labels, 
+                   CuMatrix<BaseFloat> *diff) {
     // labels.size() >= frame_num_utt.size() in the aslp-nnet-train-warp-ctc-streams
     //KALDI_ASSERT(labels.size() == frame_num_utt.size());
     KALDI_ASSERT(diff != NULL);
     if (use_gpu_) {
-        EvalGpu(frame_num_utt, net_out, labels, diff);
+        EvalGpu(utt, frame_num_utt, net_out, labels, diff);
     } else {
-        EvalCpu(frame_num_utt, net_out, labels, diff);
+        EvalCpu(utt, frame_num_utt, net_out, labels, diff);
     }
 }
 
-void WarpCtc::EvalGpu(const std::vector<int32> &frame_num_utt, const CuMatrixBase<BaseFloat> &net_out,
-        std::vector< std::vector<int32> > &labels, CuMatrix<BaseFloat> *diff) {
+void WarpCtc::EvalGpu(const std::vector<std::string> &utt,
+                      const std::vector<int32> &frame_num_utt, 
+                      const CuMatrixBase<BaseFloat> &net_out,
+                      const std::vector< std::vector<int32> > &labels, 
+                      CuMatrix<BaseFloat> *diff) {
     diff->Resize(net_out.NumRows(), net_out.NumCols());
     //KALDI_LOG << net_out.NumCols() << " " << net_out.Stride();
     //KALDI_LOG << net_out.NumRows();
@@ -53,7 +59,7 @@ void WarpCtc::EvalGpu(const std::vector<int32> &frame_num_utt, const CuMatrixBas
     std::vector<int> flat_labels;
     std::vector<int> label_lengths;
     for (int i = 0; i < minibatch; i++) {
-        std::vector<int> &l = labels[i];
+        const std::vector<int> &l = labels[i];
         flat_labels.insert(flat_labels.end(), l.begin(), l.end());
         label_lengths.push_back(l.size());
     }
@@ -133,6 +139,14 @@ void WarpCtc::EvalGpu(const std::vector<int32> &frame_num_utt, const CuMatrixBas
     //    cpu_diff.Write(ko.Stream(), false);
     //    KALDI_ERR << "Write gpu diff";
     //}
+
+#if WARP_CTC_GRAD_CHECK == WARP_CTC_SUM_LOSS_CHECK
+    StatAndLossCheck(utt, frame_num_utt, costs, diff);
+#elif WARP_CTC_GRAD_CHECK == WARP_CTC_AVG_LOSS_CHECK
+    StatAndAverageLossCheck(utt, frame_num_utt, costs, diff);
+#else // Default stat only no check 
+    StatOnly(utt, frame_num_utt, costs, diff);
+#endif
     // Clip gradient
     diff->ApplyFloor(-1.0);
     diff->ApplyCeiling(1.0);
@@ -147,22 +161,6 @@ void WarpCtc::EvalGpu(const std::vector<int32> &frame_num_utt, const CuMatrixBas
                    "cudaFree");
     throw_on_error(cudaStreamDestroy(stream),
                    "cudaStreamDestroy");
-    // Clip cost
-    for (int i = 0; i < minibatch; i++) {
-        if (costs[i] < -10000) costs[i] = -10000;
-        if (costs[i] > 10000) costs[i] = 10000;
-    }
-    // Statistic
-    for (int i = 0; i < minibatch; i++) {
-        obj_ += costs[i];
-        obj_progress_ += costs[i];
-        frames_progress_ += frame_num_utt[i];
-        frames_ += frame_num_utt[i];
-        //KALDI_LOG << "length " << frame_num_utt[i] << " cosst " << costs[i];
-    }
-    sequences_progress_ += minibatch;
-    sequences_num_ += minibatch;
-
     // Progress report
     {
         if (sequences_progress_ >= report_step_) {
@@ -180,8 +178,11 @@ void WarpCtc::EvalGpu(const std::vector<int32> &frame_num_utt, const CuMatrixBas
     }
 }
 
-void WarpCtc::EvalCpu(const std::vector<int32> &frame_num_utt, const CuMatrixBase<BaseFloat> &net_out,
-        std::vector< std::vector<int32> > &labels, CuMatrix<BaseFloat> *diff) {
+void WarpCtc::EvalCpu(const std::vector<std::string> &utt,
+                      const std::vector<int32> &frame_num_utt, 
+                      const CuMatrixBase<BaseFloat> &net_out,
+                      const std::vector< std::vector<int32> > &labels, 
+                      CuMatrix<BaseFloat> *diff) {
     diff->Resize(net_out.NumRows(), net_out.NumCols());
 
     // Prepare label, feat and their length
@@ -189,7 +190,7 @@ void WarpCtc::EvalCpu(const std::vector<int32> &frame_num_utt, const CuMatrixBas
     std::vector<int> flat_labels;
     std::vector<int> label_lengths;
     for (int i = 0; i < minibatch; i++) {
-        std::vector<int> &l = labels[i];
+        const std::vector<int> &l = labels[i];
         flat_labels.insert(flat_labels.end(), l.begin(), l.end());
         label_lengths.push_back(l.size());
     }
@@ -231,25 +232,18 @@ void WarpCtc::EvalCpu(const std::vector<int32> &frame_num_utt, const CuMatrixBas
     //    diff->Write(ko.Stream(), false);
     //    KALDI_ERR << "Write cpu diff";
     //}
+
+#if WARP_CTC_GRAD_CHECK == WARP_CTC_SUM_LOSS_CHECK
+    StatAndLossCheck(utt, frame_num_utt, costs, diff);
+#elif WARP_CTC_GRAD_CHECK == WARP_CTC_AVG_LOSS_CHECK
+    StatAndAverageLossCheck(utt, frame_num_utt, costs, diff);
+#else // Default stat only no check 
+    StatOnly(utt, frame_num_utt, costs, diff);
+#endif
+    // Clip gradient
     diff->ApplyFloor(-1.0);
     diff->ApplyCeiling(1.0);
-
-    // Clip cost
-    for (int i = 0; i < minibatch; i++) {
-        if (costs[i] < -10000) costs[i] = -10000;
-        if (costs[i] > 10000) costs[i] = 10000;
-    }
-    // Statistic
-    for (int i = 0; i < minibatch; i++) {
-        obj_ += costs[i];
-        obj_progress_ += costs[i];
-        frames_progress_ += frame_num_utt[i];
-        frames_ += frame_num_utt[i];
-        //KALDI_LOG << "length " << frame_num_utt[i] << " cosst " << costs[i];
-    }
-    sequences_progress_ += minibatch;
-    sequences_num_ += minibatch;
-
+    
     // Progress report
     {
         if (sequences_progress_ >= report_step_) {
@@ -265,6 +259,112 @@ void WarpCtc::EvalCpu(const std::vector<int32> &frame_num_utt, const CuMatrixBas
             ref_num_progress_ = 0;
         }
     }
+}
+
+void WarpCtc::StatAndAverageLossCheck(const std::vector<std::string> &utt, 
+        const std::vector<int32> &frame_num_utt, 
+        const std::vector<float> &pzx_host,
+        CuMatrix<BaseFloat> *diff) {
+    int32 num_sequence = frame_num_utt.size();  // number of sequences
+    for (int s = 0; s < num_sequence; s++) {
+        //if (pzx_host[s] < 0 || pzx_host[s] > 3000) {
+        //    KALDI_WARN << utt[s] << " obj is abnoraml " << pzx_host[s];
+        //}
+        // Acc enough stat for check, no check
+        if (normal_num_ < stat_period_ / 2) {  
+            normal_num_++;
+            double loss_per_frame = pzx_host[s] / frame_num_utt[s];
+            loss_sum_ += loss_per_frame;
+            loss_sum_bak_ += loss_per_frame;
+            loss_square_sum_ += loss_per_frame * loss_per_frame;
+            loss_square_sum_bak_ += loss_per_frame * loss_per_frame;
+            obj_ += pzx_host[s];
+            obj_progress_ += pzx_host[s];
+        }
+        // Check
+        else {
+            double loss_per_frame = pzx_host[s] / frame_num_utt[s];
+            double mean = loss_sum_ / normal_num_;
+            double sigma = sqrt(loss_square_sum_ / normal_num_);
+            // 3sigma criterion
+            if ((loss_per_frame >= (mean - 6 * sigma) && 
+                    loss_per_frame <= (mean + 6 * sigma)) && 
+                    (pzx_host[s] > 0 && pzx_host[s] < 3000)) {
+                normal_num_++;
+                loss_sum_ += loss_per_frame;
+                loss_square_sum_ += loss_per_frame * loss_per_frame;
+                obj_ += pzx_host[s];
+                obj_progress_ += pzx_host[s];
+                // Reset the mean and sum for new stat
+                if (normal_num_ == stat_period_) {
+                   loss_sum_ -= loss_sum_bak_;
+                   loss_square_sum_ -= loss_square_sum_bak_;
+                   loss_sum_bak_ = loss_sum_;
+                   loss_square_sum_bak_ = loss_square_sum_;
+                   normal_num_ = stat_period_ / 2;
+                }
+            } 
+            else {
+                // avgloss is abnormal
+                KALDI_WARN << "Sequences " << utt[s]
+                    << " obj is abnormal(sum " << pzx_host[s] 
+                    << " per_frame " << loss_per_frame
+                    << " mean " << loss_sum_ / normal_num_
+                    << " sigma " << loss_square_sum_ / normal_num_ 
+                    << "), drop it's diff and stat";
+                for (int t = 0; t < frame_num_utt[s]; t++) {
+                    diff->Row(t*num_sequence+s).SetZero();
+                }
+            }
+        } // else
+
+        frames_ += frame_num_utt[s];
+        frames_progress_ += frame_num_utt[s];
+    }
+    sequences_progress_ += num_sequence;
+    sequences_num_ += num_sequence;
+}
+
+void WarpCtc::StatAndLossCheck(const std::vector<std::string> &utt, 
+        const std::vector<int32> &frame_num_utt, 
+        const std::vector<float> &pzx_host,
+        CuMatrix<BaseFloat> *diff) {
+    int32 num_sequence = frame_num_utt.size();  // number of sequences
+    for (int s = 0; s < num_sequence; s++) {
+        //KALDI_LOG << pzx_host[s];
+        // If abnormal, drop the diff and statistic
+        if (pzx_host[s] > 3000 || pzx_host[s] < 0) { 
+            KALDI_WARN << "Sequences " << utt[s]
+                       << " obj is abnormal(" << pzx_host[s] 
+                       << "), drop it's diff and stat";
+            for (int t = 0; t < frame_num_utt[s]; t++) {
+                diff->Row(t*num_sequence+s).SetZero();
+            }
+        }
+        else {
+            obj_ += pzx_host[s];
+            obj_progress_ += pzx_host[s];
+        }
+        frames_ += frame_num_utt[s];
+        frames_progress_ += frame_num_utt[s];
+    }
+    sequences_progress_ += num_sequence;
+    sequences_num_ += num_sequence;
+}
+
+void WarpCtc::StatOnly(const std::vector<std::string> &utt, 
+        const std::vector<int32> &frame_num_utt, 
+        const std::vector<float> &pzx_host,
+        CuMatrix<BaseFloat> *diff) {
+    int32 num_sequence = frame_num_utt.size();  // number of sequences
+    for (int s = 0; s < num_sequence; s++) {
+        obj_ += pzx_host[s];
+        obj_progress_ += pzx_host[s];
+        frames_progress_ += frame_num_utt[s];
+        frames_ += frame_num_utt[s];
+    }
+    sequences_progress_ += num_sequence;
+    sequences_num_ += num_sequence;
 }
 
 void WarpCtc::ErrorRate(const std::vector<int> &frame_num_utt, const CuMatrixBase<BaseFloat> &net_out, std::vector< std::vector<int> > &label) {

@@ -227,8 +227,11 @@ void Ctc::StatAndAverageLossCheck(const std::vector<std::string> &utt,
                                   CuMatrix<BaseFloat> *diff) {
     int32 num_sequence = frame_num_utt.size();  // number of sequences
     for (int s = 0; s < num_sequence; s++) {
+        //if (pzx_host(s) < 0 || pzx_host(s) > 3000) {
+        //    KALDI_WARN << utt[s] << " obj is abnoraml " << pzx_host(s);
+        //}
         // Acc enough stat for check, no check
-        if (normal_num_ <= stat_period_ / 2) {  
+        if (normal_num_ < stat_period_ / 2) {  
             normal_num_++;
             double loss_per_frame = pzx_host(s) / frame_num_utt[s];
             loss_sum_ += loss_per_frame;
@@ -244,8 +247,9 @@ void Ctc::StatAndAverageLossCheck(const std::vector<std::string> &utt,
             double mean = loss_sum_ / normal_num_;
             double sigma = sqrt(loss_square_sum_ / normal_num_);
             // 3sigma criterion
-            if (loss_per_frame >= (mean-3*sigma) && 
-                    loss_per_frame <= (mean+3*sigma)) {
+            if ((loss_per_frame >= (mean - 6 * sigma) && 
+                    loss_per_frame <= (mean + 6 * sigma)) && 
+                    (pzx_host(s) > 0 && pzx_host(s) < 3000)) {
                 normal_num_++;
                 loss_sum_ += loss_per_frame;
                 loss_square_sum_ += loss_per_frame * loss_per_frame;
@@ -289,7 +293,7 @@ void Ctc::StatAndLossCheck(const std::vector<std::string> &utt,
     for (int s = 0; s < num_sequence; s++) {
         //KALDI_LOG << pzx_host(s);
         // If abnormal, drop the diff and statistic
-        if (pzx_host(s) > 5000 || pzx_host(s) < 0) { 
+        if (pzx_host(s) > 3000 || pzx_host(s) < 0) { 
             KALDI_WARN << "Sequences " << utt[s]
                        << " obj is abnormal(" << pzx_host(s) 
                        << "), drop it's diff and stat";

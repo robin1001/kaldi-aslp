@@ -17,21 +17,42 @@
 namespace kaldi {
 namespace aslp_nnet {
 
+#define WARP_CTC_SUM_LOSS_CHECK 0
+#define WARP_CTC_AVG_LOSS_CHECK 1
+#define WARP_CTC_NONE_LOSS_CHECK 2
+
+#define WARP_CTC_GRAD_CHECK 1
+
 class WarpCtc {
 public:
     WarpCtc() : frames_(0), sequences_num_(0), ref_num_(0), error_num_(0), 
     frames_progress_(0), ref_num_progress_(0), error_num_progress_(0),
     sequences_progress_(0), obj_progress_(0.0), report_step_(100),
-    obj_(0), use_gpu_(true) { }
+    obj_(0), use_gpu_(true),
+    loss_sum_(0), loss_square_sum_(0),
+    loss_sum_bak_(0), loss_square_sum_bak_(0), 
+    normal_num_(0), stat_period_(100) { }
+
     ~WarpCtc() { }
 
     /// CTC training over multiple sequences. The errors are returned to [diff]
-    void Eval(const std::vector<int32> &frame_num_utt, const CuMatrixBase<BaseFloat> &net_out,
-            std::vector< std::vector<int32> > &label, CuMatrix<BaseFloat> *diff);
-    void EvalGpu(const std::vector<int32> &frame_num_utt, const CuMatrixBase<BaseFloat> &net_out,
-            std::vector< std::vector<int32> > &label, CuMatrix<BaseFloat> *diff);
-    void EvalCpu(const std::vector<int32> &frame_num_utt, const CuMatrixBase<BaseFloat> &net_out,
-            std::vector< std::vector<int32> > &label, CuMatrix<BaseFloat> *diff);
+    void Eval(const std::vector<std::string> &utt,
+              const std::vector<int32> &frame_num_utt, 
+              const CuMatrixBase<BaseFloat> &net_out,
+              const std::vector< std::vector<int32> > &labels, 
+              CuMatrix<BaseFloat> *diff);
+
+    void EvalGpu(const std::vector<std::string> &utt,
+              const std::vector<int32> &frame_num_utt, 
+              const CuMatrixBase<BaseFloat> &net_out,
+              const std::vector< std::vector<int32> > &labels, 
+              CuMatrix<BaseFloat> *diff);
+
+    void EvalCpu(const std::vector<std::string> &utt,
+              const std::vector<int32> &frame_num_utt, 
+              const CuMatrixBase<BaseFloat> &net_out,
+              const std::vector< std::vector<int32> > &labels, 
+              CuMatrix<BaseFloat> *diff);
 
     /// Compute token error rate from the softmax-layer activations and the given labels. From the softmax activations,
     /// we get the frame-level labels, by selecting the label with the largest probability at each frame. Then, the frame
@@ -51,6 +72,21 @@ public:
     void SetUseGpu(bool use_gpu) {
         use_gpu_ = use_gpu;
     }
+    /// Grad check family function
+    void StatOnly(const std::vector<std::string> &utt, 
+                  const std::vector<int32> &frame_num_utt, 
+                  const std::vector<float> &pzx_host,
+                  CuMatrix<BaseFloat> *diff);
+
+    void StatAndLossCheck(const std::vector<std::string> &utt, 
+                          const std::vector<int32> &frame_num_utt, 
+                          const std::vector<float> &pzx_host,
+                          CuMatrix<BaseFloat> *diff);
+
+    void StatAndAverageLossCheck(const std::vector<std::string> &utt, 
+                                 const std::vector<int32> &frame_num_utt, 
+                                 const std::vector<float> &pzx_host,
+                                 CuMatrix<BaseFloat> *diff);
 
 private:
     int32 frames_;                    // total frame number
@@ -69,6 +105,10 @@ private:
 
     double obj_;
     bool use_gpu_;
+    // For statistic grad
+    double loss_sum_, loss_square_sum_;
+    double loss_sum_bak_, loss_square_sum_bak_;
+    int32 normal_num_, stat_period_;
 };
 
 } // namespace aslp_nnet
