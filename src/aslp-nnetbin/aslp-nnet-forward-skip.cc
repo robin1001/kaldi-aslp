@@ -33,6 +33,7 @@
 int main(int argc, char *argv[]) {
     using namespace kaldi;
     using namespace kaldi::aslp_nnet;
+    typedef kaldi::int32 int32;
     try {
         const char *usage =
             "Perform forward pass through Neural Network.\n"
@@ -57,9 +58,8 @@ int main(int argc, char *argv[]) {
         std::string use_gpu="no";
         po.Register("use-gpu", &use_gpu, "yes|no|optional, only has effect if compiled with CUDA"); 
 
-        using namespace kaldi;
-        using namespace kaldi::aslp_nnet;
-        typedef kaldi::int32 int32;
+        bool add_softmax = false;
+        po.Register("add-softmax", &add_softmax, "add softmax calulation for warp-ctc training");
 
         int32 time_shift = 0;
         po.Register("time-shift", &time_shift, "LSTM : repeat last input frame N-times, discrad N initial output frames."); 
@@ -167,6 +167,11 @@ int main(int argc, char *argv[]) {
                 for (int i = 0; i < skip_len; i++) {
                     nnet_out.Row(i * skip_width + skip_offset).CopyFromVec(skip_out.Row(i));
                 }
+            }
+            // add option softmax for warp-ctc
+            if (add_softmax) {
+                CuMatrix<BaseFloat> tmp_out(nnet_out);
+                nnet_out.ApplySoftMaxPerRow(tmp_out);
             }
 
             if (!KALDI_ISFINITE(nnet_out.Sum())) { // check there's no nan/inf,

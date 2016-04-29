@@ -1,24 +1,10 @@
-// aslp-nnetbin/aslp-nnet-train-ctc-streams.cc
+// aslp-nnetbin/aslp-nnet-train-warp-ctc-streams.cc
 
-// Copyright 2015   Yajie Miao, Hang Su
 // Copyright 2016  ASLP (Author: Binbin Zhang)
-
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//  http://www.apache.org/licenses/LICENSE-2.0
-//
-// THIS CODE IS PROVIDED *AS IS* BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-// KIND, EITHER EXPRESS OR IMPLIED, INCLUDING WITHOUT LIMITATION ANY IMPLIED
-// WARRANTIES OR CONDITIONS OF TITLE, FITNESS FOR A PARTICULAR PURPOSE,
-// MERCHANTABLITY OR NON-INFRINGEMENT.
-// See the Apache 2 License for the specific language governing permissions and
-// limitations under the License.
 
 #include "aslp-nnet/nnet-trnopts.h"
 #include "aslp-nnet/nnet-nnet.h"
-#include "aslp-nnet/ctc-loss.h"
+#include "aslp-nnet/warp-ctc.h"
 #include "aslp-nnet/nnet-randomizer.h"
 #include "base/kaldi-common.h"
 #include "util/common-utils.h"
@@ -35,9 +21,9 @@ int main(int argc, char *argv[]) {
             "Perform one iteration of CTC training by SGD.\n"
             "The updates are done per-utterance and by processing multiple utterances in parallel.\n"
             "\n"
-            "Usage: aslp-nnet-train-ctc-streams [options] <feature-rspecifier> <labels-rspecifier> <model-in> [<model-out>]\n"
+            "Usage: aslp-nnet-train-warp-ctc-streams [options] <feature-rspecifier> <labels-rspecifier> <model-in> [<model-out>]\n"
             "e.g.: \n"
-            "aslp-nnet-train-ctc-streams scp:feature.scp ark:labels.ark nnet.init nnet.iter1\n";
+            "aslp-nnet-train-warp-ctc-streams scp:feature.scp ark:labels.ark nnet.init nnet.iter1\n";
 
         ParseOptions po(usage);
 
@@ -72,7 +58,7 @@ int main(int argc, char *argv[]) {
     
 
         std::string use_gpu="yes";
-        //po.Register("use-gpu", &use_gpu, "yes|no|optional, only has effect if compiled with CUDA"); 
+        po.Register("use-gpu", &use_gpu, "yes|no|optional, only has effect if compiled with CUDA"); 
 
         po.Read(argc, argv);
 
@@ -107,8 +93,11 @@ int main(int argc, char *argv[]) {
         RandomAccessInt32VectorReader targets_reader(targets_rspecifier);
 
         // Initialize CTC optimizer
-        Ctc ctc;
+        WarpCtc ctc;
+        bool use_gpu_flags = (use_gpu == "yes") ? true:false;
+        ctc.SetUseGpu(use_gpu_flags);
         ctc.SetReportStep(report_step);
+
         CuMatrix<BaseFloat> net_out, obj_diff;
 
         Timer time;
@@ -190,11 +179,10 @@ int main(int argc, char *argv[]) {
                 net.Feedforward(CuMatrix<BaseFloat>(feat_mat_host), &net_out);
             }
             //net.Propagate(CuMatrix<BaseFloat>(feat_mat_host), &net_out);
-            //ctc.EvalParallel(frame_num_utt, net_out, labels_utt, &obj_diff);
-            ctc.EvalParallel(key_utt, frame_num_utt, net_out, labels_utt, &obj_diff);
+            ctc.Eval(key_utt, frame_num_utt, net_out, labels_utt, &obj_diff);
 
             // Error rates
-            ctc.ErrorRateMSeq(frame_num_utt, net_out, labels_utt);
+            ctc.ErrorRate(frame_num_utt, net_out, labels_utt);
 
             // Backward pass
             if (!crossvalidate) {
