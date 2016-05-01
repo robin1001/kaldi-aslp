@@ -28,7 +28,7 @@ cd src
 vi aslp.mk ## modify KALDI_DIR = your_kaldi_path/src
 make -j 12
 ``` 
-To use it in your project, just add kaldi-aslp bin dir to your path.sh
+To use it, just copy aslp_scripts to your project, add kaldi-aslp bin dir to your path.sh
 ``` bash
 export KALDI_ROOT=`pwd`/../../../
 export ASLP_ROOT=/home/disk1/zhangbinbin/kaldi-aslp
