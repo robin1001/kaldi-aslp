@@ -33,6 +33,7 @@ int main(int argc, char *argv[]) {
   try {
     const char *usage =
         "Converts alignments remove repeated pdf(containing transition-ids) to pdf-ids, zero-based\n"
+        "For cd-phone ctc training, unique the pdf sequence\n"
         "Usage:  aslp-ali-to-pdf  [options] <model> <alignments-rspecifier> <pdfs-wspecifier>\n"
         "e.g.: \n"
         " aslp-ali-to-pdf 1.mdl ark:1.ali ark, t:-\n";
