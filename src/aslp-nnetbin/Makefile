@@ -21,7 +21,8 @@ BINFILES = aslp-nnet-info aslp-nnet-init \
          aslp-nnet-train-lstm-streams-skip \
          aslp-nnet-train-warp-ctc-streams \
          aslp-nnet-copy \
-         aslp-nnet-train-ctc-streams-cv
+         aslp-nnet-train-ctc-streams-cv \
+         aslp-nnet-train-mse
 
 #        nnet-train-perutt \
 #        nnet-train-mmi-sequential \
