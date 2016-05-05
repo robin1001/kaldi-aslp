@@ -123,15 +123,27 @@ void WarpCtc::EvalGpu(const std::vector<std::string> &utt,
                                     ctc_gpu_workspace,
                                     info),
                    "Error: compute_ctc_loss");
+    // Deprecated there is some bug of grad of the padded frame, should be 0
+    // Copy grads_gpu to diff matrix 
+    //for (int i = 0; i < diff->NumRows(); i++) {
+    //    throw_on_error(cudaMemcpyAsync(diff->Data() + i * diff->Stride(),
+    //                                   grads_gpu + i * diff->NumCols(),
+    //                                   diff->NumCols() * sizeof(float),
+    //                                   cudaMemcpyDeviceToDevice, stream),
+    //                   "cudaMemcpyAsync");
+    //}
 
-    // Copy grads_gpu to diff matrix
-    for (int i = 0; i < diff->NumRows(); i++) {
-        throw_on_error(cudaMemcpyAsync(diff->Data() + i * diff->Stride(),
-                                       grads_gpu + i * diff->NumCols(),
-                                       diff->NumCols() * sizeof(float),
-                                       cudaMemcpyDeviceToDevice, stream),
-                       "cudaMemcpyAsync");
+    for (int s = 0; s < minibatch; s++) {
+        for (int t = 0; t < frame_num_utt[s]; t++) {
+            int offset = t * minibatch + s;
+            throw_on_error(cudaMemcpyAsync(diff->Data() + offset * diff->Stride(),
+                                           grads_gpu + offset * diff->NumCols(),
+                                           diff->NumCols() * sizeof(float),
+                                           cudaMemcpyDeviceToDevice, stream),
+                           "cudaMemcpyAsync");
+        }
     }
+
     //{
     //    Matrix<BaseFloat> cpu_diff(diff->NumRows(), diff->NumCols());
     //    diff->CopyToMat(&cpu_diff);
@@ -321,6 +333,15 @@ void WarpCtc::StatAndAverageLossCheck(const std::vector<std::string> &utt,
         frames_ += frame_num_utt[s];
         frames_progress_ += frame_num_utt[s];
     }
+    double grad_sum = diff->Sum();
+    //if (!KALDI_ISFINITE(grad_sum)) {
+    //    Matrix<BaseFloat> cpu_diff(diff->NumRows(), diff->NumCols());
+    //    diff->CopyToMat(&cpu_diff);
+    //    Output ko("nan.diff", false);
+    //    cpu_diff.Write(ko.Stream(), false);
+    //    KALDI_ERR << "Write nan diff";
+    //}
+    KALDI_ASSERT(KALDI_ISFINITE(grad_sum));
     sequences_progress_ += num_sequence;
     sequences_num_ += num_sequence;
 }
