@@ -255,6 +255,8 @@ void WarpCtc::EvalCpu(const std::vector<std::string> &utt,
     // Clip gradient
     diff->ApplyFloor(-1.0);
     diff->ApplyCeiling(1.0);
+    double grad_sum = diff->Sum();
+    KALDI_ASSERT(KALDI_ISFINITE(grad_sum));
     
     // Progress report
     {
@@ -334,14 +336,19 @@ void WarpCtc::StatAndAverageLossCheck(const std::vector<std::string> &utt,
         frames_progress_ += frame_num_utt[s];
     }
     double grad_sum = diff->Sum();
-    //if (!KALDI_ISFINITE(grad_sum)) {
-    //    Matrix<BaseFloat> cpu_diff(diff->NumRows(), diff->NumCols());
-    //    diff->CopyToMat(&cpu_diff);
-    //    Output ko("nan.diff", false);
-    //    cpu_diff.Write(ko.Stream(), false);
-    //    KALDI_ERR << "Write nan diff";
-    //}
-    KALDI_ASSERT(KALDI_ISFINITE(grad_sum));
+    // If some elem of diff is nan or inf, set all diff to zero for robust
+    if (!KALDI_ISFINITE(grad_sum)) {
+        KALDI_WARN << "DIFF FINITE: nan or inf ocurred in the diff, ignore";
+        diff->SetZero();
+        //for (int s = 0; s < num_sequence; s++) {
+        //    KALDI_LOG << utt[s] << " " << pzx_host[s] << " " << pzx_host[s] / frame_num_utt[s];
+        //}
+        //Matrix<BaseFloat> cpu_diff(diff->NumRows(), diff->NumCols());
+        //diff->CopyToMat(&cpu_diff);
+        //Output ko("nan.diff", false);
+        //cpu_diff.Write(ko.Stream(), false);
+        //KALDI_ERR << "Write nan diff";
+    }
     sequences_progress_ += num_sequence;
     sequences_num_ += num_sequence;
 }
