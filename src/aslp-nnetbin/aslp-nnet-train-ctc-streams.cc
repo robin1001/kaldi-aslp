@@ -99,6 +99,7 @@ int main(int argc, char *argv[]) {
         Nnet net;
         net.Read(model_filename);
         net.SetTrainOptions(trn_opts);
+        float norm_lr = trn_opts.learn_rate;
 
         kaldi::int64 total_frames = 0;
 
@@ -171,6 +172,7 @@ int main(int argc, char *argv[]) {
                 }
             }
             int32 cur_sequence_num = frame_num_utt.size();
+            int32 num_valid_frame = 0;
 
             // Create the final feature matrix. Every utterance is padded to the max length within this group of utterances
             Matrix<BaseFloat> feat_mat_host(cur_sequence_num * max_frame_num, feat_dim, kSetZero);
@@ -179,9 +181,13 @@ int main(int argc, char *argv[]) {
                 for (int r = 0; r < frame_num_utt[s]; r++) {
                     feat_mat_host.Row(r*cur_sequence_num + s).CopyFromVec(mat_tmp.Row(r));
                 }
+                num_valid_frame += frame_num_utt[s];
             }        
             // Set the original lengths of utterances before padding
             net.SetSeqLengths(frame_num_utt);
+            // Normalize learn rate
+            trn_opts.learn_rate = norm_lr / num_valid_frame;
+            net.SetTrainOptions(trn_opts);
 
             // Propagation and CTC training
             if (!crossvalidate) {

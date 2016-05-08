@@ -156,12 +156,16 @@ void WarpCtc::EvalGpu(const std::vector<std::string> &utt,
     StatAndLossCheck(utt, frame_num_utt, costs, diff);
 #elif WARP_CTC_GRAD_CHECK == WARP_CTC_AVG_LOSS_CHECK
     StatAndAverageLossCheck(utt, frame_num_utt, costs, diff);
+#elif WARP_CTC_GRAD_CHECK == WARP_CTC_AVG_DIFF_CHECK
+    StatAndAverageDiffCheck(utt, frame_num_utt, costs, diff);
 #else // Default stat only no check 
     StatOnly(utt, frame_num_utt, costs, diff);
 #endif
     // Clip gradient
     diff->ApplyFloor(-1.0);
     diff->ApplyCeiling(1.0);
+    double grad_sum = diff->Sum();
+    KALDI_ASSERT(KALDI_ISFINITE(grad_sum));
 
     throw_on_error(cudaStreamSynchronize(stream), 
                    "cudaStreamSynchronize");
@@ -301,7 +305,8 @@ void WarpCtc::StatAndAverageLossCheck(const std::vector<std::string> &utt,
             double mean = loss_sum_ / normal_num_;
             double sigma = sqrt(loss_square_sum_ / normal_num_);
             // 3sigma criterion
-            if ((loss_per_frame >= (mean - 6 * sigma) && 
+            if (KALDI_ISFINITE(pzx_host[s]) && 
+                    (loss_per_frame >= (mean - 6 * sigma) && 
                     loss_per_frame <= (mean + 6 * sigma)) && 
                     (pzx_host[s] > 0 && pzx_host[s] < 3000)) {
                 normal_num_++;
@@ -349,6 +354,84 @@ void WarpCtc::StatAndAverageLossCheck(const std::vector<std::string> &utt,
         //cpu_diff.Write(ko.Stream(), false);
         //KALDI_ERR << "Write nan diff";
     }
+    sequences_progress_ += num_sequence;
+    sequences_num_ += num_sequence;
+}
+
+void WarpCtc::StatAndAverageDiffCheck(const std::vector<std::string> &utt, 
+                                      const std::vector<int32> &frame_num_utt, 
+                                      const std::vector<float> &pzx_host,
+                                      CuMatrix<BaseFloat> *diff) {
+    int32 num_sequence = frame_num_utt.size();  // number of sequences
+    CuVector<BaseFloat> diff_pow(diff->NumCols());
+    for (int s = 0; s < num_sequence; s++) {
+        // Cost of one sentence is normal
+        if (KALDI_ISFINITE(pzx_host[s])) {
+            obj_ += pzx_host[s];
+            obj_progress_ += pzx_host[s];
+            for (int t = 0; t < frame_num_utt[s]; t++) {
+                diff_pow.CopyFromVec(diff->Row(t*num_sequence+s));
+                diff_pow.ApplyPow(2);
+                double diff_sum = diff_pow.Sum();
+                // First init period, just statistic
+                if (diff_normal_num_ < diff_stat_period_ / 2) {  
+                    if (KALDI_ISFINITE(diff_sum)) {
+                        diff_normal_num_++;
+                        diff_sum_ += diff_sum;
+                        diff_sum_bak_ += diff_sum;
+                        diff_square_sum_ += diff_sum * diff_sum;
+                        diff_square_sum_bak_ += diff_sum * diff_sum;
+                    }
+                    else {
+                        KALDI_WARN << "Init Stat: nan or inf occured";
+                    }
+                }
+                else { // Check
+                    double mean = diff_sum_ / diff_normal_num_;
+                    double sigma = sqrt(diff_square_sum_ / diff_normal_num_);
+                    //KALDI_LOG << diff_sum << " " << mean << " " << sigma;
+                    if ((mean - 3 * sigma) <= diff_sum && 
+                        diff_sum <= (mean + 3 * sigma)) {
+                        diff_normal_num_++;
+                        diff_sum_ += diff_sum;
+                        diff_square_sum_ += diff_sum * diff_sum_;
+                        // Reset the mean and sum for new stat
+                        if (diff_normal_num_ == diff_stat_period_) {
+                           diff_sum_ -= diff_sum_bak_;
+                           diff_square_sum_ -= diff_square_sum_bak_;
+                           diff_sum_bak_ = diff_sum_;
+                           diff_square_sum_bak_ = diff_square_sum_;
+                           diff_normal_num_ = diff_stat_period_ / 2;
+                        }
+                    }
+                    // else the diff of this frame is abnormal
+                    else {
+                        KALDI_WARN << "Sequences " << utt[s]
+                            << " obj " << pzx_host[s] 
+                            << " at time t " << t 
+                            << " " << diff_sum 
+                            << " diff is abnormal, drop it "
+                            << " mean " << mean 
+                            << " sigma " << sigma;
+                        diff->Row(t*num_sequence+s).SetZero();
+                    }
+                }
+            } // for t
+        } // if KALDI_ISFINITE(pzx_host[s])
+        else {
+            KALDI_WARN << "Sequences " << utt[s]
+                << " obj is abnormal(sum " << pzx_host[s] 
+                << "), drop it's diff and stat";
+            for (int t = 0; t < frame_num_utt[s]; t++) {
+                diff->Row(t*num_sequence+s).SetZero();
+            }
+        }
+
+        frames_ += frame_num_utt[s];
+        frames_progress_ += frame_num_utt[s];
+    }
+    double grad_sum = diff->Sum();
+    KALDI_ASSERT(KALDI_ISFINITE(grad_sum));
     sequences_progress_ += num_sequence;
     sequences_num_ += num_sequence;
 }

@@ -229,17 +229,21 @@ void Ctc::StatAndAverageLossCheck(const std::vector<std::string> &utt,
     for (int s = 0; s < num_sequence; s++) {
         //if (pzx_host(s) < 0 || pzx_host(s) > 3000) {
         //    KALDI_WARN << utt[s] << " obj is abnoraml " << pzx_host(s);
+        //    continue;
         //}
         // Acc enough stat for check, no check
         if (normal_num_ < stat_period_ / 2) {  
-            normal_num_++;
-            double loss_per_frame = pzx_host(s) / frame_num_utt[s];
-            loss_sum_ += loss_per_frame;
-            loss_sum_bak_ += loss_per_frame;
-            loss_square_sum_ += loss_per_frame * loss_per_frame;
-            loss_square_sum_bak_ += loss_per_frame * loss_per_frame;
-            obj_ += pzx_host(s);
-            obj_progress_ += pzx_host(s);
+            if (KALDI_ISFINITE(pzx_host(s)) && pzx_host(s) > 0 && 
+                pzx_host(s) < 3000) {
+                normal_num_++;
+                double loss_per_frame = pzx_host(s) / frame_num_utt[s];
+                loss_sum_ += loss_per_frame;
+                loss_sum_bak_ += loss_per_frame;
+                loss_square_sum_ += loss_per_frame * loss_per_frame;
+                loss_square_sum_bak_ += loss_per_frame * loss_per_frame;
+                obj_ += pzx_host(s);
+                obj_progress_ += pzx_host(s);
+            }
         }
         // Check
         else {
@@ -247,7 +251,8 @@ void Ctc::StatAndAverageLossCheck(const std::vector<std::string> &utt,
             double mean = loss_sum_ / normal_num_;
             double sigma = sqrt(loss_square_sum_ / normal_num_);
             // 3sigma criterion
-            if ((loss_per_frame >= (mean - 6 * sigma) && 
+            if (KALDI_ISFINITE(pzx_host(s)) &&
+                    (loss_per_frame >= (mean - 6 * sigma) && 
                     loss_per_frame <= (mean + 6 * sigma)) && 
                     (pzx_host(s) > 0 && pzx_host(s) < 3000)) {
                 normal_num_++;
@@ -280,6 +285,12 @@ void Ctc::StatAndAverageLossCheck(const std::vector<std::string> &utt,
 
         frames_ += frame_num_utt[s];
         frames_progress_ += frame_num_utt[s];
+    }
+    double grad_sum = diff->Sum();
+     // If some elem of diff is nan or inf, set all diff to zero for robust
+    if (!KALDI_ISFINITE(grad_sum)) {
+        KALDI_WARN << "DIFF FINITE: nan or inf ocurred in the diff, ignore";
+        diff->SetZero();
     }
     sequences_progress_ += num_sequence;
     sequences_num_ += num_sequence;

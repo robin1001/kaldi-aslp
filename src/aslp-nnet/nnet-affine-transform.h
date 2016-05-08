@@ -194,12 +194,12 @@ class AffineTransform : public UpdatableComponent {
       cu::RegularizeL1(&linearity_, &linearity_corr_, lr*l1*num_frames, lr);
     }
     //{
-    //  Print the 2-norm of the w and diff_w
+    //  //Print the 2-norm of the w and diff_w
     //  CuMatrix<BaseFloat> pow_w(linearity_);
     //  CuMatrix<BaseFloat> pow_diff(linearity_corr_);
     //  pow_w.ApplyPow(2);
     //  pow_diff.ApplyPow(2);
-    //  KALDI_LOG << id_ << " w square sum " << pow_w.Sum() << " w diff square sum " << pow_diff.Sum();
+    //  KALDI_LOG << id_ << " lr " << lr << " w square sum " << pow_w.Sum() << " w diff square sum " << pow_diff.Sum();
     //}
     if (clip_gradient_ > 0.0) {
       linearity_corr_.ApplyFloor(-clip_gradient_); 

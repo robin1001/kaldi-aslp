@@ -19,7 +19,8 @@ namespace aslp_nnet {
 
 #define WARP_CTC_SUM_LOSS_CHECK 0
 #define WARP_CTC_AVG_LOSS_CHECK 1
-#define WARP_CTC_NONE_LOSS_CHECK 2
+#define WARP_CTC_AVG_DIFF_CHECK 2
+#define WARP_CTC_NONE_LOSS_CHECK 3
 
 #define WARP_CTC_GRAD_CHECK 1
 
@@ -31,7 +32,10 @@ public:
     obj_(0), use_gpu_(true),
     loss_sum_(0), loss_square_sum_(0),
     loss_sum_bak_(0), loss_square_sum_bak_(0), 
-    normal_num_(0), stat_period_(100) { }
+    normal_num_(0), stat_period_(500),
+    diff_sum_(0), diff_square_sum_(0), 
+    diff_sum_bak_(0), diff_square_sum_bak_(0),
+    diff_normal_num_(0), diff_stat_period_(10000) { }
 
     ~WarpCtc() { }
 
@@ -87,6 +91,10 @@ public:
                                  const std::vector<int32> &frame_num_utt, 
                                  const std::vector<float> &pzx_host,
                                  CuMatrix<BaseFloat> *diff);
+    void StatAndAverageDiffCheck(const std::vector<std::string> &utt, 
+                                 const std::vector<int32> &frame_num_utt, 
+                                 const std::vector<float> &pzx_host,
+                                 CuMatrix<BaseFloat> *diff);
 
 private:
     int32 frames_;                    // total frame number
@@ -105,10 +113,14 @@ private:
 
     double obj_;
     bool use_gpu_;
-    // For statistic grad
+    // For statistic loss
     double loss_sum_, loss_square_sum_;
     double loss_sum_bak_, loss_square_sum_bak_;
     int32 normal_num_, stat_period_;
+    // For statistic diff
+    double diff_sum_, diff_square_sum_;
+    double diff_sum_bak_, diff_square_sum_bak_;
+    int32 diff_normal_num_, diff_stat_period_; // num of frame for one statistic period
 };
 
 } // namespace aslp_nnet
