@@ -1,6 +1,5 @@
 // aslp-bin/aslp-ali-to-matrix.cc
 
-// Copyright 2009-2011  Microsoft Corporation
 // Copyright 2016 ASLP (Binbin Zhang)
 // Created on 2016-05-03
 

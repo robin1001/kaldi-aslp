@@ -60,6 +60,9 @@ void WarpCtc::EvalGpu(const std::vector<std::string> &utt,
     std::vector<int> label_lengths;
     for (int i = 0; i < minibatch; i++) {
         const std::vector<int> &l = labels[i];
+        for (int j = 0; j < l.size(); j++) {
+            KALDI_ASSERT(l[j] < net_out.NumCols());
+        }
         flat_labels.insert(flat_labels.end(), l.begin(), l.end());
         label_lengths.push_back(l.size());
     }
@@ -207,6 +210,9 @@ void WarpCtc::EvalCpu(const std::vector<std::string> &utt,
     std::vector<int> label_lengths;
     for (int i = 0; i < minibatch; i++) {
         const std::vector<int> &l = labels[i];
+        for (int j = 0; j < l.size(); j++) {
+            KALDI_ASSERT(l[j] < net_out.NumCols());
+        }
         flat_labels.insert(flat_labels.end(), l.begin(), l.end());
         label_lengths.push_back(l.size());
     }

@@ -41,6 +41,7 @@ void Ctc::Eval(const CuMatrixBase<BaseFloat> &net_out, const std::vector<int32> 
     label_expand_.resize(0);
     label_expand_.resize(exp_len_labels, 0);
     for (int l = 0; l < len_labels; l++) {
+        KALDI_ASSERT(label[l] < net_out.NumCols());
         label_expand_[2*l+1] = label[l];
     }
 
@@ -138,6 +139,9 @@ void Ctc::EvalParallel(const std::vector<std::string> &utt,
         std::vector<int32> label_s = label[s];
         label_lengths_utt[s] = 2 * label_s.size() + 1;
         for (int32 l = 0; l < label_s.size(); l++) {
+            if (label_s[l] >= net_out.NumCols()) {
+                KALDI_ERR << "label gt outdim " << label_s[l] << " " << net_out.NumCols();
+            }
             label_expand_[s*exp_len_labels + 2*l] = 0;
             label_expand_[s*exp_len_labels + 2*l + 1] = label_s[l];
         }
