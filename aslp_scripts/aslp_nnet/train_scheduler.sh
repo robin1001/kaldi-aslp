@@ -90,15 +90,14 @@ halving=0
 
 # training,
 for iter in $(seq -w $max_iters); do
-  echo "ITERATION $iter: " `date`
-  echo "LOG (Just-for-log-analysis) ProgressLoss[last 0h of Nh]: 0 (Likelyhood) 0 (Xent)"
+  echo -n `date` " ITERATION $iter: "
   mlp_next=$dir/nnet/${mlp_base}_iter${iter}
   
   # skip iteration (epoch) if already done,
-  [ -e $dir/.done_iter$iter ] && echo "skipping... " && ls $mlp_next* && continue 
+  [ -e $dir/.done_iter$iter ] && echo -n "skipping... " && ls $mlp_next* && continue 
   
   # training,
-  #log=$dir/log/iter${iter}.tr.log; hostname>$log
+  log=$dir/log/iter${iter}.tr.log; hostname>$log
   $train_tool $train_tool_opts \
     --cross-validate=false \
     --randomize=true \
@@ -108,11 +107,11 @@ for iter in $(seq -w $max_iters); do
     --minibatch-size=$minibatch_size \
     --randomizer-size=$randomizer_size \
     --l1-penalty=$l1_penalty --l2-penalty=$l2_penalty \
-    "$feats_tr" "$labels_tr" $mlp_best $mlp_next 
-    #2>> $log || exit 1; 
+    "$feats_tr" "$labels_tr" $mlp_best $mlp_next \
+    2>> $log || exit 1; 
 
-  #tr_loss=$(cat $dir/log/iter${iter}.tr.log | grep "AvgLoss:" | tail -n 1 | awk '{ print $4; }')
-  #echo -n "TRAIN AVG.LOSS $(printf "%.4f" $tr_loss), (lrate$(printf "%.6g" $learn_rate)), "
+  tr_loss=$(cat $dir/log/iter${iter}.tr.log | grep "AvgLoss:" | tail -n 1 | awk '{ print $4; }')
+  echo -n "TRAIN AVG.LOSS $(printf "%.4f" $tr_loss), (lrate$(printf "%.6g" $learn_rate)), "
   
   # cross-validation,
   log=$dir/log/iter${iter}.cv.log; hostname>$log
@@ -121,15 +120,14 @@ for iter in $(seq -w $max_iters); do
     2>>$log || exit 1;
   
   loss_new=$(cat $dir/log/iter${iter}.cv.log | grep "AvgLoss:" | tail -n 1 | awk '{ print $4; }')
-  echo "CROSSVAL AVG.LOSS $(printf "%.4f" $loss_new)"
+  echo -n "CROSSVAL AVG.LOSS $(printf "%.4f" $loss_new), "
 
   # accept or reject?
   loss_prev=$loss
   if [ 1 == $(bc <<< "$loss_new < $loss") -o $iter -le $keep_lr_iters -o $iter -le $min_iters ]; then
     # accepting: the loss was better, or we had fixed learn-rate, or we had fixed epoch-number,
     loss=$loss_new
-    #mlp_best=$dir/nnet/${mlp_base}_iter${iter}_learnrate${learn_rate}_tr$(printf "%.4f" $tr_loss)_cv$(printf "%.4f" $loss_new)
-    mlp_best=$dir/nnet/${mlp_base}_iter${iter}_learnrate${learn_rate}_cv$(printf "%.4f" $loss_new)
+    mlp_best=$dir/nnet/${mlp_base}_iter${iter}_learnrate${learn_rate}_tr$(printf "%.4f" $tr_loss)_cv$(printf "%.4f" $loss_new)
     [ $iter -le $min_iters ] && mlp_best=${mlp_best}_min-iters-$min_iters
     [ $iter -le $keep_lr_iters ] && mlp_best=${mlp_best}_keep-lr-iters-$keep_lr_iters
     mv $mlp_next $mlp_best
@@ -137,8 +135,7 @@ for iter in $(seq -w $max_iters); do
     echo $mlp_best > $dir/.mlp_best 
   else
     # rejecting,
-    #mlp_reject=$dir/nnet/${mlp_base}_iter${iter}_learnrate${learn_rate}_tr$(printf "%.4f" $tr_loss)_cv$(printf "%.4f" $loss_new)_rejected
-    mlp_reject=$dir/nnet/${mlp_base}_iter${iter}_learnrate${learn_rate}_cv$(printf "%.4f" $loss_new)_rejected
+    mlp_reject=$dir/nnet/${mlp_base}_iter${iter}_learnrate${learn_rate}_tr$(printf "%.4f" $tr_loss)_cv$(printf "%.4f" $loss_new)_rejected
     mv $mlp_next $mlp_reject
     echo "nnet rejected ($(basename $mlp_reject))"
   fi

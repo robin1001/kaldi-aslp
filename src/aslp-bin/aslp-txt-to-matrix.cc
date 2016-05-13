@@ -18,8 +18,7 @@ static int ReadTxtMatrix(const char *txt_file, kaldi::Matrix<float> *mat) {
     }
     char line[10240] = {0};
     std::vector<std::vector<float> > mat_vec;
-    while (!feof(fp)) {
-        fgets(line, 10240, fp);
+    while (fgets(line, 10240, fp)) {
         std::vector<float> vec_vec;
         SplitStringToFloats(line, " ", true, &vec_vec);
         mat_vec.push_back(vec_vec);
@@ -27,6 +26,7 @@ static int ReadTxtMatrix(const char *txt_file, kaldi::Matrix<float> *mat) {
     KALDI_ASSERT(mat_vec.size() > 0);
     int num_rows = mat_vec.size();
     int num_cols = mat_vec[0].size();
+    //KALDI_LOG << num_rows << " " << num_cols;
     // Check
     for (int i = 0; i < num_rows; i++) {
         if (mat_vec[i].size() != num_cols) {
@@ -40,6 +40,7 @@ static int ReadTxtMatrix(const char *txt_file, kaldi::Matrix<float> *mat) {
             (*mat)(i, j) = mat_vec[i][j];
         }
     }
+    fclose(fp);
     return num_cols;
 }
 
@@ -49,9 +50,9 @@ int main(int argc, char *argv[]) {
     try {
         const char *usage =
             "Converts txt matrix to kaldi matrix representation\n"
-            "Usage:  aslp-txt-to-matrix [options] <rxfilename> <matrix-wspecifier>\n"
+            "Usage:  aslp-txt-to-matrix [options] <txt-mat-rspecifier> <matrix-wspecifier>\n"
             "e.g.: \n"
-            " aslp-txt-to-matrix txt.list ark:matrix.ark \n";
+            " aslp-txt-to-matrix ark:txt_mat.list ark:matrix.ark \n";
         ParseOptions po(usage);
 
         po.Read(argc, argv);
@@ -64,23 +65,16 @@ int main(int argc, char *argv[]) {
         std::string txt_rxfilename = po.GetArg(1),
             matrix_wspecifier = po.GetArg(2);
 
-        FILE *fp = fopen(txt_rxfilename.c_str(), "r");
-        if (fp == NULL) {
-            perror(txt_rxfilename.c_str());
-            exit(1);
-        }
+        SequentialTokenReader reader(txt_rxfilename);
         BaseFloatMatrixWriter writer(matrix_wspecifier);
-        Matrix<BaseFloat> mat;
 
-        char buffer[1024] = {0};
+        Matrix<BaseFloat> mat;
         int32 num_done = 0;
-        while (!feof(fp)) {
-            fgets(buffer, 1024, fp);
-            std::string file_name = buffer;
-            Trim(&file_name);
-            if (file_name == "") continue;
+        for (; !reader.Done(); reader.Next()) {
+            std::string key = reader.Key();
+            const std::string file_name = reader.Value();
             ReadTxtMatrix(file_name.c_str(), &mat);
-            writer.Write(file_name, mat);
+            writer.Write(key, mat);
             num_done++;
         }
         KALDI_LOG << "Converted " << num_done << " txt file to matrix";
