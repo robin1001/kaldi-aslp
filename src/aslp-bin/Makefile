@@ -15,7 +15,8 @@ BINFILES = aslp-acc-tree-stats-phone-median aslp-acc-tree-stats-phone-mean \
 		   aslp-tree-bind-info aslp-convert-ali \
            aslp-acc-tree-stats-phone-mean-per-frame \
            aslp-copy-vector-from-matrix \
-           aslp-ali-to-pdf aslp-ali-to-matrix
+           aslp-ali-to-pdf aslp-ali-to-matrix aslp-ali-minus-one \
+           aslp-txt-to-matrix
 
 TESTFILES = 
 

@@ -41,6 +41,7 @@ void Ctc::Eval(const CuMatrixBase<BaseFloat> &net_out, const std::vector<int32> 
     label_expand_.resize(0);
     label_expand_.resize(exp_len_labels, 0);
     for (int l = 0; l < len_labels; l++) {
+        KALDI_ASSERT(label[l] < net_out.NumCols());
         label_expand_[2*l+1] = label[l];
     }
 
@@ -138,6 +139,9 @@ void Ctc::EvalParallel(const std::vector<std::string> &utt,
         std::vector<int32> label_s = label[s];
         label_lengths_utt[s] = 2 * label_s.size() + 1;
         for (int32 l = 0; l < label_s.size(); l++) {
+            if (label_s[l] >= net_out.NumCols()) {
+                KALDI_ERR << "label gt outdim " << label_s[l] << " " << net_out.NumCols();
+            }
             label_expand_[s*exp_len_labels + 2*l] = 0;
             label_expand_[s*exp_len_labels + 2*l + 1] = label_s[l];
         }
@@ -165,7 +169,8 @@ void Ctc::EvalParallel(const std::vector<std::string> &utt,
         int frame_num = frame_num_utt[s];
         BaseFloat tmp1 = alpha_((frame_num-1)*num_sequence + s, label_len - 1);
         BaseFloat tmp2 = alpha_((frame_num-1)*num_sequence + s, label_len-2);
-        pzx(s) = tmp1 + log(1 + ExpA(tmp2 - tmp1));
+        //pzx(s) = tmp1 + log(1 + ExpA(tmp2 - tmp1));
+        pzx(s) = (float)LogAPlusB((double)tmp1, (double)tmp2);
     }
 
     // gradients from CTC
@@ -229,17 +234,21 @@ void Ctc::StatAndAverageLossCheck(const std::vector<std::string> &utt,
     for (int s = 0; s < num_sequence; s++) {
         //if (pzx_host(s) < 0 || pzx_host(s) > 3000) {
         //    KALDI_WARN << utt[s] << " obj is abnoraml " << pzx_host(s);
+        //    continue;
         //}
         // Acc enough stat for check, no check
         if (normal_num_ < stat_period_ / 2) {  
-            normal_num_++;
-            double loss_per_frame = pzx_host(s) / frame_num_utt[s];
-            loss_sum_ += loss_per_frame;
-            loss_sum_bak_ += loss_per_frame;
-            loss_square_sum_ += loss_per_frame * loss_per_frame;
-            loss_square_sum_bak_ += loss_per_frame * loss_per_frame;
-            obj_ += pzx_host(s);
-            obj_progress_ += pzx_host(s);
+            if (KALDI_ISFINITE(pzx_host(s)) && pzx_host(s) > 0 && 
+                pzx_host(s) < 3000) {
+                normal_num_++;
+                double loss_per_frame = pzx_host(s) / frame_num_utt[s];
+                loss_sum_ += loss_per_frame;
+                loss_sum_bak_ += loss_per_frame;
+                loss_square_sum_ += loss_per_frame * loss_per_frame;
+                loss_square_sum_bak_ += loss_per_frame * loss_per_frame;
+                obj_ += pzx_host(s);
+                obj_progress_ += pzx_host(s);
+            }
         }
         // Check
         else {
@@ -247,7 +256,8 @@ void Ctc::StatAndAverageLossCheck(const std::vector<std::string> &utt,
             double mean = loss_sum_ / normal_num_;
             double sigma = sqrt(loss_square_sum_ / normal_num_);
             // 3sigma criterion
-            if ((loss_per_frame >= (mean - 6 * sigma) && 
+            if (KALDI_ISFINITE(pzx_host(s)) &&
+                    (loss_per_frame >= (mean - 6 * sigma) && 
                     loss_per_frame <= (mean + 6 * sigma)) && 
                     (pzx_host(s) > 0 && pzx_host(s) < 3000)) {
                 normal_num_++;
@@ -280,6 +290,12 @@ void Ctc::StatAndAverageLossCheck(const std::vector<std::string> &utt,
 
         frames_ += frame_num_utt[s];
         frames_progress_ += frame_num_utt[s];
+    }
+    double grad_sum = diff->Sum();
+     // If some elem of diff is nan or inf, set all diff to zero for robust
+    if (!KALDI_ISFINITE(grad_sum)) {
+        KALDI_WARN << "DIFF FINITE: nan or inf ocurred in the diff, ignore";
+        diff->SetZero();
     }
     sequences_progress_ += num_sequence;
     sequences_num_ += num_sequence;
@@ -414,6 +430,241 @@ std::string Ctc::Report() {
         << " TOKEN_ACCURACY >> " << 100.0*(1.0 - error_num_/ref_num_) << " % <<";
     return oss.str(); 
 }
+/* The following program was created in Baidu when I was an intern
+ * Keep it here for eesen ctc has no cpu implementation
+ * TODO add it
+ */
+/*  
+double k_exp_max = std::numeric_limits<double>::max();
+double k_exp_min = std::numeric_limits<double>::min();
+double k_exp_limit = std::log(k_exp_max);
+double k_log_infinity = 1e20;
+double k_log_zero = -k_log_infinity;
+static double SafeExp(double x) {
+    if (x <= k_log_zero) return 0;
+    if (x >= k_exp_limit) return k_exp_max;
+    return std::exp(x);
+}
+static double SafeLog(double x) {
+    if (x <= k_exp_min) return k_log_zero;
+    //if (x <= 1e-100) return std::log(1e-100);
+    return std::log(x);
+}
+static double LogAdd(double x, double y) {
+    if (x <= k_log_zero) return y;
+    if (y <= k_log_zero) return x;
+    if (x < y) {
+        double t = x;
+        x = y; 
+        y = t;
+    }
+    return x + std::log(1.0 + SafeExp(y - x));
+}
+
+#define CTC_LOG
+#ifdef CTC_LOG
+double CtcLoss::CtcError(const std::vector<int> &target, const Matrix<BaseFloat> &out, 
+        Matrix<BaseFloat> *out_diff) {
+    using namespace std;
+    std::vector<int> tmp_label(target);
+	//1. convert to sentence uniq label sequence, (eg. a a a b b b a a --> a b a) 
+	vector<int>::iterator it = unique(tmp_label.begin(), tmp_label.end());	
+	tmp_label.erase(it, tmp_label.end());
+	//2. insert blank(here use sp as blank)
+	RemoveBlank(&tmp_label);
+	vector<int> labels(tmp_label);
+	//insert blank in label sequence, (eg, a b a --> | a | b | a |
+	InsertBlank(&labels);	
+	KALDI_ASSERT(labels.size() == tmp_label.size() * 2 + 1);
+	
+	int num_frame = target.size();	
+	int num_state = labels.size();
+	Matrix<BaseFloat> alpha(num_frame, num_state);
+    Matrix<BaseFloat> beta(num_frame, num_state);
+    alpha.Set(SafeLog(0));
+    beta.Set(SafeLog(0));
+	//4. forward
+	alpha(0,0) = SafeLog(out(0, labels[0])); //blank
+	alpha(0,1) = SafeLog(out(0, labels[1])); //first label
+	for (int t = 1; t < num_frame; t++) {
+		int start = num_state - 2 * (num_frame - t);
+        if (start < 0) start = 0;
+        int end = 2 * (t + 1);
+        if (end > num_state) end = num_state;
+        //for (int s = 0; s < num_state; s++) {
+        for (int s = start; s < end; s++) {
+			double sum = alpha(t-1,s); //s
+            if (s >= 1) 
+                sum = LogAdd(sum, alpha(t-1, s-1)); //s-1
+            //s != blank && l(s) != l(s-2)
+            if (s >= 2 && s % 2 != 0 && labels[s] != labels[s-2])
+                sum = LogAdd(sum, alpha(t-1,s-2));
+			alpha(t,s) = sum + SafeLog(out(t,labels[s]));
+        }
+	}
+    double like = LogAdd(alpha(num_frame-1, num_state-2), alpha(num_frame-1, num_state-1));
+	//5. backward
+    beta(num_frame-1, num_state-1)  = SafeLog(1.0);
+	beta(num_frame-1, num_state-2)  = SafeLog(1.0);
+	for (int t = num_frame - 2; t >= 0; t--) {
+        int start = num_state - 2 * (num_frame - t);
+        if (start < 0) start = 0;
+        int end = 2 * (t + 1);
+        if (end > num_state) end = num_state;
+		//for (int s = num_state - 1; s >= 0; s--) {
+		for (int s = end - 1; s >= start; s--) {
+			double sum = beta(t+1, s) + SafeLog(out(t+1, labels[s])); //s
+			if (s < num_state - 1) 
+                sum = LogAdd(sum, beta(t+1, s+1) + SafeLog(out(t+1, labels[s+1])));
+            if (s < num_state -2 && s % 2 != 0 && labels[s] != labels[s+2])
+                sum = LogAdd(sum, beta(t+1, s+2) + SafeLog(out(t+1, labels[s+2])));
+			beta(t,s) = sum;
+		}
+	}
+    double like2 = LogAdd(beta(0,0) + SafeLog(out(0, labels[0])), beta(0,1) + SafeLog(out(0, labels[1])));
+    KALDI_LOG << "alpha" << like  << ";beta " << like2 << ";num_frame " << num_frame <<  ";average " << like / num_frame;
+    //6. calc out_diff
+    out_diff->Resize(num_frame, out.NumCols());
+    for (int t = 0; t < num_frame; t++) {
+        vector<double> alpha_beta(out.NumCols(), SafeLog(0));
+        for (int s = 0; s < labels.size(); s++) {
+            alpha_beta[labels[s]] = LogAdd(alpha_beta[labels[s]], alpha(t, s) + beta(t, s));
+        }
+        for (int k = 0; k < out.NumCols(); k++) {
+            //printf("alpha_beta %d %d %lf %lf\n", t, k, alpha_beta[k], SafeExp(alpha_beta[k] - like));
+            double val = SafeExp(alpha_beta[k] - like);
+            if (val > 1.0) val = 1.0;
+		    (*out_diff)(t, k) = val - out(t,k);
+        }
+ 	}
+    return like;
+}
+
+#else
+double CtcLoss::CtcError(const std::vector<int> &target, const Matrix<BaseFloat> &out, 
+        Matrix<BaseFloat> *out_diff) {
+    using namespace std;
+    std::vector<int> tmp_label(target);
+	//1. convert to sentence uniq label sequence, (eg. a a a b b b a a --> a b a) 
+	vector<int>::iterator it = unique(tmp_label.begin(), tmp_label.end());	
+	tmp_label.erase(it, tmp_label.end());
+	//2. insert blank(here use sp as blank)
+	RemoveBlank(&tmp_label);
+	vector<int> labels(tmp_label);
+	//insert blank in label sequence, (eg, a b a --> | a | b | a |
+	InsertBlank(&labels);	
+	KALDI_ASSERT(labels.size() == tmp_label.size() * 2 + 1);
+	//2. get used k output in ctc, (eg. a b a b a --> a b, only label a b occured in phone sequence
+	tmp_label.push_back(blank_index_);
+	sort(tmp_label.begin(), tmp_label.end());		
+	it = unique(tmp_label.begin(), tmp_label.end());	
+	tmp_label.erase(it, tmp_label.end());	
+	vector<int> used_k(tmp_label);
+	
+	int num_frame = target.size();	
+	int num_state = labels.size();
+	int num_k = used_k.size(); //used k label in total output label
+	//3. k2s
+	vector< vector<int> > k2s;
+	k2s.resize(num_k);
+	for (int k = 0; k < num_k; k++) {
+		for (int s = 0; s < num_state; s++) {
+			if (used_k[k] == labels[s])
+				k2s[k].push_back(s);
+		}
+	}
+	Matrix<double> alpha(num_frame, num_state);
+    Matrix<double> beta(num_frame, num_state);
+	vector<double> cv(num_frame, 0);
+	vector<double> dv(num_frame, 0);
+	//4. forward
+	alpha(0,0) = out(0, labels[0]); //blank
+	alpha(0,1) = out(0, labels[1]); //first label
+	cv[0] = alpha(0,0) + alpha(0,1);
+	alpha(0,0) = alpha(0,0)/cv[0];
+  	alpha(0,1) = alpha(0,1)/cv[0];
+	for (int t = 1; t < num_frame; t++) {
+		int start = num_state - 2 * (num_frame - t);
+        if (start < 0) start = 0;
+        int end = 2 * (t + 1);
+        if (end > num_state) end = num_state;
+        //for (int s = start; s < end; s++) {
+        for (int s = 0; s < num_state; s++) {
+			double sum = alpha(t-1,s); //s
+            if (s >= 1) sum += alpha(t-1,s-1); //s-1
+            //s != blank && l(s) != l(s-2)
+            if (s >= 2 && s % 2 == 0 && labels[s] != labels[s-2])
+                sum += alpha(t-1,s-2);
+			alpha(t,s) = sum * out(t,labels[s]);
+		}
+		//scaling
+        cv[t]=0;
+        for(int s = 0; s < num_state; s++) cv[t] += alpha(t,s);
+        for(int s = 0; s < num_state; s++) alpha(t,s) = alpha(t,s)/cv[t];
+	}
+	//5. backward
+    beta(num_frame-1, num_state-1)  = 1;
+	beta(num_frame-1, num_state-2)  = 1;
+    dv[num_frame-1] = beta(num_frame-1, num_state-1) + beta(num_frame-1, num_state-2);
+	beta(num_frame-1, num_state-1) = beta(num_frame-1, num_state-1)/dv[num_frame-1];
+	beta(num_frame-1, num_state-2) = beta(num_frame-1, num_state-2)/dv[num_frame-1];
+	for (int t = num_frame - 2; t >= 0; t--) {
+        int start = num_state - 2 * (num_frame - t);
+        if (start < 0) start = 0;
+        int end = 2 * (t + 1);
+        if (end > num_state) end = num_state;
+		//for (int s = end - 1; s >= start; s--) {
+		for (int s = num_state - 1; s >= 0; s--) {
+			double sum = beta(t+1, s) * out(t+1, labels[s]); //s
+			if (s < num_state - 1) 
+                sum += beta(t+1,s+1) * out(t+1, labels[s+1]); //s+1
+            if (s < num_state -2 && s % 2 == 0 && labels[s] != labels[s+2])
+				sum += beta(t+1,s+2) * out(t+1,labels[s+2]);
+			beta(t,s) = sum;
+		}
+		//scaling
+		dv[t]=0;
+        for(int s = 0; s < num_state; s++) dv[t] += beta(t,s);
+        for(int s = 0; s < num_state; s++) beta(t,s) = beta(t,s)/dv[t];
+	}
+	//6. calc out_diff
+    out_diff->Resize(num_frame, out.NumCols());
+	vector<double> zt(num_frame, 0);
+    vector<double> ct_acc(num_frame, 0); 
+    vector<double> dt_acc(num_frame, 0); 
+    ct_acc[0] = log(cv[0]);
+	for (int t = 1; t < num_frame; t++)
+		ct_acc[t] = ct_acc[t-1] + log(cv[t]);
+    dt_acc[num_frame-1] = log(dv[num_frame-1]);
+	for (int t = num_frame-2; t>=0; t--)
+		dt_acc[t] = dt_acc[t+1] + log(dv[t]);
+	for (int t = 0; t < num_frame; t++) {
+		for (int j=0; j <out_diff->NumCols(); j++){
+			(*out_diff)(t,j) = 0 - out(t,j);
+		}
+		for (int s = 0; s < num_state; s++) {
+			zt[t] += alpha(t,s) * beta(t,s);
+            printf("t=%d s=%d alpha(t,s)=%lf beta(t,s)=%lf mul=%lf zt=%lf\n", t, s, alpha(t,s), beta(t,s), alpha(t,s)*beta(t,s), zt[t]);
+		}
+		//cout<<"t="<<t<<": z="<<log(zt[t])+ct_acc[t]+dt_acc[t]<<endl;
+		for (int k = 0; k < num_k; k++) {
+			double alpha_beta = 0;
+			for (int i = 0; i < k2s[k].size(); i++) {
+				alpha_beta += alpha(t, k2s[k][i]) * beta(t, k2s[k][i]);
+			}
+            KALDI_LOG << alpha_beta << " " << zt[t];
+            KALDI_ASSERT(zt[t] >= 0);
+            KALDI_ASSERT(alpha_beta <= zt[t]);
+			if (zt[t] > 0){
+				//tmpDiff.data_[t*num_frame+k] = out(t,used_k[k]) - 1.0/zt[t] * alpha_beta;
+				 (*out_diff)(t, used_k[k]) = alpha_beta/zt[t] - out(t,used_k[k]);
+			}
+		}
+ 	}
+	return (log(zt[0])+ct_acc[0]+dt_acc[0]);//average log likelihood of each frame
+}
+#endif
+*/
 
 } // namespace aslp_nnet
 } // namespace kaldi

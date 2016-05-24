@@ -12,6 +12,7 @@
 * vad 
 
 ## TODO
+* Multi-GPU(more than 2 card) speedup
 * kws
 * GRU 
 * TTS align script

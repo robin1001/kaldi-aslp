@@ -33,7 +33,7 @@ namespace aslp_nnet {
 #define AVG_LOSS_CHECK 1
 #define NONE_LOSS_CHECK 2
 
-#define CTC_GRAD_CHECK 0
+#define CTC_GRAD_CHECK 1
 
 class Ctc {
 public:

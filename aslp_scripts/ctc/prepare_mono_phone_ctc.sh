@@ -35,8 +35,8 @@ aslp_scripts/ctc/make_fake_mdl.sh $num_phone $dst_ali_dir/final.mdl
 for x in $src_ali_dir/ali.*.gz; do
 {
     file_name=$(basename $x)
-    ali-to-phones $src_ali_dir/final.mdl \
-        "ark:gunzip -c $src_ali_dir/$file_name |" "ark:|gzip -c > $dst_ali_dir/$file_name"
+    ali-to-phones $src_ali_dir/final.mdl "ark:gunzip -c $src_ali_dir/$file_name |" ark:- | \
+        aslp-ali-minus-one ark:- "ark:|gzip -c > $dst_ali_dir/$file_name"
 } &
 done
 wait
