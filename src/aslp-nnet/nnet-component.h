@@ -142,9 +142,10 @@ class Component {
     input_ = input;
   }
   void SetMonoInput(int id) {
-    KALDI_ASSERT(input_.size() == 0);
-    input_.push_back(id);
-    offset_.push_back(0);
+    input_.resize(1);
+    input_[0] = id;
+    offset_.resize(1);
+    offset_[0] = 0;
   }
   const std::vector<int32> & GetOffset() const {
     return offset_;

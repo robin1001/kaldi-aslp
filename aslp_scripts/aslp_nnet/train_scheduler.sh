@@ -74,15 +74,22 @@ mlp_base=${mlp_init##*/}; mlp_base=${mlp_base%.*}
 [ -e $dir/.learn_rate ] && learn_rate=$(cat $dir/.learn_rate)
 
 # cross-validation on original network,
-log=$dir/log/iter00.initial.log; hostname>$log
-$train_tool --cross-validate=true --randomize=false --verbose=$verbose $train_tool_opts \
-  ${feature_transform:+ --feature-transform=$feature_transform} \
-  "$feats_cv" "$labels_cv" $mlp_best \
-  2>> $log
-
-loss=$(cat $dir/log/iter00.initial.log | grep "AvgLoss:" | tail -n 1 | awk '{ print $4; }')
-loss_type=$(cat $dir/log/iter00.initial.log | grep "AvgLoss:" | tail -n 1 | awk '{ print $5; }')
-echo "CROSSVAL PRERUN AVG.LOSS $(printf "%.4f" $loss) $loss_type"
+if [ -e $dir/.init_cv ]; then
+    loss=$(cat $dir/.init_cv)
+    loss_type=$(cat $dir/.loss_type)
+    echo "CROSSVAL PRERUN AVG.LOSS $(printf "%.4f" $loss) $loss_type"
+else
+    log=$dir/log/iter00.initial.log; hostname>$log
+    $train_tool --cross-validate=true --randomize=false --verbose=$verbose $train_tool_opts \
+      ${feature_transform:+ --feature-transform=$feature_transform} \
+      "$feats_cv" "$labels_cv" $mlp_best \
+      2>> $log
+    loss=$(cat $dir/log/iter00.initial.log | grep "AvgLoss:" | tail -n 1 | awk '{ print $4; }')
+    loss_type=$(cat $dir/log/iter00.initial.log | grep "AvgLoss:" | tail -n 1 | awk '{ print $5; }')
+    echo "CROSSVAL PRERUN AVG.LOSS $(printf "%.4f" $loss) $loss_type"
+    echo "$loss" >> $dir/.init_cv
+    echo "$loss_type" >> $dir/.loss_type
+fi 
 
 # resume lr-halving,
 halving=0
@@ -151,12 +158,13 @@ for iter in $(seq -w $max_iters); do
   if [ 1 == $halving -a 1 == $(bc <<< "$rel_impr < $end_halving_impr") ]; then
     if [ $iter -le $min_iters ]; then
       echo we were supposed to finish, but we continue as min_iters : $min_iters
-      continue
-    fi
-    echo finished, too small rel. improvement $rel_impr
-    break
+    else 
+      echo finished, too small rel. improvement $rel_impr
+      break
+    fi 
   fi
-
+  # reset halving
+  halving=0
   # start learning-rate fade-out when improvement is low,
   if [ 1 == $(bc <<< "$rel_impr < $start_halving_impr") ]; then
     halving=1

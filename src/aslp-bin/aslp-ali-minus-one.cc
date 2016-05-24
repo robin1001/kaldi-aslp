@@ -38,6 +38,9 @@ int main(int argc, char *argv[]) {
             " aslp-ali-minus-one ark:1.ali ark, t:-\n";
         ParseOptions po(usage);
 
+        bool unique = false;
+        po.Register("unique", &unique, "Remove consistant duplicated alignment, only keep one");
+
         po.Read(argc, argv);
 
         if (po.NumArgs() != 2) {
@@ -58,6 +61,10 @@ int main(int argc, char *argv[]) {
             for (size_t i = 0; i < alignment.size(); i++) {
                 alignment[i] -= 1;
                 KALDI_ASSERT(alignment[i] >= 0);
+            }
+            if (unique) {
+                std::vector<int32>::iterator it = std::unique(alignment.begin(), alignment.end());
+                alignment.erase(it, alignment.end());
             }
             writer.Write(key, alignment);
             num_done++;

@@ -243,7 +243,7 @@ void Mse::Eval(const VectorBase<BaseFloat> &frame_weights,
     frames_progress_ += num_frames;
     loss_progress_ += mean_square_error;
     if (frames_progress_ > progress_step) {
-      KALDI_VLOG(1) << "ProgressLoss[last " 
+      KALDI_LOG << "ProgressLoss[last " 
                     << static_cast<int>(frames_progress_/100/3600) << "h of " 
                     << static_cast<int>(frames_/100/3600) << "h]: " 
                     << loss_progress_/frames_progress_ << " (Mse)";
@@ -281,9 +281,9 @@ std::string Mse::Report() {
   std::ostringstream oss;
   oss << "AvgLoss: " << loss_/frames_ << " (Mse), " 
       << "[RMS " << root_mean_square << ", frames " << frames_ << "]" << std::endl;
-  oss << "progress: [";
-  std::copy(loss_vec_.begin(),loss_vec_.end(),std::ostream_iterator<float>(oss," "));
-  oss << "]" << std::endl;
+  //oss << "progress: [";
+  //std::copy(loss_vec_.begin(),loss_vec_.end(),std::ostream_iterator<float>(oss," "));
+  //oss << "]" << std::endl;
   return oss.str();
 }
 

@@ -98,7 +98,7 @@ halving=0
 
 # training,
 for iter in $(seq -w $max_iters); do
-  echo `date` "ITERATION $iter: " 
+  echo -n `date` "ITERATION $iter: " 
   mlp_next=$dir/nnet/${mlp_base}_iter${iter}
   
   # skip iteration (epoch) if already done,
@@ -132,7 +132,7 @@ for iter in $(seq -w $max_iters); do
     2>>$log || exit 1;
   
   acc_new=$(cat $dir/log/iter${iter}.cv.log | grep "TOKEN_ACCURACY" | tail -n 1 | awk '{ print $11; }')
-  echo -n "CROSSVAL TOKEN_ACCURACY $(printf "%.4f" $acc_new)"
+  echo -n "CROSSVAL TOKEN_ACCURACY $(printf "%.4f" $acc_new) "
 
   # accept or reject?
   acc_prev=$acc

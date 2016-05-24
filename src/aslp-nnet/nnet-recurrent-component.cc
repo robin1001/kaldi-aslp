@@ -1276,7 +1276,7 @@ void BLstm::BackpropagateFnc(const CuMatrixBase<BaseFloat> &in,
         d_c.AddMatDiagVec(1.0, d_o                     , kNoTrans, b_peephole_o_c_, 1.0);
 
         // f
-        d_f.AddMatMatElements(1.0, d_c, B_YC.RowRange((t-1)*S, S), 0.0);
+        d_f.AddMatMatElements(1.0, d_c, B_YC.RowRange((t+1)*S, S), 0.0);
         d_f.DiffSigmoid(y_f, d_f);
 
         // i
@@ -1343,7 +1343,7 @@ void BLstm::BackpropagateFnc(const CuMatrixBase<BaseFloat> &in,
     b_w_gifo_x_corr_.AddMatMat(1.0, B_DGIFO.RowRange(1*S, T*S), kTrans, in, kNoTrans, mmt);
     // recurrent weight r -> g, i, f, o
     b_w_gifo_r_corr_.AddMatMat(1.0, B_DGIFO.RowRange(1*S, T*S), kTrans,
-            B_YM.RowRange(0*S, T*S)   , kNoTrans, mmt);
+            B_YM.RowRange(2*S, T*S)   , kNoTrans, mmt);
     // bias of g, i, f, o
     b_bias_corr_.AddRowSumMat(1.0, B_DGIFO.RowRange(1*S, T*S), mmt);
 
