@@ -1,0 +1,32 @@
+
+all:
+
+include ../aslp.mk
+include $(KALDI_DIR)/kaldi.mk
+
+EXTRA_CXXFLAGS += -I $(CRF_ROOT)
+EXTRA_LDLIBS += $(CRF_LIBS)
+
+LDFLAGS += $(CUDA_LDFLAGS)
+LDLIBS += $(CUDA_LDLIBS)
+
+BINFILES = audio-provider-client \
+           online-wav-nnet-latgen-faster-server
+
+OBJFILES = 
+
+TESTFILES = audio-provider-test
+
+          
+ADDLIBS = ../aslp-online/aslp-online.a ../aslp-nnet/aslp-nnet.a \
+          $(KALDI_DIR)/online2/kaldi-online2.a $(KALDI_DIR)/nnet2/kaldi-nnet2.a \
+          $(KALDI_DIR)/ivector/kaldi-ivector.a \
+          $(KALDI_DIR)/lat/kaldi-lat.a \
+          $(KALDI_DIR)/decoder/kaldi-decoder.a  $(KALDI_DIR)/cudamatrix/kaldi-cudamatrix.a \
+          $(KALDI_DIR)/feat/kaldi-feat.a $(KALDI_DIR)/transform/kaldi-transform.a $(KALDI_DIR)/gmm/kaldi-gmm.a \
+          $(KALDI_DIR)/fstext/kaldi-fstext.a \
+          $(KALDI_DIR)/thread/kaldi-thread.a $(KALDI_DIR)/hmm/kaldi-hmm.a $(KALDI_DIR)/tree/kaldi-tree.a \
+          $(KALDI_DIR)/matrix/kaldi-matrix.a $(KALDI_DIR)/util/kaldi-util.a $(KALDI_DIR)/base/kaldi-base.a
+
+include $(KALDI_DIR)/makefiles/default_rules.mk
+

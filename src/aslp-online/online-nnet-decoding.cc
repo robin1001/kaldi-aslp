@@ -28,8 +28,8 @@ namespace aslp_online {
 
 using namespace kaldi;
 
-MultiUtteranceNnet2Decoder::MultiUtteranceNnet2Decoder(
-    const OnlineNnet2DecodingConfig &config,
+MultiUtteranceNnetDecoder::MultiUtteranceNnetDecoder(
+    const OnlineNnetDecodingConfig &config,
     const TransitionModel &tmodel,
     const nnet2::AmNnet &model,
     const fst::Fst<fst::StdArc> &fst,
@@ -42,19 +42,19 @@ MultiUtteranceNnet2Decoder::MultiUtteranceNnet2Decoder(
   decoder_.InitDecoding();
 }
 
-void MultiUtteranceNnet2Decoder::AdvanceDecoding() {
+void MultiUtteranceNnetDecoder::AdvanceDecoding() {
   decoder_.AdvanceDecoding(&decodable_);
 }
 
-void MultiUtteranceNnet2Decoder::FinalizeDecoding() {
+void MultiUtteranceNnetDecoder::FinalizeDecoding() {
   decoder_.FinalizeDecoding();
 }
 
-int32 MultiUtteranceNnet2Decoder::NumFramesDecoded() const {
+int32 MultiUtteranceNnetDecoder::NumFramesDecoded() const {
   return decoder_.NumFramesDecoded();
 }
 
-void MultiUtteranceNnet2Decoder::GetLattice(bool end_of_utterance,
+void MultiUtteranceNnetDecoder::GetLattice(bool end_of_utterance,
                                              CompactLattice *clat) const {
   if (NumFramesDecoded() == 0)
     KALDI_ERR << "You cannot get a lattice if you decoded no frames.";
@@ -69,19 +69,19 @@ void MultiUtteranceNnet2Decoder::GetLattice(bool end_of_utterance,
       tmodel_, &raw_lat, lat_beam, clat, config_.decoder_opts.det_opts);
 }
 
-void MultiUtteranceNnet2Decoder::GetBestPath(bool end_of_utterance,
+void MultiUtteranceNnetDecoder::GetBestPath(bool end_of_utterance,
                                               Lattice *best_path) const {
   decoder_.GetBestPath(best_path, end_of_utterance);
 }
 
-bool MultiUtteranceNnet2Decoder::EndpointDetected(
+bool MultiUtteranceNnetDecoder::EndpointDetected(
     const OnlineEndpointConfig &config) {
   return kaldi::EndpointDetected(config, tmodel_,
                                  feature_pipeline_->FrameShiftInSeconds(),
                                  decoder_);  
 }
 
-//void MultiUtteranceNnet2Decoder::GetPartialResult(const fst::SymbolTable *word_syms, 
+//void MultiUtteranceNnetDecoder::GetPartialResult(const fst::SymbolTable *word_syms, 
 //                      std::string *result) {
 //  decoder_.GetBestPath(&lat_, false);
 //  GetLinearSymbolSequence(lat_, static_cast<std::vector<int32> *>(0), 

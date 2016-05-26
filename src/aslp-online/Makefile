@@ -4,12 +4,13 @@ all:
 include ../aslp.mk
 include $(KALDI_DIR)/kaldi.mk
 
-EXTRA_CXXFLAGS += $(CRF_FLAGS)
+EXTRA_CXXFLAGS += -I $(CRF_ROOT)
+EXTRA_LDLIBS += $(CRF_LIBS)
 
-TESTFILES =
+TESTFILES = punctuation-processor-test
 
 OBJFILES = wav-provider.o tcp-server.o vad.o \
-           online-nnet-decoding.o \
+           online-feature-pipeline.o online-nnet-decoding.o \
            punctuation-processor.o
 
 LIBNAME = aslp-online

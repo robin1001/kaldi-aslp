@@ -47,15 +47,15 @@ using namespace kaldi;
 
 
 // This configuration class contains the configuration classes needed to create
-// the class MultiUtteranceNnet2Decoder.  The actual command line program
+// the class MultiUtteranceNnetDecoder.  The actual command line program
 // requires other configs that it creates separately, and which are not included
 // here: namely, OnlineNnet2FeaturePipelineConfig and OnlineEndpointConfig.
-struct OnlineNnet2DecodingConfig {
+struct OnlineNnetDecodingConfig {
   
   LatticeFasterDecoderConfig decoder_opts;
   nnet2::DecodableNnet2OnlineOptions decodable_opts;
   
-  OnlineNnet2DecodingConfig() {  decodable_opts.acoustic_scale = 0.1; }
+  OnlineNnetDecodingConfig() {  decodable_opts.acoustic_scale = 0.1; }
   
   void Register(OptionsItf *po) {
     decoder_opts.Register(po);
@@ -67,11 +67,11 @@ struct OnlineNnet2DecodingConfig {
    You will instantiate this class when you want to decode a single
    utterance using the online-decoding setup for neural nets.
 */
-class MultiUtteranceNnet2Decoder {
+class MultiUtteranceNnetDecoder {
  public:
   // Constructor.  The feature_pipeline_ pointer is not owned in this
   // class, it's owned externally.
-  MultiUtteranceNnet2Decoder(const OnlineNnet2DecodingConfig &config,
+  MultiUtteranceNnetDecoder(const OnlineNnetDecodingConfig &config,
                               const TransitionModel &tmodel,
                               const nnet2::AmNnet &model,
                               const fst::Fst<fst::StdArc> &fst,
@@ -125,10 +125,10 @@ class MultiUtteranceNnet2Decoder {
     aslp_online::WordsToString(words_, word_syms, " ", result);
   }
 
-  ~MultiUtteranceNnet2Decoder() { }
+  ~MultiUtteranceNnetDecoder() { }
  private:
 
-  OnlineNnet2DecodingConfig config_;
+  OnlineNnetDecodingConfig config_;
 
   OnlineNnet2FeaturePipeline *feature_pipeline_;
 

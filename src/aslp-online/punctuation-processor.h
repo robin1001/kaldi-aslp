@@ -1,6 +1,6 @@
 /* Created on 2016-01-25
-   Author: xukaituo zhangbinbin
-*/
+ *  Author: xukaituo zhangbinbin
+ */
 #ifndef ASLP_PUNCTUATION_PROCESSOR_H_
 #define ASLP_PUNCTUATION_PROCESSOR_H_
 

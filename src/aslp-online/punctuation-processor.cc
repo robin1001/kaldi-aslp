@@ -1,7 +1,7 @@
 /* Created on 2016-01-25
    Author: xukaituo zhangbinbin
 */
-#include "punctuation-processor.h"
+#include "aslp-online/punctuation-processor.h"
 
 namespace aslp_online {
 
