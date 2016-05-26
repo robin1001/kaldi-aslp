@@ -1,5 +1,11 @@
+include aslp.mk
 
 SUBDIRS = warp-ctc aslp-cudamatrix aslp-nnet aslp-nnetbin aslp-bin 
+
+ifeq ($(USE_ONLINE), true) 
+    SUBDIRS += aslp-online aslp-onlinebin
+endif
+
 
 all:
 	for dir in $(SUBDIRS); do \
