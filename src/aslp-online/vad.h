@@ -12,9 +12,8 @@
 #include "aslp-online/wav-provider.h"
 #include "itf/options-itf.h"
 
+namespace kaldi {
 namespace aslp_online {
-
-using namespace kaldi;
 
 struct VadOptions {
   BaseFloat samp_freq;       // in Hz
@@ -116,5 +115,6 @@ class Vad {
 };
 
 } // end namespace aslp_online.
+} // namespace kaldi
 
 #endif // ASLP_ONLINE_VAD_H

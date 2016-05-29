@@ -7,6 +7,7 @@
 
 #include "fstext/fstext-lib.h"
 
+namespace kaldi {
 namespace aslp_online {
 
 inline void WordsToString(const std::vector<kaldi::int32> words,
@@ -27,5 +28,6 @@ inline void WordsToString(const std::vector<kaldi::int32> words,
 }
 
 } // namespace aslp_online
+}  // namespace kaldi
 
 #endif // ASLP_ONLINE_ONLINE_HELPER_H

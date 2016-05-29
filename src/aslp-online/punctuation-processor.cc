@@ -3,6 +3,7 @@
 */
 #include "aslp-online/punctuation-processor.h"
 
+namespace kaldi {
 namespace aslp_online {
 
 void PunctuationProcessor::ConvertToInput(const std::string &raw_input, std::string *input) const {
@@ -58,4 +59,6 @@ void PunctuationProcessor::ConvertToOutput(const char *output, std::string *raw_
     }
 }
 
-}
+} // namespace aslp_online
+} // namespace kaldi
+

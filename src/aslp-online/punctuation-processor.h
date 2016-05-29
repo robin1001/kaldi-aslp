@@ -8,6 +8,7 @@
 
 #include "crfpp.h"
 
+namespace kaldi {
 namespace aslp_online {
 
 class PunctuationProcessor {
@@ -30,5 +31,5 @@ private:
 };
 
 } // namespace aslp_online
-
+} // namespace kaldi
 #endif

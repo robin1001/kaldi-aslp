@@ -3,6 +3,7 @@
 
 #include "aslp-online/vad.h"
 
+namespace kaldi {
 namespace aslp_online {
 
 using namespace kaldi;
@@ -164,3 +165,4 @@ void Vad::ProcessLeftContext()
 }
 
 } // end of namespace aslp_online
+} // namespace kaldi

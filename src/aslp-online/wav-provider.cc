@@ -6,6 +6,7 @@
 #include "aslp-online/wav-provider.h"
 
 namespace kaldi {
+namespace aslp_online {
 
 WavProvider::WavProvider(int client_sid): client_sid_(client_sid), done_(false), connect_(true) {
 
@@ -158,4 +159,5 @@ void WavProvider::WritePuncResult(std::string result) {
     WriteFull(result.c_str(), result.size());
 }
 
-}
+} // namespace aslp_online
+} // namespace kaldi

@@ -21,6 +21,7 @@
 #include "util/common-utils.h"
 
 namespace kaldi {
+namespace aslp_online {
 
 class WavProvider {
  public:
@@ -68,6 +69,7 @@ class WavProvider {
   std::queue<short> data_queue_;
 };
 
+} // namespace aslp_online
 } // end of namespace kaldi
 
 #endif // ASR_ASR_ONLINE_WAV_PROVIDER_H

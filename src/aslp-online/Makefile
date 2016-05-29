@@ -7,11 +7,11 @@ include $(KALDI_DIR)/kaldi.mk
 EXTRA_CXXFLAGS += -I $(CRF_ROOT)
 EXTRA_LDLIBS += $(CRF_LIBS)
 
-TESTFILES = punctuation-processor-test
+TESTFILES = 
 
-OBJFILES = wav-provider.o tcp-server.o vad.o \
-           online-feature-pipeline.o online-nnet-decoding.o \
-           punctuation-processor.o
+OBJFILES = online-feature-pipeline.o online-nnet-decoder.o online-endpoint.o \
+           wav-provider.o tcp-server.o \
+           vad.o punctuation-processor.o
 
 LIBNAME = aslp-online
 

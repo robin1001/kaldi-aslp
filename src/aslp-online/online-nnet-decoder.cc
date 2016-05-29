@@ -1,4 +1,4 @@
-// aslp-online/online-nnet-decoding.cc
+// aslp-online/online-nnet-decoder.cc
 
 // Copyright    2013-2014  Johns Hopkins University (author: Daniel Povey)
 // Copyright    2015-2016  ASLP (zhangbinbin hechangqing)
@@ -18,67 +18,67 @@
 // See the Apache 2 License for the specific language governing permissions and
 // limitations under the License.
 
-#include "aslp-online/online-nnet-decoding.h"
-#include "aslp-online/online-helper.h"
-
 #include "lat/lattice-functions.h"
 #include "lat/determinize-lattice-pruned.h"
 
+#include "aslp-online/online-nnet-decoder.h"
+#include "aslp-online/online-helper.h"
+
+namespace kaldi {
 namespace aslp_online {
 
-using namespace kaldi;
-
 MultiUtteranceNnetDecoder::MultiUtteranceNnetDecoder(
-    const OnlineNnetDecodingConfig &config,
-    const TransitionModel &tmodel,
-    const nnet2::AmNnet &model,
-    const fst::Fst<fst::StdArc> &fst,
-    OnlineNnet2FeaturePipeline *feature_pipeline):
+        const OnlineNnetDecodingConfig &config,
+        const TransitionModel &tmodel,
+        const aslp_nnet::Nnet &model,
+        const CuVector<BaseFloat> &log_prior,
+        const fst::Fst<fst::StdArc> &fst,
+        OnlineFeaturePipeline *feature_pipeline):
     config_(config),
     feature_pipeline_(feature_pipeline),
     tmodel_(tmodel),
-    decodable_(model, tmodel, config.decodable_opts, feature_pipeline),
+    decodable_(model, log_prior, tmodel, config.decodable_opts, feature_pipeline),
     decoder_(fst, config.decoder_opts) {
-  decoder_.InitDecoding();
+        decoder_.InitDecoding();
 }
 
 void MultiUtteranceNnetDecoder::AdvanceDecoding() {
-  decoder_.AdvanceDecoding(&decodable_);
+    decoder_.AdvanceDecoding(&decodable_);
 }
 
 void MultiUtteranceNnetDecoder::FinalizeDecoding() {
-  decoder_.FinalizeDecoding();
+    decoder_.FinalizeDecoding();
 }
 
 int32 MultiUtteranceNnetDecoder::NumFramesDecoded() const {
-  return decoder_.NumFramesDecoded();
+    return decoder_.NumFramesDecoded();
 }
 
 void MultiUtteranceNnetDecoder::GetLattice(bool end_of_utterance,
-                                             CompactLattice *clat) const {
-  if (NumFramesDecoded() == 0)
-    KALDI_ERR << "You cannot get a lattice if you decoded no frames.";
-  Lattice raw_lat;
-  decoder_.GetRawLattice(&raw_lat, end_of_utterance);
+        CompactLattice *clat) const {
+    if (NumFramesDecoded() == 0)
+        KALDI_ERR << "You cannot get a lattice if you decoded no frames.";
+    Lattice raw_lat;
+    decoder_.GetRawLattice(&raw_lat, end_of_utterance);
 
-  if (!config_.decoder_opts.determinize_lattice)
-    KALDI_ERR << "--determinize-lattice=false option is not supported at the moment";
+    if (!config_.decoder_opts.determinize_lattice)
+        KALDI_ERR << "--determinize-lattice=false option is not supported at the moment";
 
-  BaseFloat lat_beam = config_.decoder_opts.lattice_beam;
-  DeterminizeLatticePhonePrunedWrapper(
-      tmodel_, &raw_lat, lat_beam, clat, config_.decoder_opts.det_opts);
+    BaseFloat lat_beam = config_.decoder_opts.lattice_beam;
+    DeterminizeLatticePhonePrunedWrapper(
+            tmodel_, &raw_lat, lat_beam, clat, config_.decoder_opts.det_opts);
 }
 
 void MultiUtteranceNnetDecoder::GetBestPath(bool end_of_utterance,
-                                              Lattice *best_path) const {
-  decoder_.GetBestPath(best_path, end_of_utterance);
+        Lattice *best_path) const {
+    decoder_.GetBestPath(best_path, end_of_utterance);
 }
 
 bool MultiUtteranceNnetDecoder::EndpointDetected(
-    const OnlineEndpointConfig &config) {
-  return kaldi::EndpointDetected(config, tmodel_,
-                                 feature_pipeline_->FrameShiftInSeconds(),
-                                 decoder_);  
+        const OnlineEndpointConfig &config) {
+    return aslp_online::EndpointDetected(config, tmodel_,
+            feature_pipeline_->FrameShiftInSeconds(),
+            decoder_);  
 }
 
 //void MultiUtteranceNnetDecoder::GetPartialResult(const fst::SymbolTable *word_syms, 
@@ -91,4 +91,5 @@ bool MultiUtteranceNnetDecoder::EndpointDetected(
 //}
 
 }  // namespace aslp_online
+}  // namespace kaldi
 

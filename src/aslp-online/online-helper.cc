@@ -1,8 +1,7 @@
 #include "aslp-online/aslp-online-helper.h"
 
+namespace kaldi {
 namespace aslp_online {
-
-using namespace kaldi;
 
 void WordsToString(const std::vector<int32> words,
                    const fst::SymbolTable *word_syms,
@@ -22,4 +21,5 @@ void WordsToString(const std::vector<int32> words,
 }
 
 } // namespace aslp_online
+}  // namespace kaldi
 
