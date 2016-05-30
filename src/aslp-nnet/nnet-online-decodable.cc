@@ -23,6 +23,9 @@ DecodableNnetOnline::DecodableNnetOnline(
         KALDI_ASSERT(log_priors_.Dim() == trans_model_.NumPdfs() &&
                 "Priors in neural network not set up (or mismatch "
                 "with transition model).");
+        if (nnet_.NumOutput() != 1) {
+            KALDI_ERR << "Num output must equal 1";
+        }
 }
 
 BaseFloat DecodableNnetOnline::LogLikelihood(int32 frame, int32 index) {
