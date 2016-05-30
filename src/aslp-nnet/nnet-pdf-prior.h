@@ -61,6 +61,9 @@ class PdfPrior {
 
   /// Subtract pdf priors from log-posteriors to get pseudo log-likelihoods
   void SubtractOnLogpost(CuMatrixBase<BaseFloat> *llk);
+  const CuVector<BaseFloat> & LogPrior() const {
+    return log_priors_;
+  }
 
  private:
   BaseFloat prior_scale_;

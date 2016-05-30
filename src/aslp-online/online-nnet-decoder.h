@@ -19,8 +19,8 @@
 // limitations under the License.
 
 
-#ifndef ASLP_ONLINE_ONLINE_NNET_DECODING_H_
-#define ASLP_ONLINE_ONLINE_NNET_DECODING_H_
+#ifndef ASLP_ONLINE_ONLINE_NNET_DECODER_H_
+#define ASLP_ONLINE_ONLINE_NNET_DECODER_H_
 
 #include <string>
 #include <vector>

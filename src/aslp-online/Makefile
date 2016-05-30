@@ -5,7 +5,6 @@ include ../aslp.mk
 include $(KALDI_DIR)/kaldi.mk
 
 EXTRA_CXXFLAGS += -I $(CRF_ROOT)
-EXTRA_LDLIBS += $(CRF_LIBS)
 
 TESTFILES = thread-pool-test
 

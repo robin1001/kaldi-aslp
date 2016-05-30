@@ -5,7 +5,6 @@ include ../aslp.mk
 include $(KALDI_DIR)/kaldi.mk
 
 EXTRA_CXXFLAGS += -I $(CRF_ROOT)
-EXTRA_LDLIBS += $(CRF_LIBS)
 
 LDFLAGS += $(CUDA_LDFLAGS)
 LDLIBS += $(CUDA_LDLIBS)
@@ -19,7 +18,7 @@ TESTFILES = audio-provider-test
 
           
 ADDLIBS = ../aslp-online/aslp-online.a ../aslp-nnet/aslp-nnet.a \
-          $(KALDI_DIR)/online2/kaldi-online2.a $(KALDI_DIR)/nnet2/kaldi-nnet2.a \
+          $(CRF_FLAGS) \
           $(KALDI_DIR)/ivector/kaldi-ivector.a \
           $(KALDI_DIR)/lat/kaldi-lat.a \
           $(KALDI_DIR)/decoder/kaldi-decoder.a  $(KALDI_DIR)/cudamatrix/kaldi-cudamatrix.a \
