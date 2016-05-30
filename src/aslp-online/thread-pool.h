@@ -19,7 +19,7 @@
 #include <queue>
 #include <map>
 
-void ErrorExit(const char *msg) {
+static void ErrorExit(const char *msg) {
     perror(msg);
     exit(1);
 }

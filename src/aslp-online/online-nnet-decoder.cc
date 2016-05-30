@@ -30,7 +30,7 @@ namespace aslp_online {
 MultiUtteranceNnetDecoder::MultiUtteranceNnetDecoder(
         const OnlineNnetDecodingConfig &config,
         const TransitionModel &tmodel,
-        const aslp_nnet::Nnet &model,
+        aslp_nnet::Nnet *model,
         const CuVector<BaseFloat> &log_prior,
         const fst::Fst<fst::StdArc> &fst,
         OnlineFeaturePipeline *feature_pipeline):

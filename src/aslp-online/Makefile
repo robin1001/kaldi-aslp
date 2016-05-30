@@ -12,6 +12,7 @@ TESTFILES = thread-pool-test
 OBJFILES = online-feature-pipeline.o online-nnet-decoder.o online-endpoint.o \
            wav-provider.o tcp-server.o \
            vad.o punctuation-processor.o \
+           decode-thread.o
 
 LIBNAME = aslp-online
 
