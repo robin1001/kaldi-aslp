@@ -30,11 +30,13 @@ namespace aslp_nnet {
 struct DecodableNnetOnlineOptions {
     BaseFloat acoustic_scale;
     int skip_width;
+    std::string skip_type;
     int32 max_nnet_batch_size;
 
     DecodableNnetOnlineOptions():
         acoustic_scale(0.1),
         skip_width(0),
+        skip_type("copy"),
         max_nnet_batch_size(256) { }
 
     void Register(OptionsItf *opts) {
@@ -42,6 +44,8 @@ struct DecodableNnetOnlineOptions {
                 "Scaling factor for acoustic likelihoods");
         opts->Register("skip-width", &skip_width, 
                  "num of frame for one skip(default 0, not use skip)");
+        opts->Register("skip-type", &skip_type, 
+                 "decode type using skip, copy or split");
         opts->Register("max-nnet-batch-size", &max_nnet_batch_size,
                 "Maximum batch size we use in neural-network decodable object, "
                 "in cases where we are not constrained by currently available "
@@ -53,7 +57,7 @@ struct DecodableNnetOnlineOptions {
 
 class DecodableNnetOnline: public DecodableInterface {
 public:
-    DecodableNnetOnline(const Nnet &nnet,
+    DecodableNnetOnline(Nnet *nnet,
                         const CuVector<BaseFloat> &log_priors,
                         const TransitionModel &trans_model,
                         const DecodableNnetOnlineOptions &opts,
@@ -75,7 +79,7 @@ private:
     /// them (and possibly for some succeeding frames)
     void ComputeForFrame(int32 frame);
 
-    const Nnet &nnet_;
+    Nnet *nnet_;
     const CuVector<BaseFloat> &log_priors_;  // log-priors taken from the model.
     const TransitionModel &trans_model_;
     OnlineFeatureInterface *features_;

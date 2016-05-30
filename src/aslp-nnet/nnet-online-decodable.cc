@@ -6,7 +6,7 @@ namespace kaldi {
 namespace aslp_nnet {
 
 DecodableNnetOnline::DecodableNnetOnline(
-        const Nnet &nnet,
+        Nnet *nnet,
         const CuVector<BaseFloat> &log_priors,
         const TransitionModel &trans_model,
         const DecodableNnetOnlineOptions &opts,
@@ -17,15 +17,17 @@ DecodableNnetOnline::DecodableNnetOnline(
     features_(input_feats),
     opts_(opts),
     feat_dim_(input_feats->Dim()),
-    num_pdfs_(nnet_.OutputDim()),
+    num_pdfs_(nnet_->OutputDim()),
     begin_frame_(-1) {
         KALDI_ASSERT(opts_.max_nnet_batch_size > 0);
         KALDI_ASSERT(log_priors_.Dim() == trans_model_.NumPdfs() &&
                 "Priors in neural network not set up (or mismatch "
                 "with transition model).");
-        if (nnet_.NumOutput() != 1) {
+        if (nnet_->NumOutput() != 1) {
             KALDI_ERR << "Num output must equal 1";
         }
+        std::vector<int> flags(1, 1);
+        nnet_->ResetLstmStreams(flags);
 }
 
 BaseFloat DecodableNnetOnline::LogLikelihood(int32 frame, int32 index) {
@@ -73,12 +75,51 @@ void DecodableNnetOnline::ComputeForFrame(int32 frame) {
     cu_features.Swap(&features);  // Copy to GPU, if we're using one.
 
     int32 num_frames_out = input_frame_end - input_frame_begin;
-
     CuMatrix<BaseFloat> cu_posteriors(num_frames_out, num_pdfs_);
-    
+
     // Feedforward.
     // TODO: add more details about feature
-    //nnet_.Feedforward(cu_features, &cu_posteriors);
+    int skip_width = opts_.skip_width;
+    if (skip_width > 1) {
+        // Decode copy
+        if (opts_.skip_type == "copy") {
+            int skip_len = (cu_features.NumRows() - 1) / skip_width + 1;
+            CuMatrix<BaseFloat> skip_out, skip_feat(skip_len, cu_features.NumCols()); 
+            for (int i = 0; i < skip_len; i++) {
+                skip_feat.Row(i).CopyFromVec(cu_features.Row(i * skip_width));
+            }
+            nnet_->Feedforward(skip_feat, &skip_out);
+            for (int i = 0; i < skip_len; i++) {
+                for (int j = 0; j < skip_width; j++) {
+                    int idx = i * skip_width + j;
+                    if (idx < cu_posteriors.NumRows()) {
+                        cu_posteriors.Row(idx).CopyFromVec(skip_out.Row(i));
+                    }
+                }
+            }
+        }
+        // Decode split
+        else if (opts_.skip_type == "split") {
+            CuMatrix<BaseFloat> skip_out, skip_feat; 
+            for (int skip_offset = 0; skip_offset < skip_width; skip_offset++) {
+                int skip_len = (cu_features.NumRows() - 1 - skip_offset) / skip_width + 1;
+                skip_feat.Resize(skip_len, cu_features.NumCols()); 
+                for (int i = 0; i < skip_len; i++) {
+                    skip_feat.Row(i).CopyFromVec(cu_features.Row(i * skip_width + skip_offset));
+                }
+                nnet_->Feedforward(skip_feat, &skip_out);
+                for (int i = 0; i < skip_len; i++) {
+                    cu_posteriors.Row(i * skip_width + skip_offset).CopyFromVec(skip_out.Row(i));
+                }
+            }
+        }
+        else {
+            KALDI_ERR << "Unsupported decode type " << opts_.skip_type;
+        }
+    }
+    else {
+        nnet_->Feedforward(cu_features, &cu_posteriors);
+    }
 
     cu_posteriors.ApplyFloor(1.0e-20); // Avoid log of zero which leads to NaN.
     cu_posteriors.ApplyLog();
