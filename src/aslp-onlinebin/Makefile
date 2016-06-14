@@ -9,8 +9,8 @@ EXTRA_CXXFLAGS += -I $(CRF_ROOT)
 LDFLAGS += $(CUDA_LDFLAGS)
 LDLIBS += $(CUDA_LDLIBS)
 
-BINFILES = audio-provider-client \
-           online-wav-nnet-latgen-faster-server
+BINFILES = aslp-audio-provider-client \
+           aslp-online-wav-nnet-latgen-faster-server
 
 OBJFILES = 
 

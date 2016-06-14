@@ -80,8 +80,8 @@ void *GetDecodeResult(void *arg) {
 int main(int argc, char *argv[]) {
     using namespace kaldi;
 
-    const char *usage = "audio-provider-client, send audio in format to audio-provider\n"
-        "e.g. : ./audio-provider 127.0.0.1 10000 wav_rspecifier\n";
+    const char *usage = "aslp-audio-provider-client, send audio in format to audio-provider\n"
+        "e.g. : aslp-audio-provider 127.0.0.1 10000 wav_rspecifier\n";
     ParseOptions po(usage);
     po.Read(argc, argv);
     if (po.NumArgs() != 3) {

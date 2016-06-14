@@ -1,4 +1,4 @@
-// aslp-onlinebin/online-wav-nnet-latgen-faster-server.cc
+// aslp-onlinebin/aslp-online-wav-nnet-latgen-faster-server.cc
 
 /* Decoder Server
  * Created on 2015-09-01
@@ -37,7 +37,7 @@ int main(int argc, char *argv[]) {
 
         const char *usage =
             "Wav Decoder Server\n"
-            "Usage: online-wav-nnet-latgen-faster-server [options] <nnet-in> "
+            "Usage: aslp-online-wav-nnet-latgen-faster-server [options] <nnet-in> "
             "<trans-model> <fst-in> <punctuation-crf-model>\n";
 
         ParseOptions po(usage);
@@ -91,11 +91,14 @@ int main(int argc, char *argv[]) {
         tcp_server.Listen(port);
 
         // Prior file for pdf prior
+        KALDI_LOG << "Read prior file " << prior_config.class_frame_counts;
         if (prior_config.class_frame_counts == "") {
             KALDI_ERR << "class_frame_counts: prior file must be provided";
         }
         PdfPrior pdf_prior(prior_config); 
         const CuVector<BaseFloat> &log_prior = pdf_prior.LogPrior();
+        
+        KALDI_LOG << "Reading nnet file " << nnet_rxfilename;
         // Nnet model for acoustic model
         Nnet nnet;
         {
@@ -104,18 +107,24 @@ int main(int argc, char *argv[]) {
             nnet.Read(ki.Stream(), binary);
         }
         // Transition model for transition prob
+        KALDI_LOG << "Reading transition file " << trans_model_rxfilename;
         TransitionModel trans_model;
         ReadKaldiObject(trans_model_rxfilename, &trans_model);
+
+        // Punctuation file for punctuation predict
+        KALDI_LOG << "Reading crf punctuation file " << punc_model_rxfilename;
+        PunctuationProcessor punctuation_processor(punc_model_rxfilename.c_str());
         // Fst for decode graph
-        fst::Fst<fst::StdArc> *decode_fst = ReadFstKaldi(fst_rxfilename);
         fst::SymbolTable *word_syms = NULL;
         if (word_syms_rxfilename != "") {
             if (!(word_syms = fst::SymbolTable::ReadText(word_syms_rxfilename)))
                 KALDI_ERR << "Could not read symbol table from file "
                           << word_syms_rxfilename;
         }
-        // Punctuation file for punctuation predict
-        PunctuationProcessor punctuation_processor(punc_model_rxfilename.c_str());
+        KALDI_LOG << "Reading fst file " << fst_rxfilename;
+        fst::Fst<fst::StdArc> *decode_fst = ReadFstKaldi(fst_rxfilename);
+
+        KALDI_LOG << "Read all param files done!!!";
 
         BaseFloat samp_freq = 16000;
         int32 chunk_length;
