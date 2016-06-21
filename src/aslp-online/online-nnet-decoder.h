@@ -33,7 +33,7 @@
 #include "hmm/transition-model.h"
 #include "hmm/posterior.h"
 
-#include "aslp-nnet/nnet-online-decodable.h"
+#include "aslp-nnet/nnet-decodable.h"
 #include "aslp-online/online-endpoint.h"
 #include "aslp-online/online-helper.h"
 #include "aslp-online/online-feature-pipeline.h"
@@ -49,7 +49,7 @@ namespace aslp_online {
 // here: namely, OnlineFeaturePipelineConfig and OnlineEndpointConfig.
 struct OnlineNnetDecodingConfig {
     LatticeFasterDecoderConfig decoder_opts;
-    aslp_nnet::DecodableNnetOnlineOptions decodable_opts;
+    aslp_nnet::NnetDecodableOptions decodable_opts;
 
     OnlineNnetDecodingConfig() {  decodable_opts.acoustic_scale = 0.1; }
 
@@ -131,7 +131,7 @@ private:
 
     const TransitionModel &tmodel_;
 
-    aslp_nnet::DecodableNnetOnline decodable_;
+    aslp_nnet::NnetDecodableOnline decodable_;
 
     LatticeFasterOnlineDecoder decoder_;
 

@@ -14,7 +14,7 @@
 
 #include "aslp-nnet/nnet-nnet.h"
 #include "aslp-nnet/nnet-pdf-prior.h"
-#include "aslp-nnet/nnet-online-decodable.h"
+#include "aslp-nnet/nnet-decodable.h"
 
 #include "aslp-online/online-helper.h"
 #include "aslp-online/online-nnet-decoder.h"

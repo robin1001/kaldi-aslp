@@ -1,22 +1,19 @@
-// aslp-nnet/nnet-online-decodable.cc
+// aslp-nnet/nnet-decodable.cc
 
-#include "aslp-nnet/nnet-online-decodable.h"
+#include "aslp-nnet/nnet-decodable.h"
 
 namespace kaldi {
 namespace aslp_nnet {
 
-DecodableNnetOnline::DecodableNnetOnline(
+NnetDecodableBase::NnetDecodableBase(
         Nnet *nnet,
         const CuVector<BaseFloat> &log_priors,
         const TransitionModel &trans_model,
-        const DecodableNnetOnlineOptions &opts,
-        OnlineFeatureInterface *input_feats):
+        const NnetDecodableOptions &opts):
     nnet_(nnet),
     log_priors_(log_priors),
     trans_model_(trans_model),
-    features_(input_feats),
     opts_(opts),
-    feat_dim_(input_feats->Dim()),
     num_pdfs_(nnet_->OutputDim()),
     begin_frame_(-1) {
         KALDI_ASSERT(opts_.max_nnet_batch_size > 0);
@@ -30,7 +27,7 @@ DecodableNnetOnline::DecodableNnetOnline(
         nnet_->ResetLstmStreams(flags);
 }
 
-BaseFloat DecodableNnetOnline::LogLikelihood(int32 frame, int32 index) {
+BaseFloat NnetDecodableBase::LogLikelihood(int32 frame, int32 index) {
     ComputeForFrame(frame);
     int32 pdf_id = trans_model_.TransitionIdToPdf(index);
     KALDI_ASSERT(frame >= begin_frame_ &&
@@ -38,17 +35,8 @@ BaseFloat DecodableNnetOnline::LogLikelihood(int32 frame, int32 index) {
     return scaled_loglikes_(frame - begin_frame_, pdf_id);
 }
 
-
-bool DecodableNnetOnline::IsLastFrame(int32 frame) const {
-    return features_->IsLastFrame(frame);
-}
-
-int32 DecodableNnetOnline::NumFramesReady() const {
-    return features_->NumFramesReady();
-}
-
-void DecodableNnetOnline::ComputeForFrame(int32 frame) {
-    int32 features_ready = features_->NumFramesReady();
+void NnetDecodableBase::ComputeForFrame(int32 frame) {
+    int32 features_ready = NumFramesReady();
     //bool input_finished = features_->IsLastFrame(features_ready - 1);  
     KALDI_ASSERT(frame >= 0);
     if (frame >= begin_frame_ &&
@@ -64,10 +52,10 @@ void DecodableNnetOnline::ComputeForFrame(int32 frame) {
 
     KALDI_ASSERT(input_frame_end > input_frame_begin);
     Matrix<BaseFloat> features(input_frame_end - input_frame_begin,
-            feat_dim_);
+            FeatDim());
     for (int32 t = input_frame_begin; t < input_frame_end; t++) {
         SubVector<BaseFloat> row(features, t - input_frame_begin);
-        features_->GetFrame(t, &row);
+        GetFrame(t, &row);
     }
     CuMatrix<BaseFloat> cu_features; 
     // This function is perfect, avoid copy and duplicate matrix using 

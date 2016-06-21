@@ -18,6 +18,7 @@ public:
         sprintf(param, "-m %s", file_name);
         tagger = CRFPP::createTagger(param);
     }
+
     void Process(const std::string &raw_input, std::string *raw_output) const {
         std::string input;
         ConvertToInput(raw_input, &input);

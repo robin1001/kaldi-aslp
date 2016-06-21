@@ -1,4 +1,4 @@
-// aslp-nnet/nnet-online-decodable.h
+// aslp-nnet/nnet-decodable.h
 
 // See ../../COPYING for clarification regarding multiple authors
 //
@@ -27,13 +27,13 @@
 namespace kaldi {
 namespace aslp_nnet {
 
-struct DecodableNnetOnlineOptions {
+struct NnetDecodableOptions {
     BaseFloat acoustic_scale;
     int skip_width;
     std::string skip_type;
     int32 max_nnet_batch_size;
 
-    DecodableNnetOnlineOptions():
+    NnetDecodableOptions():
         acoustic_scale(0.1),
         skip_width(0),
         skip_type("copy"),
@@ -55,25 +55,25 @@ struct DecodableNnetOnlineOptions {
 };
 
 
-class DecodableNnetOnline: public DecodableInterface {
+class NnetDecodableBase: public DecodableInterface {
 public:
-    DecodableNnetOnline(Nnet *nnet,
-                        const CuVector<BaseFloat> &log_priors,
-                        const TransitionModel &trans_model,
-                        const DecodableNnetOnlineOptions &opts,
-                        OnlineFeatureInterface *input_feats);
+    NnetDecodableBase(Nnet *nnet,
+                      const CuVector<BaseFloat> &log_priors,
+                      const TransitionModel &trans_model,
+                      const NnetDecodableOptions &opts);
 
     /// Returns the scaled log likelihood
     virtual BaseFloat LogLikelihood(int32 frame, int32 index);
 
-    virtual bool IsLastFrame(int32 frame) const;
-
-    virtual int32 NumFramesReady() const;  
+    virtual bool IsLastFrame(int32 frame) const = 0;
+    virtual int32 NumFramesReady() const = 0;  
+    virtual int32 FeatDim() const = 0;
+    virtual void GetFrame(int t, VectorBase<BaseFloat> *feat) const = 0;
 
     /// Indices are one-based!  This is for compatibility with OpenFst.
     virtual int32 NumIndices() const { return trans_model_.NumTransitionIds(); }
 
-private:
+protected:
 
     /// If the neural-network outputs for this frame are not cached, it computes
     /// them (and possibly for some succeeding frames)
@@ -82,9 +82,7 @@ private:
     Nnet *nnet_;
     const CuVector<BaseFloat> &log_priors_;  // log-priors taken from the model.
     const TransitionModel &trans_model_;
-    OnlineFeatureInterface *features_;
-    DecodableNnetOnlineOptions opts_;
-    int32 feat_dim_;  // dimensionality of the input features.
+    NnetDecodableOptions opts_;
     int32 num_pdfs_;  // Number of pdfs, equals output-dim of the network (cached
     // here)
 
@@ -100,8 +98,66 @@ private:
     // at the time we called LogLikelihood(), and will never exceed
     // opts_.max_nnet_batch_size.
     Matrix<BaseFloat> scaled_loglikes_;
+};
 
-  KALDI_DISALLOW_COPY_AND_ASSIGN(DecodableNnetOnline);
+class NnetDecodable: public NnetDecodableBase {
+public:
+    NnetDecodable(Nnet *nnet,
+                        const CuVector<BaseFloat> &log_priors,
+                        const TransitionModel &trans_model,
+                        const NnetDecodableOptions &opts,
+                        const MatrixBase<BaseFloat> &feats):
+        NnetDecodableBase(nnet, log_priors, trans_model, opts),
+        features_(feats) {}
+
+    virtual bool IsLastFrame(int32 frame) const {
+        return (frame == features_.NumRows()-1);
+    }
+    
+    virtual int32 NumFramesReady() const {
+        return features_.NumRows();
+    }
+
+    virtual int32 FeatDim() const {
+        return features_.NumCols();
+    }
+
+    virtual void GetFrame(int t, VectorBase<BaseFloat> *feat) const {
+        feat->CopyFromVec(features_.Row(t));
+    }
+private:
+    const MatrixBase<BaseFloat> &features_;
+    KALDI_DISALLOW_COPY_AND_ASSIGN(NnetDecodable);
+};
+
+class NnetDecodableOnline : public NnetDecodableBase {
+public:
+    NnetDecodableOnline(Nnet *nnet,
+                        const CuVector<BaseFloat> &log_priors,
+                        const TransitionModel &trans_model,
+                        const NnetDecodableOptions &opts,
+                        OnlineFeatureInterface *input_feats):
+        NnetDecodableBase(nnet, log_priors, trans_model, opts),
+        features_(input_feats) {}
+
+    virtual bool IsLastFrame(int32 frame) const {
+        return features_->IsLastFrame(frame);
+    }
+    
+    virtual int32 NumFramesReady() const {
+        return features_->NumFramesReady();
+    }
+
+    virtual int32 FeatDim() const {
+        return features_->Dim();
+    }
+
+    virtual void GetFrame(int t, VectorBase<BaseFloat> *feat) const {
+        features_->GetFrame(t, feat);
+    }
+private:
+    OnlineFeatureInterface *features_;
+    KALDI_DISALLOW_COPY_AND_ASSIGN(NnetDecodableOnline);
 };
 
 } // namespace aslp_nnet

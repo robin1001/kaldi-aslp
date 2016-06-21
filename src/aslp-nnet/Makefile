@@ -14,7 +14,7 @@ OBJFILES = nnet-nnet.o nnet-component.o nnet-loss.o \
            data-reader.o ctc-loss.o \
            nnet-recurrent-component.o \
            warp-ctc.o \
-           nnet-online-decodable.o
+           nnet-decodable.o
 
 LIBNAME = aslp-nnet
 
