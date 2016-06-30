@@ -304,5 +304,15 @@ void OnlineFeaturePipeline::GetAsMatrix(Matrix<BaseFloat> *feats) {
   }
 }
 
+
+void OnlineFeaturePipeline::GetFeature(Matrix<BaseFloat> *feats) {
+    KALDI_ASSERT(feats != NULL);
+    feats->Resize(NumFramesReady(), AdaptedFeature()->Dim());
+    for (int32 i = 0; i < NumFramesReady(); i++) {
+        SubVector<BaseFloat> row(*feats, i);
+        AdaptedFeature()->GetFrame(i, &row);
+    }
+}
+
 }  // namespace aslp_online
 }  // namespace kaldi
