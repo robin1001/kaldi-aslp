@@ -305,14 +305,18 @@ void OnlineFeaturePipeline::GetAsMatrix(Matrix<BaseFloat> *feats) {
 }
 
 
-void OnlineFeaturePipeline::GetFeature(Matrix<BaseFloat> *feats) {
+int OnlineFeaturePipeline::GetFeature(Matrix<BaseFloat> *feats) {
     KALDI_ASSERT(feats != NULL);
-    feats->Resize(NumFramesReady() - get_feat_offset_, AdaptedFeature()->Dim());
-    for (int32 i = get_feat_offset_; i < NumFramesReady(); i++) {
-        SubVector<BaseFloat> row(*feats, i);
-        AdaptedFeature()->GetFrame(i, &row);
+    int num_frames = NumFramesReady() - get_feat_offset_;
+    if (num_frames > 0) {
+        feats->Resize(num_frames, AdaptedFeature()->Dim());
+        for (int32 i = get_feat_offset_; i < NumFramesReady(); i++) {
+            SubVector<BaseFloat> row(*feats, i - get_feat_offset_);
+            AdaptedFeature()->GetFrame(i, &row);
+        }
+        get_feat_offset_ = NumFramesReady();
     }
-    get_feat_offset_ = NumFramesReady();
+    return num_frames;
 }
 
 }  // namespace aslp_online

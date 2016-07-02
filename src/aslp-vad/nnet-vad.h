@@ -29,7 +29,11 @@ public:
     NnetVad(const Nnet &nnet, const NnetVadOptions &nnet_vad_config): 
             Vad(nnet_vad_config),
             nnet_(nnet), 
-            nnet_vad_config_(nnet_vad_config) {} 
+            nnet_vad_config_(nnet_vad_config) {
+        // Reset lstm state for lstm model
+        std::vector<int> flags(1, 1);
+        const_cast<Nnet &>(nnet_).ResetLstmStreams(flags);
+    } 
 
     virtual bool IsSilence(int frame) const; 
     void GetScore(const Matrix<BaseFloat> &feat); 

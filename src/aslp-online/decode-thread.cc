@@ -172,17 +172,19 @@ void NnetVadDecodeThread::operator() (void *resource) {
         double get_partial_result_progress = 0.0;
         std::vector<BaseFloat> data;
         std::string all_result;
-        Matrix<BaseFloat> raw_feat;
+        Matrix<BaseFloat> raw_feat, vad_feat;
         
-        while (true) {
-            if (wav_provider.Done()) break;
+        while (!wav_provider.Done()) {
             // Read audio
             int num_read = wav_provider.ReadAudio(chunk_length_, &data);
             std::cerr << "vad.ReadSpeech() read " << num_read << std::endl;
+            if (num_read == 0) continue;
             // Feature extraction 
             SubVector<BaseFloat> wave_part(data.data(), num_read);
             feature_pipeline->AcceptWaveform(samp_freq_, wave_part);
             feature_pipeline->GetFeature(&raw_feat);
+            //feature_pool->AcceptFeature(raw_feat);
+
             // Do vad 
             /* Here we assume that the feature for vad and the feature 
              for decoder are the same, so the vad out feature is directly used
@@ -195,8 +197,10 @@ void NnetVadDecodeThread::operator() (void *resource) {
             if (!full && !vad.EndpointDetected()) continue; 
 
             // Get vad feature, and add in the feature pool 
-            const MatrixBase<BaseFloat> &vad_feat = vad.GetFeature();
-            feature_pool->AcceptFeature(vad_feat);
+            int num_voice_frames = vad.GetFeature(&vad_feat);
+            if (num_voice_frames > 0) {
+                feature_pool->AcceptFeature(vad_feat);
+            }
 
             // Advance decoding
             decoder.AdvanceDecoding();

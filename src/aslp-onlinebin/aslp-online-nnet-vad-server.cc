@@ -140,14 +140,16 @@ int main(int argc, char *argv[]) {
 
         // Nnet pool for thread pool, allocated enough at begin,
         // Avoid dynamic allocating in the running time
+        KALDI_LOG << "Creating thread pool resource";
         std::vector<void *> resource_pool(num_thread, NULL);
         for (int i = 0; i < num_thread; i++) {
             Nnet *new_am_nnet = new Nnet(am_nnet);
-            Nnet *new_vad__nnet = new Nnet(am_nnet);
+            Nnet *new_vad_nnet = new Nnet(vad_nnet);
             NnetVadDecodeThreadResource *resource = 
-                new NnetVadDecodeThreadResource(new_am_nnet, new_vad__nnet);
+                new NnetVadDecodeThreadResource(new_am_nnet, new_vad_nnet);
             resource_pool[i] = static_cast<void *>(resource);
         }
+        KALDI_LOG << "Creating thread pool resource Done!!!";
 
         // Wait ThreadPool destruct then delete nnet in nnet_pool
         {

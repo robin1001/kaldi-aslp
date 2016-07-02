@@ -74,22 +74,20 @@ public:
     }
 
     // Return num valid frames in the buffer
-    //int GetFeature(MatrixBase<BaseFloat> **feat) {
-    //    int num_frames = buffer_idx_[cur_buffer_];
-    //    KALDI_ASSERT(num_frames < buffer_size_);
-    //    *feat = &feat_buffer_[cur_buffer_];
-    //    buffer_idx_[cur_buffer_] = 0;
-    //    SwapBuffer();
-    //    return num_frames;
-    //}
-
-    const MatrixBase<BaseFloat> & GetFeature() {
+    int GetFeature(Matrix<BaseFloat> *feat) {
         int num_frames = buffer_idx_[cur_buffer_];
-        KALDI_ASSERT(num_frames < buffer_size_);
-        MatrixBase<BaseFloat> *feat = &feat_buffer_[cur_buffer_];
+        KALDI_ASSERT(num_frames <= buffer_size_);
+        if (num_frames > 0) {
+            feat->Resize(num_frames, feat_buffer_[cur_buffer_].NumCols());
+            feat->CopyFromMat(feat_buffer_[cur_buffer_].RowRange(0, num_frames));
+        }
         buffer_idx_[cur_buffer_] = 0;
         SwapBuffer();
-        return (*feat).RowRange(0, num_frames);
+        return num_frames;
+    }
+
+    int NumFramesReady() const {
+        return buffer_idx_[cur_buffer_];
     }
 
     float AudioReceived() const {

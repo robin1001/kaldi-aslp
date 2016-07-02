@@ -19,6 +19,7 @@ bool OnlineNnetVad::AcceptFeature(const Matrix<BaseFloat> &feat) {
 
     // Reset endpoint detect state
     endpoint_detected_ = false;
+    int num_sil = 0;
 
     // Copy speech frames to buffer
     for (int i = 0; i < vad_result_.size(); i++) {
@@ -41,15 +42,19 @@ bool OnlineNnetVad::AcceptFeature(const Matrix<BaseFloat> &feat) {
         }
         else {
             // silence frame 
+            num_sil++;
             num_continuous_silence_++;
             if (num_continuous_silence_ > num_frames_endpoint_trigger_) {
                 KALDI_LOG << "endpoint detected";
                 endpoint_detected_ = true;
+                num_continuous_silence_ = 0;
             }
         }
     }
-    num_frames_received_ += feat.NumRows();
+    KALDI_VLOG(1) << "VAD input frames " <<  feat.NumRows() 
+                  << " silence frames " << num_sil;
 
+    num_frames_received_ += feat.NumRows();
     // current buffer is full
     if (buffer_idx_[cur_buffer_] == buffer_size_) return true;
     else return false;
