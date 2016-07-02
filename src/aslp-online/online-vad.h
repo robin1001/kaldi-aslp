@@ -91,11 +91,16 @@ public:
         return (*feat).RowRange(0, num_frames);
     }
 
+    float AudioReceived() const {
+        return (config_.frame_length_ms * num_frames_received_) / 1000.0;
+    }
+
 private:
     const OnlineNnetVadOptions &online_vad_config_;
     
     int32 num_frames_endpoint_trigger_; // endpoint detector
     int32 num_continuous_silence_;
+    int32 num_frames_received_;
     bool endpoint_detected_;
 
     Matrix<BaseFloat> feat_buffer_[2];

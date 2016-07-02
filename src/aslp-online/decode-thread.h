@@ -9,6 +9,7 @@
 
 #include "fstext/fstext-lib.h"
 #include "lat/lattice-functions.h"
+#include "feat/online-feature.h"
 
 #include "aslp-online/online-helper.h"
 #include "aslp-online/online-nnet-decoder.h"
@@ -18,6 +19,7 @@
 #include "aslp-online/online-vad.h"
 #include "aslp-online/punctuation-processor.h"
 #include "aslp-online/thread-pool.h"
+#include "aslp-online/online-feature-pool.h"
 
 
 namespace kaldi {
@@ -117,7 +119,7 @@ private:
     bool do_endpointing_;
     const OnlineFeaturePipelineConfig &feature_info_;
     const OnlineNnetDecodingConfig &nnet_decoding_config_;
-    const OnlineNnetVadOptions &vad_config_,
+    const OnlineNnetVadOptions &vad_config_;
     const TransitionModel &trans_model_;
     const CuVector<BaseFloat> &log_prior_;
     const fst::Fst<fst::StdArc> &decode_fst_;

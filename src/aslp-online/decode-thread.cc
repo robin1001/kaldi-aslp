@@ -152,37 +152,39 @@ void NnetVadDecodeThread::operator() (void *resource) {
         double tot_like = 0.0;
         int64 num_frames = 0;
 
-        OnlineFeaturePipeline *feature_pipeline = 
-            new OnlineFeaturePipeline(feature_info_);
-        MultiUtteranceNnetDecoder decoder(nnet_decoding_config_,
-                trans_model_,
-                am_nnet,
-                log_prior_,
-                decode_fst_,
-                feature_pipeline);
-
         // This object receives raw wave data and sends the recognition results
         // to the client. The client_socket is closed by this object.
         WavProvider wav_provider(client_socket_);
         float chunk_seconds = chunk_length_ / samp_freq_;
         OnlineNnetVad vad(*vad_nnet, vad_config_, chunk_seconds);
 
+        OnlineFeaturePipeline *feature_pipeline = 
+            new OnlineFeaturePipeline(feature_info_);
+        OnlineFeaturePool *feature_pool = 
+            new OnlineFeaturePool(feature_pipeline->Dim());
+        MultiUtteranceNnetDecoder decoder(nnet_decoding_config_,
+                trans_model_,
+                am_nnet,
+                log_prior_,
+                decode_fst_,
+                feature_pool);
+
         double get_partial_result_progress = 0.0;
         std::vector<BaseFloat> data;
         std::string all_result;
         Matrix<BaseFloat> raw_feat;
-
+        
         while (true) {
             if (wav_provider.Done()) break;
             // Read audio
             int num_read = wav_provider.ReadAudio(chunk_length_, &data);
             std::cerr << "vad.ReadSpeech() read " << num_read << std::endl;
-            // Feature extraction
+            // Feature extraction 
             SubVector<BaseFloat> wave_part(data.data(), num_read);
             feature_pipeline->AcceptWaveform(samp_freq_, wave_part);
             feature_pipeline->GetFeature(&raw_feat);
             // Do vad 
-            /* here we assume that the feature for vad and the feature 
+            /* Here we assume that the feature for vad and the feature 
              for decoder are the same, so the vad out feature is directly used
              by the decoder
              OnlineNnetVad has inner buffers that stores the none silence frames
@@ -191,17 +193,18 @@ void NnetVadDecodeThread::operator() (void *resource) {
             */
             bool full = vad.AcceptFeature(raw_feat);
             if (!full && !vad.EndpointDetected()) continue; 
+
+            // Get vad feature, and add in the feature pool 
             const MatrixBase<BaseFloat> &vad_feat = vad.GetFeature();
+            feature_pool->AcceptFeature(vad_feat);
 
             // Advance decoding
             decoder.AdvanceDecoding();
 
-            if (vad.SilenceDetected()) {
-                std::cerr << "VAD::SilenceDetected" << std::endl; 
-                std::cerr << "VAD::AudioReceived " << vad.AudioReceived() << std::endl;
-            }
-            // print partial results
-            if (decoder.NumFramesDecoded() > 0 && !vad.SilenceDetected() && vad.AudioReceived() - get_partial_result_progress >= 0.7) {
+            // Print partial results
+            if (decoder.NumFramesDecoded() > 0 && 
+                    !vad.EndpointDetected() && 
+                    vad.AudioReceived() - get_partial_result_progress >= 0.7) {
                 get_partial_result_progress = vad.AudioReceived();
                 std::string result;
                 decoder.GetPartialResult(word_syms_table_, &result);
@@ -211,8 +214,10 @@ void NnetVadDecodeThread::operator() (void *resource) {
                 KALDI_VLOG(1) << "Partial: " << result;
             } // if NumFramesDecoded > 0
 
-            if (vad.SilenceDetected() && decoder.NumFramesDecoded() > 0) {
+            if (vad.EndpointDetected() && decoder.NumFramesDecoded() > 0) {
                 feature_pipeline->InputFinished();
+                feature_pool->InputFinished();
+
                 decoder.AdvanceDecoding();
 
                 std::string result;
@@ -222,14 +227,17 @@ void NnetVadDecodeThread::operator() (void *resource) {
                     wav_provider.WriteFinalReslut(result);
                     all_result += result;
                 }
-
                 delete feature_pipeline;
-                feature_pipeline = NULL;
+                delete feature_pool;
                 feature_pipeline = new OnlineFeaturePipeline(feature_info_);
-                decoder.ResetDecoder(feature_pipeline);
+                feature_pool = new OnlineFeaturePool(feature_pipeline->Dim());
+                decoder.ResetDecoder(feature_pool);
             }
-        }
+
+        } // end while
         feature_pipeline->InputFinished();
+        feature_pool->InputFinished();
+
         decoder.FinalizeDecoding();
 
         std::string recog_result;
@@ -254,6 +262,7 @@ void NnetVadDecodeThread::operator() (void *resource) {
         }
         wav_provider.WriteEOS();
 
+        delete feature_pool;
         delete feature_pipeline;
     } catch (const std::exception &e) {
         std::cerr << e.what();

@@ -72,7 +72,7 @@ public:
             aslp_nnet::Nnet *model,
             const CuVector<BaseFloat> &log_prior,
             const fst::Fst<fst::StdArc> &fst,
-            OnlineFeaturePipeline *feature_pipeline);
+            OnlineFeatureInterface *feat_interface);
 
     ~MultiUtteranceNnetDecoder() { }
     /// advance the decoding as far as we can.
@@ -105,11 +105,11 @@ public:
     /// with the required arguments.
     bool EndpointDetected(const OnlineEndpointConfig &config);
 
-    /// This function resets the data member feature_pipeline_ and calls
+    /// This function resets the data member feature_interface_ and calls
     /// decoder_.InitDecoding().
     /// The feature_pipeline_ should be freed out of this class if necessary.
-    void ResetDecoder(OnlineFeaturePipeline *new_feat_pipeline) {
-        feature_pipeline_ = new_feat_pipeline;
+    void ResetDecoder(OnlineFeatureInterface *new_feat_interface) {
+        feature_interface_ = new_feat_interface;
         decoder_.InitDecoding();
     }
 
@@ -127,7 +127,7 @@ private:
 
     OnlineNnetDecodingConfig config_;
 
-    OnlineFeaturePipeline *feature_pipeline_;
+    OnlineFeatureInterface *feature_interface_;
 
     const TransitionModel &tmodel_;
 

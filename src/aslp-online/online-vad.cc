@@ -48,6 +48,7 @@ bool OnlineNnetVad::AcceptFeature(const Matrix<BaseFloat> &feat) {
             }
         }
     }
+    num_frames_received_ += feat.NumRows();
 
     // current buffer is full
     if (buffer_idx_[cur_buffer_] == buffer_size_) return true;

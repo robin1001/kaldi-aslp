@@ -105,14 +105,14 @@ OnlineFeaturePipeline::OnlineFeaturePipeline(
     const OnlineFeaturePipelineConfig &config,
     const Matrix<BaseFloat> &lda_mat,
     const Matrix<BaseFloat> &global_cmvn_stats):
-    config_(config), lda_mat_(lda_mat), global_cmvn_stats_(global_cmvn_stats) {
+    config_(config), lda_mat_(lda_mat), global_cmvn_stats_(global_cmvn_stats), get_feat_offset_(0) {
   Init();
 }
 
 
 OnlineFeaturePipeline::OnlineFeaturePipeline(
     const OnlineFeaturePipelineConfig &config):
-    config_(config) {
+    config_(config), get_feat_offset_(0) {
   if (config.lda_rxfilename != "")
     ReadKaldiObject(config.lda_rxfilename, &lda_mat_);
   if (config.global_cmvn_stats_rxfilename != "")
@@ -307,11 +307,12 @@ void OnlineFeaturePipeline::GetAsMatrix(Matrix<BaseFloat> *feats) {
 
 void OnlineFeaturePipeline::GetFeature(Matrix<BaseFloat> *feats) {
     KALDI_ASSERT(feats != NULL);
-    feats->Resize(NumFramesReady(), AdaptedFeature()->Dim());
-    for (int32 i = 0; i < NumFramesReady(); i++) {
+    feats->Resize(NumFramesReady() - get_feat_offset_, AdaptedFeature()->Dim());
+    for (int32 i = get_feat_offset_; i < NumFramesReady(); i++) {
         SubVector<BaseFloat> row(*feats, i);
         AdaptedFeature()->GetFrame(i, &row);
     }
+    get_feat_offset_ = NumFramesReady();
 }
 
 }  // namespace aslp_online

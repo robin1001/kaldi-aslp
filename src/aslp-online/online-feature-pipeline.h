@@ -252,6 +252,9 @@ class OnlineFeaturePipeline: public OnlineFeatureInterface {
   /// this were not private we would have const and non-const versions returning
   /// const and non-const pointers.
   OnlineFeatureInterface* AdaptedFeature() const;
+  
+  // Get feature offset time
+  int get_feat_offset_;
 };
 
 

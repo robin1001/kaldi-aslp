@@ -33,11 +33,11 @@ MultiUtteranceNnetDecoder::MultiUtteranceNnetDecoder(
         aslp_nnet::Nnet *model,
         const CuVector<BaseFloat> &log_prior,
         const fst::Fst<fst::StdArc> &fst,
-        OnlineFeaturePipeline *feature_pipeline):
+        OnlineFeatureInterface *feature_interface):
     config_(config),
-    feature_pipeline_(feature_pipeline),
+    feature_interface_(feature_interface),
     tmodel_(tmodel),
-    decodable_(model, log_prior, tmodel, config.decodable_opts, feature_pipeline),
+    decodable_(model, log_prior, tmodel, config.decodable_opts, feature_interface),
     decoder_(fst, config.decoder_opts) {
         decoder_.InitDecoding();
 }
@@ -76,9 +76,11 @@ void MultiUtteranceNnetDecoder::GetBestPath(bool end_of_utterance,
 
 bool MultiUtteranceNnetDecoder::EndpointDetected(
         const OnlineEndpointConfig &config) {
-    return aslp_online::EndpointDetected(config, tmodel_,
-            feature_pipeline_->FrameShiftInSeconds(),
-            decoder_);  
+    KALDI_ERR << "Not implemented";
+    //return aslp_online::EndpointDetected(config, tmodel_,
+    //        feature_interface_->FrameShiftInSeconds(),
+    //        decoder_);  
+    return false;
 }
 
 //void MultiUtteranceNnetDecoder::GetPartialResult(const fst::SymbolTable *word_syms, 
