@@ -1,7 +1,8 @@
-// aslp-onlinebin/aslp-online-wav-nnet-latgen-faster-server.cc
+// aslp-onlinebin/aslp-online-energy-vad-server.cc
 
 /* Decoder Server
  * Created on 2015-09-01
+ * Refined on 2016-06
  * Author: hechangqing zhangbinbin
  * TODO: ** end point detect
          ** confidence
@@ -36,8 +37,8 @@ int main(int argc, char *argv[]) {
         typedef kaldi::int64 int64;
 
         const char *usage =
-            "Wav Decoder Server\n"
-            "Usage: aslp-online-wav-nnet-latgen-faster-server [options] <nnet-in> "
+            "Online wav decoder server with old enery based vad\n"
+            "Usage: aslp-online-energy-vad-server [options] <nnet-in> "
             "<trans-model> <fst-in> <punctuation-crf-model>\n";
 
         ParseOptions po(usage);
@@ -49,7 +50,7 @@ int main(int argc, char *argv[]) {
         feature_cmd_config.Register(&po);
         OnlineNnetDecodingConfig nnet_decoding_config;
         nnet_decoding_config.Register(&po);
-        VadOptions vad_config;
+        aslp_online::VadOptions vad_config;
         vad_config.Register(&po);
         PdfPriorOptions prior_config;
         prior_config.Register(&po);

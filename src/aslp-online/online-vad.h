@@ -47,6 +47,7 @@ public:
         NnetVad(nnet, online_vad_config), 
         online_vad_config_(online_vad_config),
         num_continuous_silence_(0),
+        num_frames_received_(0), 
         endpoint_detected_(false) {
         num_frames_endpoint_trigger_ = 
             online_vad_config_.endpoint_trigger_threshold_ms / config_.frame_length_ms;

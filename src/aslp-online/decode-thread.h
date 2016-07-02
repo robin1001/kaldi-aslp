@@ -79,6 +79,9 @@ private:
 };
 
 struct NnetVadDecodeThreadResource {
+    NnetVadDecodeThreadResource(aslp_nnet::Nnet *am_nnet,
+                                aslp_nnet::Nnet *vad_nnet):
+        am_nnet(am_nnet), vad_nnet(vad_nnet) {}
     aslp_nnet::Nnet *am_nnet; // acoustic nnet model 
     aslp_nnet::Nnet *vad_nnet; // vad nnet model
 };
