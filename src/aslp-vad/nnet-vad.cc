@@ -14,19 +14,18 @@ bool NnetVad::IsSilence(int frame) const {
 }
 
 // TODO optimize the feedfroward option
-// especially reduce the copy operation
 void NnetVad::GetScore(const Matrix<BaseFloat> &feat) {
     KALDI_ASSERT(feat.NumCols() == nnet_.InputDim());
     // Set nnet stream for recurrent component
     std::vector<int> frame_num_utt;
     frame_num_utt.push_back(feat.NumRows());
     const_cast<Nnet &>(nnet_).SetSeqLengths(frame_num_utt);
-    // Get likelyhood
-    CuMatrix<BaseFloat> nnet_out;
+
+    CuMatrix<BaseFloat> cu_nnet_out;
     Matrix<BaseFloat> nnet_out_host;
-    const_cast<Nnet &>(nnet_).Feedforward(CuMatrix<BaseFloat>(feat), &nnet_out);
-    nnet_out_host.Resize(nnet_out.NumRows(), nnet_out.NumCols());
-    nnet_out.CopyToMat(&nnet_out_host);
+    // Get likelyhood
+    const_cast<Nnet &>(nnet_).Feedforward(CuMatrix<BaseFloat>(feat), &cu_nnet_out);
+    cu_nnet_out.Swap(&nnet_out_host);
     for (int i = 0; i < nnet_out_host.NumRows(); i++) 
         sil_score_[i] = nnet_out_host(i, 0);
 }

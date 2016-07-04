@@ -13,7 +13,8 @@ OBJFILES = nnet-nnet.o nnet-component.o nnet-loss.o \
            nnet-randomizer.o nnet-pdf-prior.o \
            data-reader.o ctc-loss.o \
            nnet-recurrent-component.o \
-           warp-ctc.o
+           warp-ctc.o \
+           nnet-decodable.o
 
 LIBNAME = aslp-nnet
 

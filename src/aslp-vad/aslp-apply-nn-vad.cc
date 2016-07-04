@@ -25,8 +25,6 @@ int main(int argc, char *argv[]) {
             "e.g.: aslp-apply-nn-vad nnet.in scp:feat.scp scp:raw_wav.scp scp:vad_wav.scp\n";
 
         ParseOptions po(usage);
-        VadOptions vad_opts;
-        vad_opts.Register(&po);
         NnetVadOptions nnet_vad_opts;
         nnet_vad_opts.Register(&po);
 
@@ -49,7 +47,7 @@ int main(int argc, char *argv[]) {
             nnet.Read(ki.Stream(), binary_read);
         }
 
-        NnetVad nnet_vad(nnet, nnet_vad_opts, vad_opts);
+        NnetVad nnet_vad(nnet, nnet_vad_opts);
 
         SequentialBaseFloatMatrixReader feature_reader(feature_rspecifier);
         SequentialTableReader<WaveHolder> raw_wav_reader(raw_wav_rspecifier);
@@ -83,9 +81,9 @@ int main(int argc, char *argv[]) {
             // Only keep one channel
             Matrix<BaseFloat> save_mat(1, vad_wav.Dim());
             save_mat.Row(0).CopyFromVec(vad_wav);
-            WaveData vad_wav_data(vad_opts.samp_freq, save_mat);
+            WaveData vad_wav_data(nnet_vad_opts.samp_freq, save_mat);
             // Write file
-            std::ofstream out_stream(save_wav_file, std::ofstream::binary);
+            std::ofstream out_stream(save_wav_file.c_str(), std::ofstream::binary);
             vad_wav_data.Write(out_stream);
             out_stream.close();
             num_done++;
