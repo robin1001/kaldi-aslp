@@ -50,5 +50,5 @@ wait
 
 # Make decode graph
 aslp_scripts/cd_phone/make_h3_graph.sh data/lang_test \
-    $dst_ali_dir $dst_ali_dir/graph_$self_jump
+    $dst_ali_dir $dst_ali_dir/graph
 

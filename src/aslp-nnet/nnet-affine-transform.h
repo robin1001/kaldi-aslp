@@ -37,7 +37,8 @@ class AffineTransform : public UpdatableComponent {
     : UpdatableComponent(dim_in, dim_out), 
       linearity_(dim_out, dim_in), bias_(dim_out),
       linearity_corr_(dim_out, dim_in), bias_corr_(dim_out),
-      learn_rate_coef_(1.0), bias_learn_rate_coef_(1.0), max_norm_(0.0) 
+      learn_rate_coef_(1.0), bias_learn_rate_coef_(1.0), max_norm_(0.0),
+      clip_gradient_(0.0)
   { }
   ~AffineTransform()
   { }
@@ -60,6 +61,7 @@ class AffineTransform : public UpdatableComponent {
       else if (token == "<LearnRateCoef>") ReadBasicType(is, false, &learn_rate_coef);
       else if (token == "<BiasLearnRateCoef>") ReadBasicType(is, false, &bias_learn_rate_coef);
       else if (token == "<MaxNorm>") ReadBasicType(is, false, &max_norm);
+      else if (token == "<ClipGradient>") ReadBasicType(is, false, &clip_gradient_);
       else KALDI_ERR << "Unknown token " << token << ", a typo in config?"
                      << " (ParamStddev|BiasMean|BiasRange|LearnRateCoef|BiasLearnRateCoef)";
       is >> std::ws; // eat-up whitespace
@@ -101,6 +103,10 @@ class AffineTransform : public UpdatableComponent {
       ExpectToken(is, binary, "<MaxNorm>");
       ReadBasicType(is, binary, &max_norm_);
     }
+    if ('<' == Peek(is, binary)) {
+      ExpectToken(is, binary, "<ClipGradient>");
+      ReadBasicType(is, binary, &clip_gradient_);
+    }
     // weights
     linearity_.Read(is, binary);
     bias_.Read(is, binary);
@@ -117,6 +123,8 @@ class AffineTransform : public UpdatableComponent {
     WriteBasicType(os, binary, bias_learn_rate_coef_);
     WriteToken(os, binary, "<MaxNorm>");
     WriteBasicType(os, binary, max_norm_);
+    WriteToken(os, binary, "<ClipGradient>");
+    WriteBasicType(os, binary, clip_gradient_);
     // weights
     linearity_.Write(os, binary);
     bias_.Write(os, binary);
@@ -185,6 +193,20 @@ class AffineTransform : public UpdatableComponent {
     if (l1 != 0.0) {
       cu::RegularizeL1(&linearity_, &linearity_corr_, lr*l1*num_frames, lr);
     }
+    //{
+    //  //Print the 2-norm of the w and diff_w
+    //  CuMatrix<BaseFloat> pow_w(linearity_);
+    //  CuMatrix<BaseFloat> pow_diff(linearity_corr_);
+    //  pow_w.ApplyPow(2);
+    //  pow_diff.ApplyPow(2);
+    //  KALDI_LOG << id_ << " lr " << lr << " w square sum " << pow_w.Sum() << " w diff square sum " << pow_diff.Sum();
+    //}
+    if (clip_gradient_ > 0.0) {
+      linearity_corr_.ApplyFloor(-clip_gradient_); 
+      linearity_corr_.ApplyCeiling(clip_gradient_);
+      bias_corr_.ApplyFloor(-clip_gradient_);
+      bias_corr_.ApplyCeiling(clip_gradient_);
+    }
     // update
     linearity_.AddMat(-lr, linearity_corr_);
     bias_.AddVec(-lr_bias, bias_corr_);
@@ -201,6 +223,7 @@ class AffineTransform : public UpdatableComponent {
       scl.InvertElements();
       linearity_.MulRowsVec(scl); // shink to sphere!
     }
+
   }
 
   /// Accessors to the component parameters
@@ -242,6 +265,7 @@ class AffineTransform : public UpdatableComponent {
   BaseFloat learn_rate_coef_;
   BaseFloat bias_learn_rate_coef_;
   BaseFloat max_norm_;
+  BaseFloat clip_gradient_;
 };
 
 } // namespace aslp_nnet

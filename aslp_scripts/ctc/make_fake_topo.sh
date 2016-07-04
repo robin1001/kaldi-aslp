@@ -23,7 +23,7 @@ other_jump=$(echo "1-$self_jump" | bc)
 echo "<Topology>"
 echo "<TopologyEntry>"
 echo "<ForPhones>"
-for((i=2; i<=$[$num_state+1]; i++)); do 
+for((i=1; i<=$num_state; i++)); do 
     echo -n "$i "
 done
 echo ""
@@ -31,15 +31,6 @@ echo "</ForPhones>"
 echo "<State> 0 <PdfClass> 0 <Transition> 0 $self_jump <Transition> 1 $other_jump </State>"
 echo "<State> 1 </State>"
 echo "</TopologyEntry>"
-
-# for SIL(sil) phone, it's self loop prob is bigger
-echo "<TopologyEntry>"
-echo "<ForPhones>"
-echo "1 " # Here should be sil phone id
-echo "</ForPhones>"
-echo "<State> 0 <PdfClass> 0 <Transition> 0 $self_jump <Transition> 1 $other_jump </State>"
-echo "<State> 1 </State>"
-echo "</TopologyEntry>" 
 echo "</Topology>"
 } > $topo_file
 

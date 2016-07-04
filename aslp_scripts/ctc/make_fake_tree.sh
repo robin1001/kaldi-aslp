@@ -14,11 +14,10 @@ num_state=$1
 tree_file=$2
 
 {
-echo "ContextDependency 1 0 ToPdf TE 0 $[$num_state+2] ( NULL"
-for ((i = 1; i <= $num_state; i++)); do
+echo "ContextDependency 1 0 ToPdf TE 0 $[$num_state+1] ( NULL"
+for ((i = 0; i < $num_state; i++)); do
     echo "TE -1 1 ( CE $i )"
 done
-echo "TE -1 1 ( CE 0 )"
 echo ")"
 echo "EndContextDependency"
 } > $tree_file

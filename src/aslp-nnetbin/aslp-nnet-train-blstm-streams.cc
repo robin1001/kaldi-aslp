@@ -83,6 +83,8 @@ int main(int argc, char *argv[]) {
     int drop_len = 0;
     po.Register("drop-len", &drop_len, "if Sentence frame length greater than drop_len,"
             "then drop it, default(0, no drop)");
+    int skip_width = 0;
+    po.Register("skip-width", &skip_width, "num of frame for one skip(default 0, not use skip)");
 
     po.Read(argc, argv);
 
@@ -114,6 +116,7 @@ int main(int argc, char *argv[]) {
     Nnet nnet;
     nnet.Read(model_filename);
     nnet.SetTrainOptions(trn_opts);
+    float norm_lr = trn_opts.learn_rate;
 
     kaldi::int64 total_frames = 0;
 
@@ -157,13 +160,28 @@ int main(int argc, char *argv[]) {
           continue;
         }
         // Get feature / target pair
-        Matrix<BaseFloat> mat = feature_reader.Value();
-        if (drop_len > 0 && mat.NumRows() > drop_len) {
+        Matrix<BaseFloat> raw_mat = feature_reader.Value();
+        if (drop_len > 0 && raw_mat.NumRows() > drop_len) {
             KALDI_WARN << utt << ", too long, droped";
             feature_reader.Next();
             continue;
         }
-        Posterior targets  = targets_reader.Value(utt);
+        Posterior raw_targets = targets_reader.Value(utt);
+
+        Matrix<BaseFloat> mat; 
+        Posterior targets;
+        if (skip_width > 1) {
+            int skip_len = (raw_mat.NumRows() - 1) / skip_width + 1;
+            mat.Resize(skip_len, raw_mat.NumCols());
+            targets.resize(skip_len);
+            for (int i = 0; i < skip_len; i++) {
+                mat.Row(i).CopyFromVec(raw_mat.Row(i * skip_width));
+                targets[i] = raw_targets[i * skip_width];
+            }
+        } else {
+            mat = raw_mat;
+            targets = raw_targets;
+        }
 
         if (frame_weights != "") {
           weights = weights_reader.Value(utt);
@@ -217,11 +235,13 @@ int main(int argc, char *argv[]) {
       target_host.resize(cur_sequence_num * max_frame_num);
       weight_host.Resize(cur_sequence_num * max_frame_num, kSetZero);
 
+      int32 num_valid_frame = 0;
       for (int s = 0; s < cur_sequence_num; s++) {
         Matrix<BaseFloat> mat_tmp = feats_utt[s];
         for (int r = 0; r < frame_num_utt[s]; r++) {
           feat_mat_host.Row(r*cur_sequence_num + s).CopyFromVec(mat_tmp.Row(r));
         }
+        num_valid_frame += frame_num_utt[s];
       }
 
       for (int s = 0; s < cur_sequence_num; s++) {
@@ -240,6 +260,9 @@ int main(int argc, char *argv[]) {
 
       // Set the original lengths of utterances before padding
       nnet.SetSeqLengths(frame_num_utt);
+      // Normalize learn rate
+      trn_opts.learn_rate = norm_lr / num_valid_frame;
+      nnet.SetTrainOptions(trn_opts);
 
       // Propagation and xent training
       if (!crossvalidate) {
@@ -278,7 +301,11 @@ int main(int argc, char *argv[]) {
       num_sentence += cur_sequence_num;
       // Report likelyhood
       if (num_sentence >= report_period) {
-          KALDI_LOG << xent.Report();
+          if (objective_function == "xent") {
+              KALDI_LOG << xent.Report();
+          } else if (objective_function == "mse") {
+              KALDI_LOG << mse.Report();
+          }
           num_sentence -= report_period;
       }
 
@@ -305,7 +332,11 @@ int main(int argc, char *argv[]) {
               << "[" << (crossvalidate?"CROSS-VALIDATION":"TRAINING")
               << ", " << time.Elapsed()/60 << " min, fps" << total_frames/time.Elapsed()
               << "]";
-    KALDI_LOG << xent.Report();
+    if (objective_function == "xent") {
+        KALDI_LOG << xent.Report();
+    } else if (objective_function == "mse") {
+        KALDI_LOG << mse.Report();
+    }
 
 #if HAVE_CUDA == 1
     CuDevice::Instantiate().PrintProfile();

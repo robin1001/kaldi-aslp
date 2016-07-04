@@ -13,6 +13,7 @@ namespace aslp_nnet {
 
 int32 IndexOfLastUpdatableComponent(const Nnet &nnet) {
   int32 index = -1, nc = nnet.NumComponents();
+  // KALDI_LOG << "nc: " << nc;
   for (int32 c = 0; c < nc; c++) {
     if (nnet.GetComponent(c).IsUpdatable()) {
       //if (index != -1) return -1; // >1 softmax components.
@@ -27,14 +28,16 @@ void InsertComponents(const Nnet &src_nnet,
                       int32 c_to_insert, // component-index before which to insert.
                       Nnet *dest_nnet) {
   KALDI_ASSERT(c_to_insert >= 0 && c_to_insert <= dest_nnet->NumComponents());
-  int32 c_tot = dest_nnet->NumComponents() + src_nnet.NumComponents();
+  int32 c_tot = dest_nnet->NumComponents() + src_nnet.NumComponents() - 2;
   std::vector<Component*> components(c_tot);
-  for (int32 c = 0; c < c_to_insert; c++)
+  for (int32 c = 0; c < c_to_insert; c++) {
     components[c] = dest_nnet->GetComponent(c).Copy();
-  for (int32 c = 0; c < src_nnet.NumComponents(); c++)
-    components[c + c_to_insert] = src_nnet.GetComponent(c).Copy();
+  }
+  // Cannot insert InputLayer and OutputLayer  
+  for (int32 c = 0; c < src_nnet.NumComponents() - 2; c++)
+    components[c + c_to_insert] = src_nnet.GetComponent(c + 1).Copy();
   for (int32 c = c_to_insert; c < dest_nnet->NumComponents(); c++)
-    components[c + src_nnet.NumComponents()] = dest_nnet->GetComponent(c).Copy();
+    components[c + src_nnet.NumComponents() - 2] = dest_nnet->GetComponent(c).Copy();
   // Re-initialize "dest_nnet" from the resulting list of components.
 
   // The Init method will take ownership of the pointers in the vector:
@@ -42,6 +45,7 @@ void InsertComponents(const Nnet &src_nnet,
   for (int32 c = 0; c < components.size(); c++) {
       dest_nnet->AppendComponent(components[c]);
   }
+  dest_nnet->Check();
 }
 
 }
@@ -77,7 +81,7 @@ int main(int argc, char *argv[]) {
     po.Register("stddev-factor", &stddev_factor, "Factor on the standard "
                 "deviation when randomizing next component (only relevant if "
                 "--randomize-next-component=true");
-    po.Register("srand", &srand_seed, "Seed for random number generator");
+   po.Register("srand", &srand_seed, "Seed for random number generator");
 
     po.Read(argc, argv);
 
@@ -101,7 +105,7 @@ int main(int argc, char *argv[]) {
 
     Nnet src_nnet; // the one we'll insert.
     ReadKaldiObject(raw_nnet_rxfilename, &src_nnet);
-
+    
     if (insert_at == -1) {
       if ((insert_at = IndexOfLastUpdatableComponent(nnet)) == -1)
         KALDI_ERR << "We don't know where to insert the new components: "
@@ -110,13 +114,12 @@ int main(int argc, char *argv[]) {
       //insert_at--; // we want to insert before the linearity before
       // the softmax layer.
     }
-    
     InsertComponents(src_nnet, insert_at, &nnet);
-    KALDI_LOG << "Inserted " << src_nnet.NumComponents() << " components at "
+    KALDI_LOG << "Inserted " << src_nnet.NumComponents() - 2 << " components at "
               << "position " << insert_at;
 
     if (randomize_next_component) {
-      int32 c = insert_at + src_nnet.NumComponents();
+      int32 c = insert_at + src_nnet.NumComponents() - 2;
       Component *component = &(nnet.GetComponent(c));
       AffineTransform *uc = dynamic_cast<AffineTransform*>(component);
       if (!uc)

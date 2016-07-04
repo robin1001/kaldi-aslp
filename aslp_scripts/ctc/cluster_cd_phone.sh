@@ -72,16 +72,16 @@ fi
 if [ $stage -le 1 ]; then
   echo "$0: getting questions for tree-building, via clustering"
   # preparing questions, roots file...
-  #cluster-phones $context_opts $dir/treeacc $lang/phones/sets.int \
-  #  $dir/questions.int 2> $dir/log/questions.log || exit 1;
-  #cat $lang/phones/extra_questions.int >> $dir/questions.int
-  #compile-questions $context_opts $lang/topo $dir/questions.int \
-  #  $dir/questions.qst 2>$dir/log/compile_questions.log || exit 1;
+  cluster-phones $context_opts --pdf-class-list=0 $dir/treeacc $lang/phones/sets.int \
+    $dir/questions.int 2> $dir/log/questions.log || exit 1;
+  cat $lang/phones/extra_questions.int >> $dir/questions.int
+  compile-questions $context_opts $lang/topo $dir/questions.int \
+    $dir/questions.qst 2>$dir/log/compile_questions.log || exit 1;
 
   # copy questions
-  cp $mdldir/questions.int $dir/questions.int
-  compile-questions $context_opts $dir/topo $dir/questions.int \
-    $dir/questions.qst 2>$dir/log/compile_questions.log || exit 1;
+  #cp $mdldir/questions.int $dir/questions.int
+  #compile-questions $context_opts $dir/topo $dir/questions.int \
+  #  $dir/questions.qst 2>$dir/log/compile_questions.log || exit 1;
 
   echo "$0: building the tree"
   $cmd $dir/log/build_tree.log \

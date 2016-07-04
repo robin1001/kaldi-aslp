@@ -20,8 +20,7 @@ dst_ali_dir=$2
 
 [ ! -d $dst_ali_dir ] && mkdir -p $dst_ali_dir;
 
-# Attention: All the last phone in the model or tree file are fake phones
-# it is used to fake blank id
+# Attention: Default the first phone(SP) is used as fake blank phone
 
 # Get number of mono phones
 num_phone=$(am-info $src_ali_dir/final.mdl | grep phones | awk '{print $NF}')
@@ -36,8 +35,8 @@ aslp_scripts/ctc/make_fake_mdl.sh $num_phone $dst_ali_dir/final.mdl
 for x in $src_ali_dir/ali.*.gz; do
 {
     file_name=$(basename $x)
-    ali-to-phones $src_ali_dir/final.mdl \
-        "ark:gunzip -c $src_ali_dir/$file_name |" "ark:|gzip -c > $dst_ali_dir/$file_name"
+    ali-to-phones $src_ali_dir/final.mdl "ark:gunzip -c $src_ali_dir/$file_name |" ark:- | \
+        aslp-ali-minus-one ark:- "ark:|gzip -c > $dst_ali_dir/$file_name"
 } &
 done
 wait

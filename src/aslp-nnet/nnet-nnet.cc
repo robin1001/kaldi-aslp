@@ -250,9 +250,13 @@ void Nnet::SetComponent(int32 c, Component *component) {
 void Nnet::AppendComponent(Component* dynamically_allocated_comp) {
   // append,
   components_.push_back(dynamically_allocated_comp);
+  for (int32 i = 0; i < components_.size(); i++) {
+    components_[i]->SetId(i);
+    components_[i]->SetMonoInput(i-1);
+  }
   //
   InitInputOutput();
-  Check();
+  //Check();
 }
 
 void Nnet::AppendNnet(const Nnet& nnet_to_append) {
