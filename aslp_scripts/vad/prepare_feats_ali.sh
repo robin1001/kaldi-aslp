@@ -11,6 +11,7 @@ splice=5            # (default) splice features both-ways along time axis,
 delta_opts= #eg. "--delta-order=2" # (optional) adds 'add-deltas' to input feature pipeline, see opts,
 splice_opts= #eg. "--left-context=4 --right-context=4"
 cmvn_opts= #eg. "--norm-means=true --norm-vars=true" # (optional) adds 'apply-cmvn' to input feature pipeline, see opts,
+global_cmvn_file=
 sil_id=1 # Index of silence phone
 labels=
 
@@ -54,7 +55,6 @@ dir=$8
 
 # Using alidir for supervision (default)
 if [ -z "$labels" ]; then 
-  silphonelist=`cat $lang/phones/silence.csl` || exit 1;
   for f in $alidir/final.mdl $alidir/ali.1.gz $alidir_cv/ali.1.gz; do
     [ ! -f $f ] && echo "$0: no such file $f" && exit 1;
   done
@@ -105,19 +105,28 @@ feats_tr="ark:copy-feats scp:$dir/train.scp ark:- |"
 feats_cv="ark:copy-feats scp:$dir/cv.scp ark:- |"
 feats_test="ark:copy-feats scp:$dir/test.scp ark:- |"
 
+if [ ! -z "$cmvn_opts" ]; then
+  if [ ! -z $global_cmvn_file ]; then
+    echo "# + 'apply-cmvn' with '$cmvn_opts' using statistics : $global_cmvn_file"
+    feats_tr="$feats_tr apply-cmvn $cmvn_opts $global_cmvn_file ark:- ark:- |"
+    feats_cv="$feats_cv apply-cmvn $cmvn_opts $global_cmvn_file ark:- ark:- |"
+    feats_test="$feats_test apply-cmvn $cmvn_opts $global_cmvn_file ark:- ark:- |"
+    echo "$global_cmvn_file" > $dir/global_cmvn_opts
+  else
+    echo "# + 'apply-cmvn-sliding' with '$cmvn_opts'"
+    feats_tr="$feats_tr apply-cmvn-sliding $cmvn_opts ark:- ark:- |"
+    feats_cv="$feats_cv apply-cmvn-sliding $cmvn_opts ark:- ark:- |"
+    feats_test="$feats_test apply-cmvn-sliding $cmvn_opts ark:- ark:- |"
+    echo "# + 'apply-cmvn-sliding' with '$cmvn_opts'"
+  fi
+fi
+
 # optionally add deltas,
 if [ ! -z "$delta_opts" ]; then
   feats_tr="$feats_tr add-deltas $delta_opts ark:- ark:- |"
   feats_cv="$feats_cv add-deltas $delta_opts ark:- ark:- |"
   feats_test="$feats_test add-deltas $delta_opts ark:- ark:- |"
   echo "# + 'add-deltas' with '$delta_opts'"
-fi
-
-if [ ! -z "$cmvn_opts" ]; then
-  feats_tr="$feats_tr apply-cmvn-sliding $cmvn_opts ark:- ark:- |"
-  feats_cv="$feats_cv apply-cmvn-sliding $cmvn_opts ark:- ark:- |"
-  feats_test="$feats_test apply-cmvn-sliding $cmvn_opts ark:- ark:- |"
-  echo "# + 'apply-cmvn-sliding' with '$cmvn_opts'"
 fi
 
 # optionally add splice,
