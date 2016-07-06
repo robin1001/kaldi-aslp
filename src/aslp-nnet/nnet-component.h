@@ -64,6 +64,7 @@ class Component {
     kSigmoid,
     kTanh,
     kDropout,
+    kReLU,
     kLengthNormComponent,
 
     kTranform = 0x0400,
@@ -171,6 +172,8 @@ class Component {
   static Component* Read(std::istream &is, bool binary);
   /// Write component to stream
   void Write(std::ostream &os, bool binary) const;
+  // Wirte standard simple feedforward nnet, without id, input idx & offset_idx
+  void WriteStandard(std::ostream &os, bool binary) const;
 
   /// Optionally print some additional info
   virtual std::string Info() const { return ""; }

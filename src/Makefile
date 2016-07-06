@@ -1,6 +1,7 @@
 include aslp.mk
 
-SUBDIRS = warp-ctc aslp-cudamatrix aslp-nnet aslp-nnetbin aslp-vad aslp-bin 
+SUBDIRS = warp-ctc aslp-cudamatrix aslp-segment \
+          aslp-nnet aslp-nnetbin aslp-vad aslp-bin 
 
 ifeq ($(USE_ONLINE), true) 
     SUBDIRS += aslp-online aslp-onlinebin

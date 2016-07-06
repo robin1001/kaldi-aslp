@@ -45,6 +45,7 @@ const struct Component::key_value Component::kMarkerMap[] = {
   { Component::kSigmoid,"<Sigmoid>" },
   { Component::kTanh,"<Tanh>" },
   { Component::kDropout,"<Dropout>" },
+  { Component::kReLU,"<ReLU>" },
   // Varios
   { Component::kLengthNormComponent,"<LengthNormComponent>" },
   { Component::kSplice,"<Splice>" },
@@ -125,6 +126,9 @@ Component* Component::NewComponentOfType(ComponentType comp_type,
       break;
     case Component::kDropout :
       ans = new Dropout(input_dim, output_dim); 
+      break;
+    case Component::kReLU:
+      ans = new ReLU(input_dim, output_dim); 
       break;
     case Component::kLengthNormComponent :
       ans = new LengthNormComponent(input_dim, output_dim); 
@@ -270,6 +274,13 @@ void Component::Write(std::ostream &os, bool binary) const {
   this->WriteData(os, binary);
 }
 
+void Component::WriteStandard(std::ostream &os, bool binary) const {
+  WriteToken(os, binary, Component::TypeToMarker(GetType()));
+  WriteBasicType(os, binary, OutputDim());
+  WriteBasicType(os, binary, InputDim());
+  if(!binary) os << "\n";
+  this->WriteData(os, binary);
+}
 
 } // namespace aslp_nnet
 } // namespace kaldi

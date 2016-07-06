@@ -133,8 +133,10 @@ class Nnet {
   void Read(std::istream &in, bool binary);
   /// Write MLP to file
   void Write(const std::string &file, bool binary) const;
+  void WriteStandard(const std::string &file, bool binary) const;
   /// Write MLP to stream
   void Write(std::ostream &out, bool binary) const;
+  void WriteStandard(std::ostream &out, bool binary) const;
 
   /// Create string with human readable description of the nnet
   std::string Info() const;

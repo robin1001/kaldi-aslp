@@ -576,13 +576,11 @@ void Nnet::Read(std::istream &is, bool binary) {
   Check(); //check consistency (dims...)
 }
 
-
 void Nnet::Write(const std::string &file, bool binary) const {
   Output out(file, binary, true);
   Write(out.Stream(), binary);
   out.Close();
 }
-
 
 void Nnet::Write(std::ostream &os, bool binary) const {
   Check();
@@ -595,6 +593,24 @@ void Nnet::Write(std::ostream &os, bool binary) const {
   if(binary == false) os << std::endl;
 }
 
+void Nnet::WriteStandard(const std::string &file, bool binary) const {
+  Output out(file, binary, true);
+  Write(out.Stream(), binary);
+  out.Close();
+}
+
+void Nnet::WriteStandard(std::ostream &os, bool binary) const {
+  Check();
+  WriteToken(os, binary, "<Nnet>");
+  if(binary == false) os << std::endl;
+  for(int32 i=0; i<NumComponents(); i++) {
+    if (components_[i]->GetType() == Component::kInputLayer || 
+        components_[i]->GetType() == Component::kOutputLayer) continue;
+    components_[i]->WriteStandard(os, binary);
+  }
+  WriteToken(os, binary, "</Nnet>");  
+  if(binary == false) os << std::endl;
+}
 
 std::string Nnet::Info() const {
   // global info
