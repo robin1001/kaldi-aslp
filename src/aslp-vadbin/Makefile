@@ -10,11 +10,13 @@ LDLIBS += $(CUDA_LDLIBS)
 
 TESTFILES = roc-test
 
-OBJFILES = vad.o energy-vad.o nnet-vad.o feature-spectrum.o
+BINFILES = aslp-ali-to-sil aslp-select-frames \
+           aslp-eval-gmm-vad aslp-eval-nn-vad aslp-apply-nn-vad \
+		   aslp-eval-vad-boundary aslp-eval-nn-vad-boundary \
+		   aslp-apply-nn-vad-segment aslp-apply-nn-vad-frame \
+		   aslp-compute-spectrum-feats
 
-LIBNAME = aslp-vad
-
-ADDLIBS = ../aslp-nnet/aslp-nnet.a ../aslp-cudamatrix/aslp-cudamatrix.a \
+ADDLIBS = ../aslp-vad/aslp-vad.a ../aslp-nnet/aslp-nnet.a ../aslp-cudamatrix/aslp-cudamatrix.a \
           $(KALDI_DIR)/hmm/kaldi-hmm.a \
           $(KALDI_DIR)/gmm/kaldi-gmm.a \
           $(KALDI_DIR)/feat/kaldi-feat.a \

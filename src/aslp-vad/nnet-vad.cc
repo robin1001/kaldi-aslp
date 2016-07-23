@@ -73,15 +73,17 @@ bool NnetVad::DoVad(const Matrix<BaseFloat> &raw_feat,
         if (vad_result_[i]) num_vad_feats++;
     }
     if (num_vad_feats == 0) return false;
-    vad_feat->Resize(num_vad_feats, raw_feat.NumCols());
-    int index = 0;
-    for (int i = 0; i < vad_result_.size(); i++) {
-        if (vad_result_[i]) {
-            vad_feat->Row(index).CopyFromVec(raw_feat.Row(i));
-            index++;
+    if (vad_feat != NULL) {
+        vad_feat->Resize(num_vad_feats, raw_feat.NumCols());
+        int index = 0;
+        for (int i = 0; i < vad_result_.size(); i++) {
+            if (vad_result_[i]) {
+                vad_feat->Row(index).CopyFromVec(raw_feat.Row(i));
+                index++;
+            }
         }
+        KALDI_ASSERT(index == num_vad_feats);
     }
-    KALDI_ASSERT(index == num_vad_feats);
     return true;
 }
 

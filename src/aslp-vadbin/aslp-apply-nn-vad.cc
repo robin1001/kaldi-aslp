@@ -1,4 +1,4 @@
-// aslp-vad/aslp-apply-nn-vad.cc
+// aslp-vadbin/aslp-apply-nn-vad.cc
 
 // Copyright 2016 ASLP (Binbin Zhang) 
 // Created on 2016-04-27
@@ -73,8 +73,8 @@ int main(int argc, char *argv[]) {
             const std::string &save_wav_file = vad_wav_reader.Value();
             // Always select channel 0
             SubVector<BaseFloat> raw_wav(wave_data.Data(), 0);
-            bool is_ok = nnet_vad.DoVad(raw_wav, mat, &vad_wav);
-            if (!is_ok) {
+            bool has_voice_frame = nnet_vad.DoVad(raw_wav, mat, &vad_wav);
+            if (!has_voice_frame) {
                 KALDI_WARN << key << " have no vad result ";
                 continue;
             }

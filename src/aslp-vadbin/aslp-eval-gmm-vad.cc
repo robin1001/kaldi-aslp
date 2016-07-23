@@ -1,4 +1,4 @@
-// aslp-vad/aslp-eval-gmm-vad.cc
+// aslp-vadbin/aslp-eval-gmm-vad.cc
 
 // Copyright 2016 ASLP (Binbin Zhang) 
 // Created on 2016-04-25

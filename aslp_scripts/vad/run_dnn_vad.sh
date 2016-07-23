@@ -25,13 +25,11 @@ if [ $stage -le 0 ]; then
     echo "Extracting feats & Create tr cv set"
     #aslp_scripts/make_feats.sh --feat-type "mfcc" data/train $feat_dir
     # Split tr & cv
-    utils/shuffle_list.pl $feat_dir/train/feats.scp > $feat_dir/train/random.scp
-    cat $feat_dir/train/random.scp | awk -v ed=$num_test_utt '{if(NR <= ed) print $0}' |\
-        sort > $feat_dir/train/test.scp
-    cat $feat_dir/train/random.scp | awk -v st=$num_test_utt -v ed=$[$num_test_utt+$num_cv_utt] '{if (NR > st && NR <= ed) print $0}' |\
-        sort > $feat_dir/train/cv.scp
-    cat $feat_dir/train/random.scp | awk -v st=$[$num_test_utt+$num_cv_utt] '{if (NR > st ) print $0}' |\
-        sort > $feat_dir/train/tr.scp
+    utils/shuffle_list.pl $feat_dir/train/feats.scp | tail -n $[$num_test_utt+$num_cv_utt] | sort > $feat_dir/train/tr_test.scp
+    utils/filter_scp.pl --exclude $feat_dir/train/tr_test.scp $feat_dir/train/feats.scp | sort > $feat_dir/train/tr.scp 
+    utils/shuffle_list.pl $feat_dir/train/tr_test.scp | tail -n $num_test_utt | sort > $feat_dir/train/test.scp
+    utils/filter_scp.pl --exclude $feat_dir/train/test.scp $feat_dir/train/tr_test.scp | sort > $feat_dir/train/cv.scp 
+
     utils/subset_data_dir.sh --utt-list $feat_dir/train/test.scp \
         $feat_dir/train $feat_dir/test
     utils/subset_data_dir.sh --utt-list $feat_dir/train/tr.scp \
@@ -91,7 +89,14 @@ fi
 # Test
 if [ $stage -le 4 ]; then
     [ ! -e $dir/final.nnet ] && echo "$dir/final.nnet: no such file" && exit 1;
-    aslp-eval-nn-vad --stride=0.001 $dir/final.nnet "$feats_test" "$labels_test"
+    aslp-eval-nn-vad --stride=0.001 $dir/final.nnet "$feats_test" "$labels_test" > $dir/log/roc.log
+    aslp_scripts/vad/calc_auc.sh --stride 0.001 $dir/log/roc.log | tee $dir/log/auc.log
+    aslp_scripts/calc_eer.sh $dir/log/roc.log | tee $dir/log/eer.log
+    sil_thresh=$(cat $dir/log/eer.log | awk '{ if(NR==1) print $4}')
+    hr-eval-nn-vad-boundary --context=20 \
+        --sil-thresh=$sil_thresh --lookback=200 \
+        --silence-trigger-threshold=200 --speech-trigger-threshold=70 \
+        $dir/final.nnet "$feats_test" "$labels_test" 2>& 1 | tee $dir/log/boundary.log
 fi
 
 exit 0;

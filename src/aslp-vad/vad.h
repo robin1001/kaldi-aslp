@@ -17,16 +17,22 @@ struct VadOptions {
     BaseFloat samp_freq;       // in Hz
     BaseFloat frame_length_ms; // in milliseconds
     BaseFloat silence_trigger_threshold_ms; // in milliseconds
+    BaseFloat speech_trigger_threshold_ms; // in milliseconds
+    BaseFloat lookback_ms; // in milliseconds
 
     VadOptions() : samp_freq(16000),
     frame_length_ms(10.0),
-    silence_trigger_threshold_ms(150.0) {}
+    silence_trigger_threshold_ms(150.0), 
+    speech_trigger_threshold_ms(30),
+    lookback_ms(0) {}
 
     std::string Print() {
         std::ostringstream ss;
         ss << "\nsamp_freq: " << samp_freq;
         ss << "\nframe_length_ms: " << frame_length_ms;
         ss << "\nsilence_trigger_threshold_ms: " << silence_trigger_threshold_ms;
+        ss << "\nspeech_trigger_threshold_ms: " << silence_trigger_threshold_ms;
+        ss << "\nlookback_ms: " << silence_trigger_threshold_ms;
         return ss.str();
     }
 
@@ -38,6 +44,11 @@ struct VadOptions {
                 "Length of consecutive silence to regard as silence segment, "
                 "in milliseconds. This parameter is used in Finite State Machine in the code. "
                 "It determines the transition of state from state speech2silence to state silence.");
+        po->Register("speech-trigger-threshold", &speech_trigger_threshold_ms, 
+                "Length of consecutive speech to regard as voice segment, "
+                "in milliseconds. This parameter is used in Finite State Machine in the code. ");
+        po->Register("lookback", &lookback_ms, 
+                "Lookback length for voice start point, in milliseconds");
     }
 };
 
@@ -48,6 +59,10 @@ public:
     // sil: false, voice: true
     virtual bool VadOneFrame(int frame);
     virtual void VadAll();
+    virtual const std::vector<bool>& VadResult() const {
+        return vad_result_;
+    }
+    virtual void Lookback();
     // DoVad input:wav, feat already prepared out:wav
 protected:
     enum { kSilence = 0x00,
@@ -55,7 +70,10 @@ protected:
            kSpeech = 0x02
     } state_;
     int silence_frame_cnt_;
+    int speech_frame_cnt_;
     int nframes_silence_trigger_;
+    int nframes_speech_trigger_;
+    int nframes_lookback_;
     int num_points_per_frame_;
     std::vector<bool> vad_result_; // vad result, voice(true), sil(false)
     const VadOptions &config_;
