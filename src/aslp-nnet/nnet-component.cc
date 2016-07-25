@@ -32,6 +32,7 @@
 #include "aslp-nnet/nnet-batch-normalization.h"
 #include "aslp-nnet/nnet-io.h"
 #include "aslp-nnet/nnet-recurrent-component.h"
+#include "aslp-nnet/nnet-row-convolution.h"
 
 #include <sstream>
 
@@ -66,6 +67,7 @@ const struct Component::key_value Component::kMarkerMap[] = {
   { Component::kScaleLayer, "<ScaleLayer>"},
   { Component::kLstm, "<Lstm>"},
   { Component::kBLstm, "<BLstm>"},
+  { Component::kRowConvolution, "<RowConvolution>"},
 };
 
 
@@ -166,6 +168,9 @@ Component* Component::NewComponentOfType(ComponentType comp_type,
       break;
     case Component::kBLstm:
       ans = new BLstm(input_dim, output_dim);
+      break;
+    case Component::kRowConvolution:
+      ans = new RowConvolution(input_dim, output_dim);
       break;
     case Component::kUnknown :
     default :

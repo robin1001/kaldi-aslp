@@ -92,7 +92,8 @@ class Component {
     kOutputLayer,
     kScaleLayer,
     kLstm,
-    kBLstm
+    kBLstm,
+    kRowConvolution
   } ComponentType;
   /// A pair of type and marker 
   struct key_value {

@@ -13,8 +13,8 @@ OBJFILES = nnet-nnet.o nnet-component.o nnet-loss.o \
            nnet-randomizer.o nnet-pdf-prior.o \
            data-reader.o ctc-loss.o \
            nnet-recurrent-component.o \
-           warp-ctc.o \
-           nnet-decodable.o
+           nnet-decodable.o \
+           warp-ctc.o nnet-row-convolution.o
 
 LIBNAME = aslp-nnet
 
@@ -31,8 +31,4 @@ nnet-component.o: nnet-component.h \
                   nnet-convolutional-component.h nnet-max-pooling-component.h \
                   nnet-lstm-projected-streams.h nnet-blstm-projected-streams.h \
                   nnet-batch-normalization.h nnet-io.h
-
-data-reader.o: data-reader.h
-warp-ctc.o: warp-ctc.h
-ctc-loss.o: ctc-loss.h
 
