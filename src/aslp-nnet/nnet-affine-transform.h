@@ -101,6 +101,12 @@ class AffineTransform : public UpdatableComponent {
       ExpectToken(is, binary, "<MaxNorm>");
       ReadBasicType(is, binary, &max_norm_);
     }
+    // for compartible with some version
+    if ('<' == Peek(is, binary)) {
+      float tmp;
+      ExpectToken(is, binary, "<ClipGradient>");
+      ReadBasicType(is, binary, &tmp);
+    }
     // weights
     linearity_.Read(is, binary);
     bias_.Read(is, binary);
