@@ -56,7 +56,7 @@ FrameDataReader::~FrameDataReader() {
     }
 }
 
-inline bool FrameDataReader::Done() {
+bool FrameDataReader::Done() {
     KALDI_ASSERT(feature_randomizers_.size() > 0);
     return (read_done_ && feature_randomizers_[0]->Done());
 }

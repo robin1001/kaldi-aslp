@@ -13,26 +13,23 @@ OBJFILES = nnet-nnet.o nnet-component.o nnet-loss.o \
            nnet-randomizer.o nnet-pdf-prior.o \
            data-reader.o ctc-loss.o \
            nnet-recurrent-component.o \
-           warp-ctc.o \
-           nnet-decodable.o
+           nnet-decodable.o \
+           nnet-row-convolution.o
+
+ifeq ($(USE_WARP_CTC), true)
+    OBJFILES += warp-ctc.o
+endif
 
 LIBNAME = aslp-nnet
 
-ADDLIBS = ../aslp-cudamatrix/aslp-cudamatrix.a ../warp-ctc/build/libwarpctc.a \
+ADDLIBS = ../aslp-cudamatrix/aslp-cudamatrix.a \
           $(KALDI_DIR)/matrix/kaldi-matrix.a \
           $(KALDI_DIR)/base/kaldi-base.a \
           $(KALDI_DIR)/util/kaldi-util.a 
 
+ifeq ($(USE_WARP_CTC), true)
+    ADDLIBS += ../warp-ctc/build/libwarpctc.a
+endif
+
 include $(KALDI_DIR)/makefiles/default_rules.mk
-
-nnet-component.o: nnet-component.h \
-                  nnet-activation.h nnet-various.h \
-                  nnet-affine-transform.h nnet-linear-transform.h \
-                  nnet-convolutional-component.h nnet-max-pooling-component.h \
-                  nnet-lstm-projected-streams.h nnet-blstm-projected-streams.h \
-                  nnet-batch-normalization.h nnet-io.h
-
-data-reader.o: data-reader.h
-warp-ctc.o: warp-ctc.h
-ctc-loss.o: ctc-loss.h
 

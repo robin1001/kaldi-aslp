@@ -561,7 +561,6 @@ class Rescale : public UpdatableComponent {
 };
 
 
-
 } // namespace aslp_nnet
 } // namespace kaldi
 

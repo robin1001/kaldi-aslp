@@ -131,6 +131,7 @@ void DecodeThread::operator() (void *resource) {
         if (all_result.size() > 0) {
             std::string punc_result;
             punctuation_processor_.Process(all_result, &punc_result);
+            KALDI_LOG << "All Result: " << all_result;
             KALDI_LOG << "Final Punctuation Result: " << punc_result;
             wav_provider.WritePuncResult(punc_result);
         }
@@ -261,6 +262,7 @@ void NnetVadDecodeThread::operator() (void *resource) {
         if (all_result.size() > 0) {
             std::string punc_result;
             punctuation_processor_.Process(all_result, &punc_result);
+            KALDI_LOG << "All Result: " << all_result;
             KALDI_LOG << "Final Punctuation Result: " << punc_result;
             wav_provider.WritePuncResult(punc_result);
         }

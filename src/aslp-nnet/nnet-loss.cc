@@ -118,6 +118,7 @@ void Xent::Eval(const VectorBase<BaseFloat> &frame_weights,
   // caluculate likelyhood_ (in GPU)
   likelyhood_aux_ = net_out;
   likelyhood_aux_.MulElements(targets); // t * y
+  likelyhood_aux_.MulRowsVec(frame_weights_);
   double likelyhood = likelyhood_aux_.Sum();
 
   KALDI_ASSERT(KALDI_ISFINITE(cross_entropy));

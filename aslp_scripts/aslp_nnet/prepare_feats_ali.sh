@@ -11,6 +11,7 @@ splice=5            # (default) splice features both-ways along time axis,
 cmvn_opts= #eg. "--norm-means=true --norm-vars=true" # (optional) adds 'apply-cmvn' to input feature pipeline, see opts,
 delta_opts= #eg. "--delta-order=2" # (optional) adds 'add-deltas' to input feature pipeline, see opts,
 splice_opts= #eg. "--left-context=4 --right-context=4"
+global_cmvn_file=
 
 labels=
 
@@ -128,11 +129,19 @@ feats_cv="ark:copy-feats scp:$dir/cv.scp ark:- |"
 
 # optionally add per-speaker CMVN,
 if [ ! -z "$cmvn_opts" ]; then
-  echo "# + 'apply-cmvn' with '$cmvn_opts' using statistics : $data/cmvn.scp, $data_cv/cmvn.scp"
-  [ ! -r $data/cmvn.scp ] && echo "Missing $data/cmvn.scp" && exit 1;
-  [ ! -r $data_cv/cmvn.scp ] && echo "Missing $data_cv/cmvn.scp" && exit 1;
-  feats_tr="$feats_tr apply-cmvn $cmvn_opts --utt2spk=ark:$data/utt2spk scp:$data/cmvn.scp ark:- ark:- |"
-  feats_cv="$feats_cv apply-cmvn $cmvn_opts --utt2spk=ark:$data_cv/utt2spk scp:$data_cv/cmvn.scp ark:- ark:- |"
+  if [ ! -z $global_cmvn_file ]; then
+    [ -z $global_cmvn_file ] && echo "Using global cmvn config, but missing global cmvn file"
+    echo "# + 'apply-cmvn' with '$cmvn_opts' using statistics : $global_cmvn_file"
+    feats_tr="$feats_tr apply-cmvn $cmvn_opts $global_cmvn_file ark:- ark:- |"
+    feats_cv="$feats_cv apply-cmvn $cmvn_opts $global_cmvn_file ark:- ark:- |"
+    echo "$global_cmvn_file" > $dir/global_cmvn_opts
+  else
+    echo "# + 'apply-cmvn' with '$cmvn_opts' using statistics : $data/cmvn.scp, $data_cv/cmvn.scp"
+    [ ! -r $data/cmvn.scp ] && echo "Missing $data/cmvn.scp" && exit 1;
+    [ ! -r $data_cv/cmvn.scp ] && echo "Missing $data_cv/cmvn.scp" && exit 1;
+    feats_tr="$feats_tr apply-cmvn $cmvn_opts --utt2spk=ark:$data/utt2spk scp:$data/cmvn.scp ark:- ark:- |"
+    feats_cv="$feats_cv apply-cmvn $cmvn_opts --utt2spk=ark:$data_cv/utt2spk scp:$data_cv/cmvn.scp ark:- ark:- |"
+  fi
 else
   echo "# 'apply-cmvn' is not used,"
 fi

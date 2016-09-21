@@ -10,10 +10,7 @@ LDLIBS += $(CUDA_LDLIBS)
 
 TESTFILES = roc-test
 
-OBJFILES = vad.o energy-vad.o nnet-vad.o
-
-BINFILES = aslp-ali-to-sil aslp-select-frames \
-           aslp-eval-gmm-vad aslp-eval-nn-vad aslp-apply-nn-vad
+OBJFILES = vad.o energy-vad.o nnet-vad.o feature-spectrum.o
 
 LIBNAME = aslp-vad
 
@@ -27,4 +24,3 @@ ADDLIBS = ../aslp-nnet/aslp-nnet.a ../aslp-cudamatrix/aslp-cudamatrix.a \
           $(KALDI_DIR)/base/kaldi-base.a
 
 include $(KALDI_DIR)/makefiles/default_rules.mk
-

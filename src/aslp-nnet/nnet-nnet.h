@@ -125,7 +125,10 @@ class Nnet {
   /// set sequence length in LSTM multi-stream training
   void SetSeqLengths(const std::vector<int32> &sequence_lengths);
 
+  /// Set chunk size for latency control BLSTM training
+  void SetChunkSize(int chunk_size);
   /// Initialize MLP from config
+  //
   void Init(const std::string &config_file);
   /// Read the MLP from file (can add layers to exisiting instance of Nnet)
   void Read(const std::string &file);
@@ -133,8 +136,10 @@ class Nnet {
   void Read(std::istream &in, bool binary);
   /// Write MLP to file
   void Write(const std::string &file, bool binary) const;
+  void WriteStandard(const std::string &file, bool binary) const;
   /// Write MLP to stream
   void Write(std::ostream &out, bool binary) const;
+  void WriteStandard(std::ostream &out, bool binary) const;
 
   /// Create string with human readable description of the nnet
   std::string Info() const;

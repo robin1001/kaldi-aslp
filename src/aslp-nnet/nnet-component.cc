@@ -28,10 +28,14 @@
 #include "aslp-nnet/nnet-various.h"
 #include "aslp-nnet/nnet-lstm-projected-streams.h"
 #include "aslp-nnet/nnet-blstm-projected-streams.h"
+#include "aslp-nnet/nnet-blstm-projected-streams-lc.h"
 
 #include "aslp-nnet/nnet-batch-normalization.h"
 #include "aslp-nnet/nnet-io.h"
 #include "aslp-nnet/nnet-recurrent-component.h"
+#include "aslp-nnet/nnet-row-convolution.h"
+#include "aslp-nnet/nnet-gru-streams.h"
+#include "aslp-nnet/nnet-lstm-couple-if-projected-streams.h"
 
 #include <sstream>
 
@@ -45,6 +49,7 @@ const struct Component::key_value Component::kMarkerMap[] = {
   { Component::kSigmoid,"<Sigmoid>" },
   { Component::kTanh,"<Tanh>" },
   { Component::kDropout,"<Dropout>" },
+  { Component::kReLU,"<ReLU>" },
   // Varios
   { Component::kLengthNormComponent,"<LengthNormComponent>" },
   { Component::kSplice,"<Splice>" },
@@ -58,13 +63,17 @@ const struct Component::key_value Component::kMarkerMap[] = {
   { Component::kMaxPoolingComponent, "<MaxPoolingComponent>"},
   { Component::kLstmProjectedStreams,"<LstmProjectedStreams>"},
   { Component::kBLstmProjectedStreams,"<BLstmProjectedStreams>"},
-  // Aslp
+  // Aslp extented component
   { Component::kBatchNormalization, "<BatchNormalization>"},
   { Component::kInputLayer, "<InputLayer>"},
   { Component::kOutputLayer, "<OutputLayer>"},
   { Component::kScaleLayer, "<ScaleLayer>"},
   { Component::kLstm, "<Lstm>"},
   { Component::kBLstm, "<BLstm>"},
+  { Component::kRowConvolution, "<RowConvolution>"},
+  { Component::kBLstmProjectedStreamsLC, "<BLstmProjectedStreamsLC>"},
+  { Component::kGruStreams, "<GruStreams>"},
+  { Component::kLstmCifgProjectedStreams, "<LstmCifgProjectedStreams>"},
 };
 
 
@@ -126,6 +135,9 @@ Component* Component::NewComponentOfType(ComponentType comp_type,
     case Component::kDropout :
       ans = new Dropout(input_dim, output_dim); 
       break;
+    case Component::kReLU:
+      ans = new ReLU(input_dim, output_dim); 
+      break;
     case Component::kLengthNormComponent :
       ans = new LengthNormComponent(input_dim, output_dim); 
       break;
@@ -162,6 +174,18 @@ Component* Component::NewComponentOfType(ComponentType comp_type,
       break;
     case Component::kBLstm:
       ans = new BLstm(input_dim, output_dim);
+      break;
+    case Component::kRowConvolution:
+      ans = new RowConvolution(input_dim, output_dim);
+      break;
+    case Component::kBLstmProjectedStreamsLC:
+      ans = new BLstmProjectedStreamsLC(input_dim, output_dim);
+      break;
+    case Component::kGruStreams:
+      ans = new GruStreams(input_dim, output_dim);
+      break;
+    case Component::kLstmCifgProjectedStreams:
+      ans = new LstmCifgProjectedStreams(input_dim, output_dim);
       break;
     case Component::kUnknown :
     default :
@@ -270,6 +294,13 @@ void Component::Write(std::ostream &os, bool binary) const {
   this->WriteData(os, binary);
 }
 
+void Component::WriteStandard(std::ostream &os, bool binary) const {
+  WriteToken(os, binary, Component::TypeToMarker(GetType()));
+  WriteBasicType(os, binary, OutputDim());
+  WriteBasicType(os, binary, InputDim());
+  if(!binary) os << "\n";
+  this->WriteData(os, binary);
+}
 
 } // namespace aslp_nnet
 } // namespace kaldi

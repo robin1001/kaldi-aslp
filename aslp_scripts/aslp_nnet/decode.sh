@@ -28,6 +28,7 @@ scoring_opts="--min-lmwt 4 --max-lmwt 15"
 
 num_threads=1 # if >1, will use latgen-faster-parallel
 parallel_opts=   # Ignored now.
+decode_opts=
 use_gpu="no" # yes|no|optionaly
 # End configuration section.
 
@@ -103,13 +104,19 @@ D=$srcdir
 [ -e $D/delta_order ] && delta_opts="--delta-order=$(cat $D/delta_order)" # Bwd-compatibility,
 [ -e $D/delta_opts ] && delta_opts=$(cat $D/delta_opts)
 [ -e $D/splice_opts ] && splice_opts=$(cat $D/splice_opts)
+[ -e $D/global_cmvn_opts ] && global_cmvn_file=$(cat $D/global_cmvn_opts)
 
 #
 # Create the feature stream,
 feats="ark,s,cs:copy-feats scp:$sdata/JOB/feats.scp ark:- |"
 # apply-cmvn (optional),
-[ ! -z "$cmvn_opts" -a ! -f $sdata/1/cmvn.scp ] && echo "$0: Missing $sdata/1/cmvn.scp" && exit 1
-[ ! -z "$cmvn_opts" ] && feats="$feats apply-cmvn $cmvn_opts --utt2spk=ark:$sdata/JOB/utt2spk scp:$sdata/JOB/cmvn.scp ark:- ark:- |"
+if [ ! -z $global_cmvn_file ]; then 
+    [ ! -z "$cmvn_opts" -a ! -f $global_cmvn_file ] && echo "$0: Missing $global_cmvn_file" && exit 1
+    [ ! -z "$cmvn_opts" ] && feats="$feats apply-cmvn $cmvn_opts $global_cmvn_file ark:- ark:- |"
+else
+    [ ! -z "$cmvn_opts" -a ! -f $sdata/1/cmvn.scp ] && echo "$0: Missing $sdata/1/cmvn.scp" && exit 1
+    [ ! -z "$cmvn_opts" ] && feats="$feats apply-cmvn $cmvn_opts --utt2spk=ark:$sdata/JOB/utt2spk scp:$sdata/JOB/cmvn.scp ark:- ark:- |"
+fi
 # add-deltas (optional),
 [ ! -z "$delta_opts" ] && feats="$feats add-deltas $delta_opts ark:- ark:- |"
 # add splice (optional)
@@ -119,7 +126,7 @@ feats="ark,s,cs:copy-feats scp:$sdata/JOB/feats.scp ark:- |"
 if [ $stage -le 0 ]; then
   $cmd --num-threads $((num_threads+1)) JOB=1:$nj $dir/log/decode.JOB.log \
     $forward_tool $nnet_forward_opts --class-frame-counts=$class_frame_counts --use-gpu=$use_gpu "$nnet" "$feats" ark:- \| \
-    latgen-faster-mapped$thread_string --min-active=$min_active --max-active=$max_active --max-mem=$max_mem --beam=$beam \
+    latgen-faster-mapped$thread_string $decode_opts -min-active=$min_active --max-active=$max_active --max-mem=$max_mem --beam=$beam \
     --lattice-beam=$lattice_beam --acoustic-scale=$acwt --allow-partial=true --word-symbol-table=$graphdir/words.txt \
     $model $graphdir/HCLG.fst ark:- "ark:|gzip -c > $dir/lat.JOB.gz" || exit 1;
 fi

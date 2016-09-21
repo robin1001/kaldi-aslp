@@ -64,6 +64,7 @@ class Component {
     kSigmoid,
     kTanh,
     kDropout,
+    kReLU,
     kLengthNormComponent,
 
     kTranform = 0x0400,
@@ -91,7 +92,11 @@ class Component {
     kOutputLayer,
     kScaleLayer,
     kLstm,
-    kBLstm
+    kBLstm,
+    kRowConvolution,
+    kBLstmProjectedStreamsLC,
+    kGruStreams,
+    kLstmCifgProjectedStreams
   } ComponentType;
   /// A pair of type and marker 
   struct key_value {
@@ -171,6 +176,8 @@ class Component {
   static Component* Read(std::istream &is, bool binary);
   /// Write component to stream
   void Write(std::ostream &os, bool binary) const;
+  // Wirte standard simple feedforward nnet, without id, input idx & offset_idx
+  void WriteStandard(std::ostream &os, bool binary) const;
 
   /// Optionally print some additional info
   virtual std::string Info() const { return ""; }

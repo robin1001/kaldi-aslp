@@ -45,7 +45,14 @@ public:
                Vector<BaseFloat> *vad_wav);
     // DoVad input:wav, feat already prepared out:feat
     bool DoVad(const Matrix<BaseFloat> &raw_feat,
-               Matrix<BaseFloat> *vad_feat);
+               Matrix<BaseFloat> *vad_feat = NULL);
+    // Score every frame then return score on silence for every frame
+    const std::vector<float>& Score(const Matrix<BaseFloat> &raw_feat) {
+        sil_score_.resize(raw_feat.NumRows()); 
+        // get nnet score
+        GetScore(raw_feat);
+        return sil_score_;
+    }
 protected:
     std::vector<float> sil_score_;
     const Nnet &nnet_;

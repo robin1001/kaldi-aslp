@@ -134,13 +134,36 @@ public:
         if (XsharpO_.NumRows() != batch_size) {
             XsharpO_.Resize(batch_size, output_dim_);
         }
-        // \delta <- 1/m \sum (x_i - mu)^2
-        XsharpO_.CopyFromMat(in);
-        XsharpO_.AddVecToRows(-1.0, mean_vec_, 1.0);
-        XsharpO_.MulColsVec(var_vec_);
-        out->CopyFromMat(XsharpO_);
-        out->MulColsVec(scale_);
-        out->AddVecToRows(1.0, shift_, 1.0);
+       
+        // If num_acc_frames_ greater than zero, use global acc stats
+        // else use local acc stats
+        // In particular when we in parallel training, we can't get the global stats
+        if (num_acc_frames_ <= 0) { // use local stats, calculate local stats
+            // \mu <- 1/m \sum x_i
+            mean_vec_.AddRowSumMat(1.0 / (batch_size), in, 0.0);
+            // \delta <- 1/m \sum (x_i - mu)^2
+            XsharpO_.CopyFromMat(in);
+            XsharpO_.AddVecToRows(-1.0, mean_vec_, 1.0);
+            out->AddMatMatElements(1.0, XsharpO_, XsharpO_, 0.0);
+            var_vec_.AddRowSumMat(1.0 / (batch_size), *out, 0.0);
+            /// out <- (x - \mu) / \sqrt(\delta^2) ;
+            var_vec_.Add(var_floor_);
+            var_vec_.ApplyPow(0.5);
+            var_vec_.InvertElements();
+            XsharpO_.MulColsVec(var_vec_);
+            out->CopyFromMat(XsharpO_);
+            /// 
+            out->MulColsVec(scale_);
+            out->AddVecToRows(1.0, shift_, 1.0);
+        }
+        else { // use global acc
+            XsharpO_.CopyFromMat(in);
+            XsharpO_.AddVecToRows(-1.0, mean_vec_, 1.0);
+            XsharpO_.MulColsVec(var_vec_);
+            out->CopyFromMat(XsharpO_);
+            out->MulColsVec(scale_);
+            out->AddVecToRows(1.0, shift_, 1.0);
+        }
     }
 
     void PropagateFnc(const CuMatrixBase<BaseFloat> &in, CuMatrixBase<BaseFloat> *out) {
@@ -254,7 +277,6 @@ public:
  private:
 	CuMatrix<BaseFloat> XsharpO_;
 	CuMatrix<BaseFloat> bufE_;
-	CuVector<BaseFloat> acc_mean_vec_, acc_var_vec_;
 	CuVector<BaseFloat> mean_vec_, dmean_vec_;
 	CuVector<BaseFloat> var_vec_, dvar_vec_;
 	CuVector<BaseFloat> scale_, dscale_;

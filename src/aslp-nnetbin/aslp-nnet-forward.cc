@@ -37,9 +37,9 @@ int main(int argc, char *argv[]) {
     const char *usage =
         "Perform forward pass through Neural Network.\n"
         "\n"
-        "Usage:  nnet-forward [options] <model-in> <feature-rspecifier> <feature-wspecifier>\n"
+        "Usage:  aslp-nnet-forward [options] <model-in> <feature-rspecifier> <feature-wspecifier>\n"
         "e.g.: \n"
-        " nnet-forward nnet ark:features.ark ark:mlpoutput.ark\n";
+        " aslp-nnet-forward nnet ark:features.ark ark:mlpoutput.ark\n";
 
     ParseOptions po(usage);
 

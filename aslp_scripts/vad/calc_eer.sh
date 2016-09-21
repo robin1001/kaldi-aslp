@@ -17,7 +17,7 @@ awk '{
     fp=$(NF-2); 
     if (tn>fp) diff=tn-fp; 
     else diff=fp-tn; 
-    print "EER", (fp+tn)/2, "5", $6, $7, $8, "FP", fp, "TN", tn, "DIFF", diff; 
+    print "EER", (fp+tn)/2, $5, $6, $7, $8, "FP", fp, "TN", tn, "DIFF", diff; 
 }' | \
 sort -k12 -n | head
 

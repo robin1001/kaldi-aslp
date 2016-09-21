@@ -26,7 +26,11 @@
 #include "aslp-nnet/nnet-various.h"
 #include "aslp-nnet/nnet-lstm-projected-streams.h"
 #include "aslp-nnet/nnet-blstm-projected-streams.h"
+#include "aslp-nnet/nnet-blstm-projected-streams-lc.h"
 #include "aslp-nnet/nnet-recurrent-component.h"
+#include "aslp-nnet/nnet-row-convolution.h"
+#include "aslp-nnet/nnet-gru-streams.h"
+#include "aslp-nnet/nnet-lstm-couple-if-projected-streams.h"
 
 namespace kaldi {
 namespace aslp_nnet {
@@ -444,6 +448,18 @@ void Nnet::ResetLstmStreams(const std::vector<int32> &stream_reset_flag) {
       Lstm& comp = dynamic_cast<Lstm&>(GetComponent(c));
       comp.ResetLstmStreams(stream_reset_flag);
     }
+    else if (GetComponent(c).GetType() == Component::kBLstmProjectedStreamsLC) {
+      BLstmProjectedStreamsLC& comp = dynamic_cast<BLstmProjectedStreamsLC&>(GetComponent(c));
+      comp.ResetLstmStreams(stream_reset_flag);
+    }
+    else if (GetComponent(c).GetType() == Component::kGruStreams) {
+      GruStreams& comp = dynamic_cast<GruStreams&>(GetComponent(c));
+      comp.ResetLstmStreams(stream_reset_flag);
+    }
+    else if (GetComponent(c).GetType() == Component::kLstmCifgProjectedStreams) {
+      LstmCifgProjectedStreams& comp = dynamic_cast<LstmCifgProjectedStreams&>(GetComponent(c));
+      comp.ResetLstmStreams(stream_reset_flag);
+    }
   }
 }
 
@@ -464,6 +480,27 @@ void Nnet::SetSeqLengths(const std::vector<int32> &sequence_lengths) {
     else if (GetComponent(c).GetType() == Component::kLstm) {
       Lstm &comp = dynamic_cast<Lstm&>(GetComponent(c));
       comp.SetSeqLengths(sequence_lengths);
+    }
+    else if (GetComponent(c).GetType() == Component::kRowConvolution) {
+      RowConvolution &comp = dynamic_cast<RowConvolution&>(GetComponent(c));
+      comp.SetSeqLengths(sequence_lengths);
+    }
+    else if (GetComponent(c).GetType() == Component::kGruStreams) {
+      GruStreams &comp = dynamic_cast<GruStreams&>(GetComponent(c));
+      comp.SetSeqLengths(sequence_lengths);
+    }
+    else if (GetComponent(c).GetType() == Component::kLstmCifgProjectedStreams) {
+      LstmCifgProjectedStreams &comp = dynamic_cast<LstmCifgProjectedStreams&>(GetComponent(c));
+      comp.SetSeqLengths(sequence_lengths);
+    }
+  }
+}
+
+void Nnet::SetChunkSize(int chunk_size) {
+  for (int32 c=0; c < NumComponents(); c++) {
+    if (GetComponent(c).GetType() == Component::kBLstmProjectedStreamsLC) {
+      BLstmProjectedStreamsLC& comp = dynamic_cast<BLstmProjectedStreamsLC&>(GetComponent(c));
+      comp.SetChunkSize(chunk_size);
     }
   }
 }
@@ -576,13 +613,11 @@ void Nnet::Read(std::istream &is, bool binary) {
   Check(); //check consistency (dims...)
 }
 
-
 void Nnet::Write(const std::string &file, bool binary) const {
   Output out(file, binary, true);
   Write(out.Stream(), binary);
   out.Close();
 }
-
 
 void Nnet::Write(std::ostream &os, bool binary) const {
   Check();
@@ -595,6 +630,24 @@ void Nnet::Write(std::ostream &os, bool binary) const {
   if(binary == false) os << std::endl;
 }
 
+void Nnet::WriteStandard(const std::string &file, bool binary) const {
+  Output out(file, binary, true);
+  Write(out.Stream(), binary);
+  out.Close();
+}
+
+void Nnet::WriteStandard(std::ostream &os, bool binary) const {
+  Check();
+  WriteToken(os, binary, "<Nnet>");
+  if(binary == false) os << std::endl;
+  for(int32 i=0; i<NumComponents(); i++) {
+    if (components_[i]->GetType() == Component::kInputLayer || 
+        components_[i]->GetType() == Component::kOutputLayer) continue;
+    components_[i]->WriteStandard(os, binary);
+  }
+  WriteToken(os, binary, "</Nnet>");  
+  if(binary == false) os << std::endl;
+}
 
 std::string Nnet::Info() const {
   // global info
