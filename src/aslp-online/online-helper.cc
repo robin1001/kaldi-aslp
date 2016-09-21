@@ -1,4 +1,4 @@
-#include "aslp-online/aslp-online-helper.h"
+#include "aslp-online/online-helper.h"
 
 namespace kaldi {
 namespace aslp_online {

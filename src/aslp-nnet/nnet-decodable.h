@@ -155,6 +155,11 @@ public:
     virtual void GetFrame(int t, VectorBase<BaseFloat> *feat) const {
         features_->GetFrame(t, feat);
     }
+
+    void ResetFeature(OnlineFeatureInterface *feat) {
+        features_ = feat;
+    }
+
 private:
     OnlineFeatureInterface *features_;
     KALDI_DISALLOW_COPY_AND_ASSIGN(NnetDecodableOnline);

@@ -109,7 +109,9 @@ public:
     /// decoder_.InitDecoding().
     /// The feature_pipeline_ should be freed out of this class if necessary.
     void ResetDecoder(OnlineFeatureInterface *new_feat_interface) {
+        KALDI_ASSERT(new_feat_interface != NULL);
         feature_interface_ = new_feat_interface;
+        decodable_.ResetFeature(feature_interface_);
         decoder_.InitDecoding();
     }
 

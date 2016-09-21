@@ -37,7 +37,7 @@ MultiUtteranceNnetDecoder::MultiUtteranceNnetDecoder(
     config_(config),
     feature_interface_(feature_interface),
     tmodel_(tmodel),
-    decodable_(model, log_prior, tmodel, config.decodable_opts, feature_interface),
+    decodable_(model, log_prior, tmodel, config.decodable_opts, feature_interface_),
     decoder_(fst, config.decoder_opts) {
         decoder_.InitDecoding();
 }
