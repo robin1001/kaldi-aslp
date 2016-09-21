@@ -26,8 +26,11 @@
 #include "aslp-nnet/nnet-various.h"
 #include "aslp-nnet/nnet-lstm-projected-streams.h"
 #include "aslp-nnet/nnet-blstm-projected-streams.h"
+#include "aslp-nnet/nnet-blstm-projected-streams-lc.h"
 #include "aslp-nnet/nnet-recurrent-component.h"
 #include "aslp-nnet/nnet-row-convolution.h"
+#include "aslp-nnet/nnet-gru-streams.h"
+#include "aslp-nnet/nnet-lstm-couple-if-projected-streams.h"
 
 namespace kaldi {
 namespace aslp_nnet {
@@ -445,6 +448,18 @@ void Nnet::ResetLstmStreams(const std::vector<int32> &stream_reset_flag) {
       Lstm& comp = dynamic_cast<Lstm&>(GetComponent(c));
       comp.ResetLstmStreams(stream_reset_flag);
     }
+    else if (GetComponent(c).GetType() == Component::kBLstmProjectedStreamsLC) {
+      BLstmProjectedStreamsLC& comp = dynamic_cast<BLstmProjectedStreamsLC&>(GetComponent(c));
+      comp.ResetLstmStreams(stream_reset_flag);
+    }
+    else if (GetComponent(c).GetType() == Component::kGruStreams) {
+      GruStreams& comp = dynamic_cast<GruStreams&>(GetComponent(c));
+      comp.ResetLstmStreams(stream_reset_flag);
+    }
+    else if (GetComponent(c).GetType() == Component::kLstmCifgProjectedStreams) {
+      LstmCifgProjectedStreams& comp = dynamic_cast<LstmCifgProjectedStreams&>(GetComponent(c));
+      comp.ResetLstmStreams(stream_reset_flag);
+    }
   }
 }
 
@@ -469,6 +484,23 @@ void Nnet::SetSeqLengths(const std::vector<int32> &sequence_lengths) {
     else if (GetComponent(c).GetType() == Component::kRowConvolution) {
       RowConvolution &comp = dynamic_cast<RowConvolution&>(GetComponent(c));
       comp.SetSeqLengths(sequence_lengths);
+    }
+    else if (GetComponent(c).GetType() == Component::kGruStreams) {
+      GruStreams &comp = dynamic_cast<GruStreams&>(GetComponent(c));
+      comp.SetSeqLengths(sequence_lengths);
+    }
+    else if (GetComponent(c).GetType() == Component::kLstmCifgProjectedStreams) {
+      LstmCifgProjectedStreams &comp = dynamic_cast<LstmCifgProjectedStreams&>(GetComponent(c));
+      comp.SetSeqLengths(sequence_lengths);
+    }
+  }
+}
+
+void Nnet::SetChunkSize(int chunk_size) {
+  for (int32 c=0; c < NumComponents(); c++) {
+    if (GetComponent(c).GetType() == Component::kBLstmProjectedStreamsLC) {
+      BLstmProjectedStreamsLC& comp = dynamic_cast<BLstmProjectedStreamsLC&>(GetComponent(c));
+      comp.SetChunkSize(chunk_size);
     }
   }
 }

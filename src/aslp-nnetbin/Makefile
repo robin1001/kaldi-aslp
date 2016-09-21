@@ -21,7 +21,21 @@ BINFILES = aslp-nnet-info aslp-nnet-init \
          aslp-nnet-train-lstm-streams-skip \
          aslp-nnet-copy \
          aslp-nnet-train-mse \
-         aslp-nnet-convert-to-standard
+         aslp-nnet-convert-to-standard \
+		 aslp-nnet-train-blstm-streams-lc \
+		 aslp-nnet-forward-blstm-lc
+
+#        nnet-train-perutt \
+#        nnet-train-mmi-sequential \
+#        nnet-train-mpe-sequential \
+#        nnet-train-lstm-streams nnet-train-blstm-streams \
+#        rbm-train-cd1-frmshuff rbm-convert-to-nnet \
+#        nnet-forward nnet-copy nnet-info nnet-concat \
+#        transf-to-nnet cmvn-to-nnet nnet-initialize \
+#        nnet-kl-hmm-acc nnet-kl-hmm-mat-to-component \
+#	feat-to-post paste-post train-transitions \
+#	cuda-gpu-available
+
 
 ifeq ($(USE_WARP_CTC), true)
     BINFILES += aslp-nnet-train-warp-ctc-streams

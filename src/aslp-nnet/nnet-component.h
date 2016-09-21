@@ -93,7 +93,10 @@ class Component {
     kScaleLayer,
     kLstm,
     kBLstm,
-    kRowConvolution
+    kRowConvolution,
+    kBLstmProjectedStreamsLC,
+    kGruStreams,
+    kLstmCifgProjectedStreams
   } ComponentType;
   /// A pair of type and marker 
   struct key_value {

@@ -28,11 +28,14 @@
 #include "aslp-nnet/nnet-various.h"
 #include "aslp-nnet/nnet-lstm-projected-streams.h"
 #include "aslp-nnet/nnet-blstm-projected-streams.h"
+#include "aslp-nnet/nnet-blstm-projected-streams-lc.h"
 
 #include "aslp-nnet/nnet-batch-normalization.h"
 #include "aslp-nnet/nnet-io.h"
 #include "aslp-nnet/nnet-recurrent-component.h"
 #include "aslp-nnet/nnet-row-convolution.h"
+#include "aslp-nnet/nnet-gru-streams.h"
+#include "aslp-nnet/nnet-lstm-couple-if-projected-streams.h"
 
 #include <sstream>
 
@@ -60,7 +63,7 @@ const struct Component::key_value Component::kMarkerMap[] = {
   { Component::kMaxPoolingComponent, "<MaxPoolingComponent>"},
   { Component::kLstmProjectedStreams,"<LstmProjectedStreams>"},
   { Component::kBLstmProjectedStreams,"<BLstmProjectedStreams>"},
-  // Aslp
+  // Aslp extented component
   { Component::kBatchNormalization, "<BatchNormalization>"},
   { Component::kInputLayer, "<InputLayer>"},
   { Component::kOutputLayer, "<OutputLayer>"},
@@ -68,6 +71,9 @@ const struct Component::key_value Component::kMarkerMap[] = {
   { Component::kLstm, "<Lstm>"},
   { Component::kBLstm, "<BLstm>"},
   { Component::kRowConvolution, "<RowConvolution>"},
+  { Component::kBLstmProjectedStreamsLC, "<BLstmProjectedStreamsLC>"},
+  { Component::kGruStreams, "<GruStreams>"},
+  { Component::kLstmCifgProjectedStreams, "<LstmCifgProjectedStreams>"},
 };
 
 
@@ -171,6 +177,15 @@ Component* Component::NewComponentOfType(ComponentType comp_type,
       break;
     case Component::kRowConvolution:
       ans = new RowConvolution(input_dim, output_dim);
+      break;
+    case Component::kBLstmProjectedStreamsLC:
+      ans = new BLstmProjectedStreamsLC(input_dim, output_dim);
+      break;
+    case Component::kGruStreams:
+      ans = new GruStreams(input_dim, output_dim);
+      break;
+    case Component::kLstmCifgProjectedStreams:
+      ans = new LstmCifgProjectedStreams(input_dim, output_dim);
       break;
     case Component::kUnknown :
     default :

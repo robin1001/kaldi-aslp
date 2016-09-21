@@ -125,7 +125,10 @@ class Nnet {
   /// set sequence length in LSTM multi-stream training
   void SetSeqLengths(const std::vector<int32> &sequence_lengths);
 
+  /// Set chunk size for latency control BLSTM training
+  void SetChunkSize(int chunk_size);
   /// Initialize MLP from config
+  //
   void Init(const std::string &config_file);
   /// Read the MLP from file (can add layers to exisiting instance of Nnet)
   void Read(const std::string &file);

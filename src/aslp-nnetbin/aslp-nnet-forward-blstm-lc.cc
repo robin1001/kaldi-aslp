@@ -1,7 +1,7 @@
-// nnetbin/nnet-forward.cc
+// aslp-nnetbin/aslp-nnet-forward-blstm-lc.cc
 
 // Copyright 2011-2013  Brno University of Technology (Author: Karel Vesely)
-// Copyright 2016  ASLP (Author: zhangbinbin liwenpeng duwei)
+// Copyright 2016  ASLP (Author: liwenpeng zhangbinbin duwei)
 
 // See ../../COPYING for clarification regarding multiple authors
 //
@@ -33,18 +33,29 @@ int main(int argc, char *argv[]) {
   using namespace kaldi;
   using namespace kaldi::aslp_nnet;
   typedef kaldi::int32 int32;
+
   try {
     const char *usage =
-        "Perform forward pass through Neural Network.\n"
+        "Perform forward pass for Latency Control BLSTM through Neural Network.\n"
         "\n"
-        "Usage:  aslp-nnet-forward [options] <model-in> <feature-rspecifier> <feature-wspecifier>\n"
+        "Usage:  aslp-nnet-forward-blstm-lc [options] <model-in> <feature-rspecifier> <feature-wspecifier>\n"
         "e.g.: \n"
-        " aslp-nnet-forward nnet ark:features.ark ark:mlpoutput.ark\n";
+        " aslp-nnet-forward-blstm-lc nnet ark:features.ark ark:mlpoutput.ark\n";
 
     ParseOptions po(usage);
 
     PdfPriorOptions prior_opts;
     prior_opts.Register(&po);
+	
+	int32 chunk_size = 64;
+	po.Register("chunk-size", &chunk_size, "---BLSTM--- Latency-controlled BPTT chunk size, must be same with training");
+	
+	int32 right_splice = 16;
+	po.Register("right-splice", &right_splice, "---BLSTM--- Latency-controlled BPTT right context size, must be same with training");
+
+	// ---BLSTM--- Latency-controlled BPTT batch size
+	int32 batch_size;
+	batch_size = chunk_size + right_splice;
 
     std::string feature_transform;
     po.Register("feature-transform", &feature_transform, "Feature transform in front of main network (in nnet format)");
@@ -56,16 +67,6 @@ int main(int argc, char *argv[]) {
 
     std::string use_gpu="no";
     po.Register("use-gpu", &use_gpu, "yes|no|optional, only has effect if compiled with CUDA"); 
-
-    bool add_softmax = false;
-    po.Register("add-softmax", &add_softmax, "add softmax calulation for warp-ctc training");
-
-    int32 time_shift = 0;
-    po.Register("time-shift", &time_shift, "LSTM : repeat last input frame N-times, discrad N initial output frames."); 
-    float scale_blank = 0.0;
-    po.Register("scale-blank", &scale_blank, "scale the blank posterior for CTC decoding"); 
-    int skip_width = 0;
-    po.Register("skip-width", &skip_width, "num of frame for one skip(default 0, not use skip)");
 
     po.Read(argc, argv);
 
@@ -112,20 +113,25 @@ int main(int argc, char *argv[]) {
     // disable dropout,
     nnet_transf.SetDropoutRetention(1.0);
     nnet.SetDropoutRetention(1.0);
+    // set chunk_size for latency control blstm
+    nnet.SetChunkSize(chunk_size);
 
     kaldi::int64 tot_t = 0;
 
     SequentialBaseFloatMatrixReader feature_reader(feature_rspecifier);
     BaseFloatMatrixWriter feature_writer(feature_wspecifier);
 
-    CuMatrix<BaseFloat> feats, feats_transf, nnet_out;
-    CuMatrix<BaseFloat> skip_feat, skip_out;
+    CuMatrix<BaseFloat> feats, feats_transf, nnet_in, nnet_out, nnet_out_chunk;
     Matrix<BaseFloat> nnet_out_host;
-
+	
+	int32 feat_dim = nnet.InputDim();
+	int32 out_dim = nnet.OutputDim();
 
     Timer time;
-    double time_now = 0;
+	std::string utt;
+	double time_now = 0;
     int32 num_done = 0;
+
     // iterate over all feature files
     for (; !feature_reader.Done(); feature_reader.Next()) {
       // read
@@ -134,21 +140,11 @@ int main(int argc, char *argv[]) {
       KALDI_VLOG(2) << "Processing utterance " << num_done+1 
                     << ", " << utt
                     << ", " << mat.NumRows() << "frm";
-
-      
+ 
       if (!KALDI_ISFINITE(mat.Sum())) { // check there's no nan/inf,
         KALDI_ERR << "NaN or inf found in features for " << utt;
       }
 
-      // time-shift, copy the last frame of LSTM input N-times,
-      if (time_shift > 0) {
-        int32 last_row = mat.NumRows() - 1; // last row,
-        mat.Resize(mat.NumRows() + time_shift, mat.NumCols(), kCopyData);
-        for (int32 r = last_row+1; r<mat.NumRows(); r++) {
-          mat.CopyRowFromVec(mat.Row(last_row), r); // copy last row,
-        }
-      }
-      
       // push it to gpu,
       feats = mat;
 
@@ -157,38 +153,29 @@ int main(int argc, char *argv[]) {
       if (!KALDI_ISFINITE(feats_transf.Sum())) { // check there's no nan/inf,
         KALDI_ERR << "NaN or inf found in transformed-features for " << utt;
       }
-      std::vector<int> frame_num_utt;
-      // Use skip prediction
-      if (skip_width > 1) {
-        int skip_len = (feats_transf.NumRows() - 1) / skip_width + 1;
-        skip_feat.Resize(skip_len, feats_transf.NumCols()); 
-        for (int i = 0; i < skip_len; i++) {
-          skip_feat.Row(i).CopyFromVec(feats_transf.Row(i * skip_width));
-        }
-        frame_num_utt.push_back(skip_feat.NumRows());
-        nnet.SetSeqLengths(frame_num_utt);
-        nnet.Feedforward(skip_feat, &skip_out);
-        nnet_out.Resize(feats_transf.NumRows(), skip_out.NumCols());
-        for (int i = 0; i < skip_len; i++) {
-          for (int j = 0; j < skip_width; j++) {
-            int idx = i * skip_width + j;
-            if (idx < nnet_out.NumRows()) {
-              nnet_out.Row(idx).CopyFromVec(skip_out.Row(i));
-            }
-          }
-        }
-      } else {
-        frame_num_utt.push_back(feats_transf.NumRows());
-        nnet.SetSeqLengths(frame_num_utt);
-        // fwd-pass, nnet,
-        nnet.Feedforward(feats_transf, &nnet_out);
+
+	  // for streams with new utterance, history states need to be reset
+      std::vector<int32> reset_flags(1, 1);
+      nnet.ResetLstmStreams(reset_flags);
+
+      int num_frames = feats_transf.NumRows();
+      int num_chunks = (num_frames - 1) / chunk_size + 1;
+      nnet_out.Resize(num_frames, out_dim);
+      nnet_in.Resize(batch_size, feat_dim);
+      // forward in batch for latency control BLSTM
+      for (int i = 0; i < num_chunks; i++) {
+        int offset = i * chunk_size;
+        int len = offset + batch_size < num_frames ? batch_size : num_frames - offset;
+        int copy_len = offset + chunk_size < num_frames ? chunk_size : num_frames - offset;
+        KALDI_ASSERT(len <= batch_size);
+        //KALDI_LOG << i << " " <<  offset << " " << len;
+        nnet_in.RowRange(0, len).CopyFromMat(
+            feats_transf.RowRange(offset, len));
+		nnet.Feedforward(nnet_in, &nnet_out_chunk);
+        nnet_out.RowRange(offset, copy_len).CopyFromMat(
+            nnet_out_chunk.RowRange(0, copy_len));
       }
 
-      // add option softmax for warp-ctc
-      if (add_softmax) {
-          CuMatrix<BaseFloat> tmp_out(nnet_out);
-          nnet_out.ApplySoftMaxPerRow(tmp_out);
-      }
       if (!KALDI_ISFINITE(nnet_out.Sum())) { // check there's no nan/inf,
         KALDI_ERR << "NaN or inf found in nn-output for " << utt;
       }
@@ -204,11 +191,6 @@ int main(int argc, char *argv[]) {
         nnet_out.ApplyLog();
       }
 
-      // scale the blank posterior for CTC decode
-      if (scale_blank > 0.0) {
-        nnet_out.ColRange(0, 1).Add(-scale_blank);
-      }
-     
       // subtract log-priors from log-posteriors or pre-softmax,
       if (prior_opts.class_frame_counts != "") {
         if (nnet_out.Min() >= 0.0 && nnet_out.Max() <= 1.0) {
@@ -222,12 +204,6 @@ int main(int argc, char *argv[]) {
       // download from GPU,
       nnet_out_host.Resize(nnet_out.NumRows(), nnet_out.NumCols());
       nnet_out.CopyToMat(&nnet_out_host);
-
-      // time-shift, remove N first frames of LSTM output,
-      if (time_shift > 0) {
-        Matrix<BaseFloat> tmp(nnet_out_host);
-        nnet_out_host = tmp.RowRange(time_shift, tmp.NumRows() - time_shift);
-      }
 
       // write,
       if (!KALDI_ISFINITE(nnet_out_host.Sum())) { // check there's no nan/inf,
@@ -244,12 +220,13 @@ int main(int argc, char *argv[]) {
       }
       num_done++;
       tot_t += mat.NumRows();
+
     }
-    
-    // final message
-    KALDI_LOG << "Done " << num_done << " files" 
-              << " in " << time.Elapsed()/60 << "min," 
-              << " (fps " << tot_t/time.Elapsed() << ")"; 
+
+		// final message
+	KALDI_LOG << "Done " <<  num_done << "files"
+			  << " in " << time.Elapsed()/60 << "min,"
+			  << " (fps " << tot_t/time.Elapsed() << ")";
 
 #if HAVE_CUDA==1
     if (kaldi::g_kaldi_verbose_level >= 1) {
