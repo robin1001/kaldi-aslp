@@ -1,8 +1,11 @@
 KALDI_DIR = ../../../kaldi/src
 EXTRA_CXXFLAGS = -I$(KALDI_DIR)
 
-# Option make warp-ctc
+# Optional make warp-ctc
 USE_WARP_CTC = false
+
+# Optinal make mpi parallel(aslp-paralle aslp-parallelbin)
+USE_MPI = true
 
 # Optinal make online part, Online depends on crf++, add it's lib and include
 USE_ONLINE = true

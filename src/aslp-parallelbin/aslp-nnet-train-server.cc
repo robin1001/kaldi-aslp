@@ -1,0 +1,89 @@
+// aslp-nnetbin/aslp-nnet-train-server.cc
+
+// Copyright 2016  ASLP (Author: zhangbinbin)
+
+// Created on 2016-08-01
+
+#include "base/kaldi-common.h"
+#include "util/common-utils.h"
+#include "base/timer.h"
+#include "aslp-cudamatrix/cu-device.h"
+
+#include "aslp-nnet/nnet-trnopts.h"
+#include "aslp-nnet/nnet-nnet.h"
+#include "aslp-nnet/nnet-loss.h"
+#include "aslp-nnet/data-reader.h"
+
+#include "aslp-parallel/itf.h"
+#include "aslp-parallel/easgd-server.h"
+
+
+int main(int argc, char *argv[]) {
+    using namespace kaldi;
+    using namespace kaldi::aslp_nnet;
+    typedef kaldi::int32 int32;  
+    try {
+        const char *usage =
+            "Parameter server for training, it can adapt all kinds of wokers,"
+            "eg framewise, sequential and stream training\n"
+            "Usage:  aslp-nnet-train-server [options] <model-in> <model-out>\n"
+            "e.g.: \n"
+            " aslp-nnet-train-server nnet.init nnet.out\n";
+
+        ParseOptions po(usage);
+
+        bool binary = true;
+        po.Register("binary", &binary, "Write output in binary mode");
+        std::string use_gpu="yes";
+        po.Register("use-gpu", &use_gpu, "yes|no|optional, only has effect if compiled with CUDA");
+
+        std::string server_type = "easgd";
+        po.Register("server-type", &server_type, "Server type(easgd)");
+        float alpha = 0.5;
+        po.Register("alpha", &alpha, "Moving rate alpha for easgd server");
+        
+        po.Read(argc, argv);
+
+        if (po.NumArgs() != 2) {
+            po.PrintUsage();
+            exit(1);
+        }
+        std::string model_filename = po.GetArg(1),
+            target_model_filename = po.GetArg(2);
+
+        //Select the GPU
+#if HAVE_CUDA==1
+        CuDevice::Instantiate().SelectGpuId(use_gpu);
+#endif
+        Nnet nnet;
+        nnet.Read(model_filename);
+
+        // Init Server
+        IServer *server = NULL;
+        if (server_type == "easgd") {
+            server = new EasgdServer(alpha);
+        }
+        else {
+            KALDI_ERR << "Unsupported server type: " << server_type;
+        }
+        std::vector<std::pair<BaseFloat *, int> > params;
+        nnet.GetGpuParams(&params);
+        server->InitParam(params);
+        KALDI_LOG << "Mpi cluster info total " << server->NumNodes() 
+                  << " server rank " << server->Rank();
+        
+        // Run loop until all worker finished
+        server->Run();
+
+        nnet.Write(target_model_filename, binary);
+        if (server != NULL) delete server;
+
+#if HAVE_CUDA==1
+        CuDevice::Instantiate().PrintProfile();
+#endif
+        return 0;
+    } catch(const std::exception &e) {
+        std::cerr << e.what();
+        return -1;
+    }
+}
