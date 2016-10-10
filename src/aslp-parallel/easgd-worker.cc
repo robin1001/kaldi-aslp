@@ -47,9 +47,9 @@ bool EasgdWorker::Synchronize(int num_worker_samples) {
     MPI_Status status;
     for (int i = 0; i < server_cpu_params_.size(); i++) {
         MPI_Sendrecv(worker_cpu_params_[i]->Data(), worker_cpu_params_[i]->Dim(), 
-                     MPI_FLOAT, MainNode(), kTagModel,
+                     MPI_FLOAT, MainNode(), i,
                      server_cpu_params_[i]->Data(), server_cpu_params_[i]->Dim(),
-                     MPI_FLOAT, MainNode(), kTagModel,
+                     MPI_FLOAT, MainNode(), i,
                      MPI_COMM_WORLD, &status);
     }
 

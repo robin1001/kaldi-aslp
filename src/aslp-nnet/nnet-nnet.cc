@@ -31,6 +31,7 @@
 #include "aslp-nnet/nnet-row-convolution.h"
 #include "aslp-nnet/nnet-gru-streams.h"
 #include "aslp-nnet/nnet-lstm-couple-if-projected-streams.h"
+#include "aslp-nnet/nnet-batch-normalization.h"
 
 namespace kaldi {
 namespace aslp_nnet {
@@ -311,6 +312,23 @@ void Nnet::GetGpuParams(std::vector<std::pair<BaseFloat *, int> > *params) {
       std::vector<std::pair<BaseFloat *, int> > c_params;
       c.GetGpuParams(&c_params);
       params->insert(params->end(), c_params.begin(), c_params.end());
+    }
+  }
+}
+
+void Nnet::GetAccStats(std::vector<double *> *acc_params, 
+                       std::vector<std::pair<double*, int> > *data_params) {
+  KALDI_ASSERT(acc_params != NULL);
+  KALDI_ASSERT(data_params != NULL);
+  acc_params->clear();
+  data_params->clear();
+  for(int32 i=0; i<components_.size(); i++) {
+    if (GetComponent(i).GetType() == Component::kBatchNormalization) {
+      BatchNormalization& bat_norm = dynamic_cast<BatchNormalization&>(GetComponent(i));
+      std::vector<std::pair<double*, int> > c_params;
+      double *acc_ptr = bat_norm.GetAccStats(&c_params);
+      acc_params->push_back(acc_ptr);
+      data_params->insert(data_params->end(), c_params.begin(), c_params.end());
     }
   }
 }

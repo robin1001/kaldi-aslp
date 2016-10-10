@@ -142,7 +142,36 @@ class Splice: public Component {
 
   void BackpropagateFnc(const CuMatrixBase<BaseFloat> &in, const CuMatrixBase<BaseFloat> &out,
                         const CuMatrixBase<BaseFloat> &out_diff, CuMatrixBase<BaseFloat> *in_diff) {
-    KALDI_ERR << __func__ << "Not implemented!";
+    // KALDI_ERR << __func__ << "Not implemented!";
+    int num_frames = in.NumRows();
+    std::vector<int32> frame_offsets(frame_offsets_.Dim());
+    frame_offsets_.CopyToVec(&frame_offsets);
+    int num_splice = frame_offsets.size();
+    std::vector<std::vector<int32> > indexes(num_splice);
+    for (int32 c = 0; c < num_splice; c++) {
+        indexes[c].resize(num_frames, 0);
+        for (int t = 0; t < num_frames; t++) {
+            int offset = t + frame_offsets[c];
+            if (offset < 0) offset = 0;
+            if (offset >= in.NumRows()) offset = num_frames - 1;
+            indexes[c][t] = offset;
+        }
+    }
+
+    CuMatrix<BaseFloat> temp_mat(in_diff->NumRows(), input_dim_, kUndefined);
+    for (int32 c = 0; c < num_splice; c++) {
+      CuArray<int32> cu_indexes(indexes[c]);
+      CuSubMatrix<BaseFloat> out_diff_part(out_diff, 0, num_frames, 
+                                           c * input_dim_, input_dim_),
+                             in_diff_part(*in_diff, 0, num_frames, 
+                                          0, input_dim_);
+      if (c == 0) {
+        in_diff_part.CopyRows(out_diff_part, cu_indexes);
+      } else {
+        temp_mat.CopyRows(out_diff_part, cu_indexes);
+        in_diff_part.AddMat(1.0, temp_mat);
+      }
+    }
   }
 
  protected:

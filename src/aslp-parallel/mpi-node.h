@@ -7,6 +7,10 @@
 #define ASLP_PARALLEL_MPI_NODE_H_
 
 #include "mpi.h"
+#include "base/kaldi-common.h"
+#include "matrix/matrix-lib.h"
+#include "cudamatrix/cu-matrix.h"
+#include "cudamatrix/cu-vector.h"
 
 namespace kaldi {
 
@@ -14,7 +18,7 @@ namespace kaldi {
 class MpiNode {
 public:
     MpiNode() {
-        int argc;
+        int argc = 0;
         char **argv = NULL;
         MPI_Init(&argc, &argv);
         MPI_Comm_rank(MPI_COMM_WORLD, &rank_);
@@ -68,6 +72,25 @@ public:
                 MPI_SUM, MPI_COMM_WORLD);
         }
 	}
+
+    /// Acc stats for global batch normalization 
+    void ReduceAccStat(const std::vector<double *> &acc_params, 
+                       const std::vector<std::pair<double*, int> > &data_params) {
+        Barrier();
+        for (int i = 0; i < acc_params.size(); i++) {
+            AllReduce(acc_params[i], 1); 
+        }
+
+        for (int i = 0; i < data_params.size(); i++) {
+            CuSubVector<double> gpu_data(data_params[i].first, 
+                                            data_params[i].second);
+            Vector<double> cpu_data(data_params[i].second);
+            cpu_data.CopyFromVec(gpu_data);
+            AllReduce(cpu_data.Data(), cpu_data.Dim());
+            gpu_data.CopyFromVec(cpu_data);
+        }
+    }
+
 
 protected:
     int rank_, num_nodes_;

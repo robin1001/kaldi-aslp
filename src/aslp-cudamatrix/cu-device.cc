@@ -200,6 +200,28 @@ void CuDevice::SelectGpuId(std::string use_gpu) {
   }
 }
 
+void CuDevice::SetGpuId(int n) {
+  cudaError_t e = cudaSetDevice(n);
+  if (e == cudaSuccess) {
+    // create the CUDA context for the thread
+    // get GPU name
+    char name[128];
+    DeviceGetName(name,128,n);
+    // get GPU memory stats
+    int64 free, total;
+    std::string mem_stats;
+    mem_stats = GetFreeMemory(&free, &total);
+    // log
+    KALDI_LOG << "cudaSetDevice(" << n << "): "
+              << name << "\t" << mem_stats;
+    FinalizeActiveGpu();
+  } 
+  else {
+    KALDI_WARN << "Cannot select this device: return code " << e
+               << ", Error message: \"" << cudaGetErrorString(e) << "\"";
+  } 
+}
+
 
 void CuDevice::FinalizeActiveGpu() {
   // The device at this point should have active GPU, so we can query its name

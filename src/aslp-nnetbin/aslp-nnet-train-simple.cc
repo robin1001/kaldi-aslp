@@ -318,7 +318,7 @@ int main(int argc, char *argv[]) {
         total_frames += nnet_in.NumRows();
         // Add by zhangbinbin, date 2016-01-17
         report_frames += nnet_in.NumRows();
-        if (report_frames >= report_period) {
+        if (report_frames >= report_period && report_period > 0) {
           if (objective_function == "xent") {
             KALDI_LOG << xent.Report();
           }
