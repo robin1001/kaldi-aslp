@@ -3,7 +3,7 @@ all:
 include ../aslp.mk
 include $(KALDI_DIR)/kaldi.mk
 
-CXX = mpic++
+CXX = mpicxx
 
 #EXTRA_CXXFLAGS += -I/home/binbinzhang/tools/openmpi/include
 
@@ -12,7 +12,8 @@ LDLIBS += $(CUDA_LDLIBS)
 
 TESTFILES = reduce-barrier-test
 
-OBJFILES = bsp-worker.o easgd-server.o easgd-worker.o bmuf-worker.o
+OBJFILES = bsp-worker.o easgd-server.o easgd-worker.o bmuf-worker.o \
+		   asgd-worker.o asgd-server.o
 
 BINFILES = 
 

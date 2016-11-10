@@ -23,7 +23,8 @@ BINFILES = aslp-nnet-info aslp-nnet-init \
          aslp-nnet-train-mse \
          aslp-nnet-convert-to-standard \
 		 aslp-nnet-train-blstm-streams-lc \
-		 aslp-nnet-forward-blstm-lc
+		 aslp-nnet-forward-blstm-lc \
+         aslp-nnet-train-perutt
 
 #        nnet-train-perutt \
 #        nnet-train-mmi-sequential \

@@ -40,10 +40,10 @@ void EasgdServer::Run() {
     int msg_type, worker_rank;
     while (num_running_workers > 0) {
         // tag 0, msg type 
-        MPI_Recv(&msg_type, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_SOURCE, 
+        MPI_Recv(&msg_type, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, 
             MPI_COMM_WORLD, &status);
         worker_rank = status.MPI_SOURCE;
-        KALDI_LOG << "Worker rank " << worker_rank << " Msg " << msg_type;
+        KALDI_VLOG(2) << "Worker rank " << worker_rank << " Msg " << msg_type;
         switch (msg_type) {
             case kMsgFinished:
                 num_running_workers--;
@@ -69,9 +69,9 @@ void EasgdServer::Update(int worker_rank) {
     MPI_Status status;
     for (int i = 0; i < server_cpu_params_.size(); i++) {
         MPI_Sendrecv(server_cpu_params_[i]->Data(), server_cpu_params_[i]->Dim(), 
-                     MPI_FLOAT, worker_rank, kTagModel,
+                     MPI_FLOAT, worker_rank, i,
                      worker_cpu_params_[i]->Data(), worker_cpu_params_[i]->Dim(),
-                     MPI_FLOAT, worker_rank, kTagModel,
+                     MPI_FLOAT, worker_rank, i,
                      MPI_COMM_WORLD, &status);
     }
     // 3. copy worker_cpu_params_ to worker_gpu_params_

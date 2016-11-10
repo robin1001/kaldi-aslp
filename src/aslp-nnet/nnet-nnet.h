@@ -110,6 +110,9 @@ class Nnet {
   void GetParams(Vector<BaseFloat>* wei_copy) const;
   /// Get the network weights in pair<data *,int>
   void GetGpuParams(std::vector<std::pair<BaseFloat *, int> > *params); 
+  /// Get acc stats info for batch normalizaiton
+  void GetAccStats(std::vector<double *> *acc_params,
+                   std::vector<std::pair<double*, int> > *data_params);
   /// Get the network weights in a supervector
   void GetWeights(Vector<BaseFloat>* wei_copy) const;
   /// Set the network weights from a supervector

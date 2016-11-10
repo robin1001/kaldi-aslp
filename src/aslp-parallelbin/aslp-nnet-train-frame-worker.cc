@@ -1,6 +1,6 @@
 // aslp-nnetbin/aslp-nnet-train-frame-worker.cc
 
-// Copyright 2016  ASLP (Author: zhangbinbin)
+// Copyright 2016  ASLP (Author: Zhang Binbin)
 
 // Created on 2016-08-01
 
@@ -18,6 +18,7 @@
 #include "aslp-parallel/bsp-worker.h"
 #include "aslp-parallel/easgd-worker.h"
 #include "aslp-parallel/bmuf-worker.h"
+#include "aslp-parallel/asgd-worker.h"
 
 
 int main(int argc, char *argv[]) {
@@ -57,7 +58,7 @@ int main(int argc, char *argv[]) {
 
         // for worker
         std::string worker_type = "bsp";
-        po.Register("worker-type", &worker_type, "Worker type(bsp | bmuf | easgd)");
+        po.Register("worker-type", &worker_type, "Worker type(bsp | bmuf | easgd | asgd)");
         float alpha = 0.5;
         po.Register("alpha", &alpha, "Moving rate alpha for easgd worker");
         float bmuf_momentum = 0.9;
@@ -66,6 +67,8 @@ int main(int argc, char *argv[]) {
         po.Register("bmuf-learn-rate", &bmuf_learn_rate, "learn rate for bmuf worker");
         int sync_period = 25600;
         po.Register("sync-period", &sync_period, "number frames for every synchronization");
+        int gpu_id = -1;
+        po.Register("gpu-id", &gpu_id, "selected gpu id, if negative then select automaticly");
         
         po.Read(argc, argv);
 
@@ -80,7 +83,11 @@ int main(int argc, char *argv[]) {
 
         //Select the GPU
 #if HAVE_CUDA==1
-        CuDevice::Instantiate().SelectGpuId(use_gpu);
+        if (gpu_id >= 0) {
+            CuDevice::Instantiate().SetGpuId(gpu_id);
+        } else {
+            CuDevice::Instantiate().SelectGpuId(use_gpu);
+        }
 #endif
         Nnet nnet;
         nnet.Read(model_filename);
@@ -107,6 +114,8 @@ int main(int argc, char *argv[]) {
             worker = new EasgdWorker(alpha);
         } else if (worker_type == "bmuf") {
             worker = new BmufWorker(bmuf_learn_rate, bmuf_momentum);
+        } else if (worker_type == "asgd") {
+            worker = new AsgdWorker();
         } else {
             KALDI_ERR << "Unsupported worker type: " << worker_type;
         }
@@ -143,7 +152,7 @@ int main(int argc, char *argv[]) {
             num_frames_since_last_sync += nnet_in->NumRows();
             // Do Synchronize
             if (num_frames_since_last_sync > sync_period) {
-                KALDI_LOG << "Worker " << worker->Rank() << " synchronize once";
+                KALDI_VLOG(2) << "Worker " << worker->Rank() << " synchronize once";
                 worker->Synchronize(num_frames_since_last_sync);
                 num_frames_since_last_sync = 0;
             }
@@ -157,8 +166,13 @@ int main(int argc, char *argv[]) {
         // Stop worker
         worker->Stop();
 
-        if ((worker_type == "bsp" || worker_type == "bmuf") && 
-                worker->IsMainNode()) {
+        // Acc stats
+        std::vector<double *> acc_params; 
+        std::vector<std::pair<double*, int> > data_params;
+        nnet.GetAccStats(&acc_params, &data_params);
+        worker->ReduceAccStat(acc_params, data_params);
+
+        if (worker->IsMainNode()) {
             nnet.Write(target_model_filename, binary);
         }
 

@@ -117,6 +117,14 @@ public:
         params->push_back(std::make_pair(shift_.Data(), shift_.Dim()));
         params->push_back(std::make_pair(scale_.Data(), scale_.Dim()));
     }
+    
+    // return the pointer of num_acc_frames_;
+    double *GetAccStats(std::vector<std::pair<double *, int> > *params) {
+        params->clear();
+        params->push_back(std::make_pair(acc_means_.Data(), acc_means_.Dim()));
+        params->push_back(std::make_pair(acc_vars_.Data(), acc_vars_.Dim()));
+        return &num_acc_frames_;
+    }
 
     std::string Info() const {
 	    return std::string("\n  batch_normaliztion");

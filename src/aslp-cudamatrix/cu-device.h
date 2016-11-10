@@ -65,7 +65,8 @@ class CuDevice {
   ///  "no"       -- Run on CPU.
   ///  (more comments in cu-device.cc)
   void SelectGpuId(std::string use_gpu);
-
+  /// set gpu id
+  void SetGpuId(int n);
   /// Check if the CUDA GPU is selected for use
   bool Enabled() const {
     return (active_gpu_id_ > -1);

@@ -1,6 +1,6 @@
 // aslp-nnetbin/aslp-nnet-train-server.cc
 
-// Copyright 2016  ASLP (Author: zhangbinbin)
+// Copyright 2016  ASLP (Author: Zhang Binbin)
 
 // Created on 2016-08-01
 
@@ -16,6 +16,7 @@
 
 #include "aslp-parallel/itf.h"
 #include "aslp-parallel/easgd-server.h"
+#include "aslp-parallel/asgd-server.h"
 
 
 int main(int argc, char *argv[]) {
@@ -38,9 +39,11 @@ int main(int argc, char *argv[]) {
         po.Register("use-gpu", &use_gpu, "yes|no|optional, only has effect if compiled with CUDA");
 
         std::string server_type = "easgd";
-        po.Register("server-type", &server_type, "Server type(easgd)");
+        po.Register("server-type", &server_type, "Server type(easgd | asgd)");
         float alpha = 0.5;
         po.Register("alpha", &alpha, "Moving rate alpha for easgd server");
+        int gpu_id = -1;
+        po.Register("gpu-id", &gpu_id, "selected gpu id, if negative then select automaticly");
         
         po.Read(argc, argv);
 
@@ -53,7 +56,11 @@ int main(int argc, char *argv[]) {
 
         //Select the GPU
 #if HAVE_CUDA==1
-        CuDevice::Instantiate().SelectGpuId(use_gpu);
+        if (gpu_id >= 0) {
+            CuDevice::Instantiate().SetGpuId(gpu_id);
+        } else {
+            CuDevice::Instantiate().SelectGpuId(use_gpu);
+        }
 #endif
         Nnet nnet;
         nnet.Read(model_filename);
@@ -62,6 +69,8 @@ int main(int argc, char *argv[]) {
         IServer *server = NULL;
         if (server_type == "easgd") {
             server = new EasgdServer(alpha);
+        } else if (server_type == "asgd") {
+            server = new AsgdServer(alpha);
         }
         else {
             KALDI_ERR << "Unsupported server type: " << server_type;
@@ -74,6 +83,12 @@ int main(int argc, char *argv[]) {
         
         // Run loop until all worker finished
         server->Run();
+
+        // Acc stats
+        std::vector<double *> acc_params; 
+        std::vector<std::pair<double*, int> > data_params;
+        nnet.GetAccStats(&acc_params, &data_params);
+        server->ReduceAccStat(acc_params, data_params);
 
         nnet.Write(target_model_filename, binary);
         if (server != NULL) delete server;
