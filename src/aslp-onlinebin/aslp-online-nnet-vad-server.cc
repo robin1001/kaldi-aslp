@@ -48,7 +48,7 @@ int main(int argc, char *argv[]) {
         PdfPriorOptions prior_config;
         prior_config.Register(&po);
 
-        BaseFloat chunk_length_secs = 0.1;
+        BaseFloat chunk_length_secs = 0.12;
         po.Register("chunk-length", &chunk_length_secs,
                 "Length of chunk size in seconds, that we process.  Set to <= 0 "
                 "to use all input in one chunk.");

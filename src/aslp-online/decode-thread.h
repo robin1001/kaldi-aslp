@@ -16,10 +16,10 @@
 #include "aslp-online/wav-provider.h"
 #include "aslp-online/tcp-server.h"
 #include "aslp-online/vad.h"
-#include "aslp-online/online-vad.h"
 #include "aslp-online/punctuation-processor.h"
 #include "aslp-online/thread-pool.h"
 #include "aslp-online/online-feature-pool.h"
+#include "aslp-online/online-vad-feature-pipeline.h"
 
 
 namespace kaldi {

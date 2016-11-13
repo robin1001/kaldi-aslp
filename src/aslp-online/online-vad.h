@@ -38,8 +38,8 @@ struct OnlineNnetVadOptions : public NnetVadOptions {
 
 
 class OnlineNnetVad : public NnetVad {
-    typedef aslp_nnet::Nnet Nnet;
 public:
+    typedef aslp_nnet::Nnet Nnet;
     // @param chunk_length: accumulate chunk_length seconds feat, and process
     OnlineNnetVad(const Nnet &nnet, 
                   const OnlineNnetVadOptions &online_vad_config, 

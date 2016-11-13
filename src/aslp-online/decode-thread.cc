@@ -174,30 +174,31 @@ void NnetVadDecodeThread::operator() (void *resource) {
         std::vector<BaseFloat> data;
         std::string all_result;
         Matrix<BaseFloat> raw_feat, vad_feat;
-        
+ 
+        // Vad on feats then decode speech frames
+        /* Here we assume that the feature for vad and the feature 
+           for decoder are the same, so the vad out feature is directly used
+           by the decoder
+           OnlineNnetVad has inner buffers that stores the none silence frames
+           when the buffer is full or endpoint detected, it is avaliable in 
+           the following code
+         */
         while (!wav_provider.Done()) {
-            // Read audio
-            int num_read = wav_provider.ReadAudio(chunk_length_, &data);
-            std::cerr << "vad.ReadSpeech() read " << num_read << std::endl;
-            if (num_read == 0) continue;
-            // Feature extraction 
-            SubVector<BaseFloat> wave_part(data.data(), num_read);
-            feature_pipeline->AcceptWaveform(samp_freq_, wave_part);
-            feature_pipeline->GetFeature(&raw_feat);
-            //feature_pool->AcceptFeature(raw_feat);
+            // Read until chunk_length_ seconds speech frames or endpoint detected
+            while (!wav_provider.Done()) {
+                // Read raw pcm audio
+                int num_read = wav_provider.ReadAudio(chunk_length_, &data);
+                std::cerr << "vad.ReadSpeech() read " << num_read << std::endl;
+                if (num_read == 0) continue;
+                // Feature extraction 
+                SubVector<BaseFloat> wave_part(data.data(), num_read);
+                feature_pipeline->AcceptWaveform(samp_freq_, wave_part);
+                feature_pipeline->GetFeature(&raw_feat);
+                bool full = vad.AcceptFeature(raw_feat);
+                if (full || vad.EndpointDetected()) break; 
+            }
 
-            // Do vad 
-            /* Here we assume that the feature for vad and the feature 
-             for decoder are the same, so the vad out feature is directly used
-             by the decoder
-             OnlineNnetVad has inner buffers that stores the none silence frames
-             when the buffer is full or endpoint detected, it is avaliable in 
-             the following code
-            */
-            bool full = vad.AcceptFeature(raw_feat);
-            if (!full && !vad.EndpointDetected()) continue; 
-
-            // Get vad feature, and add in the feature pool 
+            // Get chunk_length_ seconds vad feature, and add in the feature pool 
             int num_voice_frames = vad.GetFeature(&vad_feat);
             if (num_voice_frames > 0) {
                 feature_pool->AcceptFeature(vad_feat);
@@ -205,7 +206,6 @@ void NnetVadDecodeThread::operator() (void *resource) {
 
             // Advance decoding
             decoder.AdvanceDecoding();
-
             // Print partial results
             if (decoder.NumFramesDecoded() > 0 && 
                     !vad.EndpointDetected() && 
@@ -222,7 +222,6 @@ void NnetVadDecodeThread::operator() (void *resource) {
             if (vad.EndpointDetected() && decoder.NumFramesDecoded() > 0) {
                 feature_pipeline->InputFinished();
                 feature_pool->InputFinished();
-
                 decoder.AdvanceDecoding();
 
                 std::string result;
