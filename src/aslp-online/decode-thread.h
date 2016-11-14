@@ -16,10 +16,10 @@
 #include "aslp-online/wav-provider.h"
 #include "aslp-online/tcp-server.h"
 #include "aslp-online/vad.h"
-#include "aslp-online/online-vad.h"
 #include "aslp-online/punctuation-processor.h"
 #include "aslp-online/thread-pool.h"
 #include "aslp-online/online-feature-pool.h"
+#include "aslp-online/online-vad-feature-pipeline.h"
 
 
 namespace kaldi {
@@ -90,6 +90,7 @@ class NnetVadDecodeThread : public Threadable {
 public:
     NnetVadDecodeThread(int client_socket, 
                         int chunk_length,
+                        int forward_batch,
                         BaseFloat samp_freq,
                         bool do_endpointing,
                         const OnlineFeaturePipelineConfig &feature_info,
@@ -102,6 +103,7 @@ public:
                         const fst::SymbolTable *word_syms_table):
             client_socket_(client_socket),
             chunk_length_(chunk_length), 
+            forward_batch_(forward_batch),
             samp_freq_(samp_freq), 
             do_endpointing_(do_endpointing), 
             feature_info_(feature_info),
@@ -118,6 +120,7 @@ public:
 private:
     int client_socket_;
     int chunk_length_;
+    int forward_batch_;
     BaseFloat samp_freq_;
     bool do_endpointing_;
     const OnlineFeaturePipelineConfig &feature_info_;
