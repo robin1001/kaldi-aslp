@@ -14,10 +14,10 @@
 namespace kaldi {
 namespace aslp_online {
 
-struct OnlineVadOptions : public NnetVadOptions {
+struct OnlineNnetVadOptions : public NnetVadOptions {
     // for online endpoint detect
     BaseFloat endpoint_trigger_threshold_ms; // in milliseconds
-    OnlineVadOptions(): endpoint_trigger_threshold_ms(1000.0) {}
+    OnlineNnetVadOptions(): endpoint_trigger_threshold_ms(1000.0) {}
 
     void Register(OptionsItf *po) {
         NnetVadOptions::Register(po);
@@ -31,7 +31,7 @@ class OnlineVadFeaturePipeline: public OnlineFeaturePipeline {
 public:
     typedef aslp_nnet::Nnet Nnet;
     explicit OnlineVadFeaturePipeline(const Nnet &vad_nnet,
-            const OnlineVadOptions &online_vad_cfg, 
+            const OnlineNnetVadOptions &online_vad_cfg, 
             const OnlineFeaturePipelineConfig &cfg):
         OnlineFeaturePipeline(cfg),
         get_raw_feat_offset_(0),
@@ -65,6 +65,12 @@ public:
         return endpoint_detected_;
     }
 
+    float AudioReceived() const {
+        int num_frames = input_finished_ ? 
+            vad_result_.size() : vad_result_.size() - lookback_frames_;
+        return (online_vad_cfg_.frame_length_ms * num_frames) / 1000.0;
+    }
+
 private:
     int GetRawFeature(Matrix<BaseFloat> *feats);
     void Vad();
@@ -76,7 +82,7 @@ private:
     std::vector<bool> vad_result_;
     int lookback_frames_, endpoint_frames_;
     NnetVad nnet_vad_;
-    OnlineVadOptions online_vad_cfg_;
+    OnlineNnetVadOptions online_vad_cfg_;
 };
 
 

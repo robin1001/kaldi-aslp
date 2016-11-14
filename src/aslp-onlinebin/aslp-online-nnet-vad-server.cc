@@ -17,7 +17,7 @@
 #include "aslp-online/wav-provider.h"
 #include "aslp-online/tcp-server.h"
 #include "aslp-online/decode-thread.h"
-#include "aslp-online/online-vad.h"
+#include "aslp-online/online-vad-feature-pipeline.h"
 #include "aslp-online/online-endpoint.h"
 #include "aslp-online/punctuation-processor.h"
 
@@ -64,6 +64,9 @@ int main(int argc, char *argv[]) {
         int num_thread = 10;
         po.Register("num-thread", &num_thread,
                 "number of thread in the the thread pool");
+        int forward_batch = 12;
+        po.Register("forward-batch", &forward_batch,
+                "forward batch size of the am nnet");
 
         po.Read(argc, argv);
         if (po.NumArgs() != 5) {
@@ -160,6 +163,7 @@ int main(int argc, char *argv[]) {
                 int32 client_socket = tcp_server.Accept();
 
                 Threadable *task = new NnetVadDecodeThread(client_socket, chunk_length, 
+                                                   forward_batch,
                                                    samp_freq, do_endpointing,
                                                    feature_config,
                                                    nnet_decoding_config, 
