@@ -144,6 +144,21 @@ void DecodeThread::operator() (void *resource) {
 
 }
 
+
+static void AddVadFeatureToFeaturePool(int num_frames, 
+                OnlineVadFeaturePipeline *vad_pipeline,
+                OnlineFeaturePool *feature_pool) {
+    KALDI_ASSERT(vad_pipeline != NULL);
+    KALDI_ASSERT(feature_pool != NULL);
+    Matrix<BaseFloat> vad_feat;
+    int num_voice_frames = 
+            vad_pipeline->GetVadFeature(num_frames, &vad_feat);
+    if (num_voice_frames > 0) {
+            feature_pool->AcceptFeature(vad_feat);
+    }
+    //KALDI_LOG << "Add " << num_voice_frames << " frames to the feature pool";
+}
+
 void NnetVadDecodeThread::operator() (void *resource) {
     try {
         NnetVadDecodeThreadResource *nnet_vad_resource = 
@@ -170,7 +185,6 @@ void NnetVadDecodeThread::operator() (void *resource) {
         double get_partial_result_progress = 0.0;
         std::vector<BaseFloat> data;
         std::string all_result;
-        Matrix<BaseFloat> raw_feat, vad_feat;
  
         // Vad on feats then decode speech frames
         /* Here we assume that the feature for vad and the feature 
@@ -183,8 +197,7 @@ void NnetVadDecodeThread::operator() (void *resource) {
         while (!wav_provider.Done()) {
             // Read until forward_batch speech frames or endpoint detected
             while (!wav_provider.Done() && 
-                   (!vad_pipeline->EndpointDetected() || 
-                    vad_pipeline->NumSpeechFramesReady() >= forward_batch_)) {
+                    vad_pipeline->NumSpeechFramesReady() < forward_batch_) {
                 // Read raw pcm audio
                 int num_read = wav_provider.ReadAudio(chunk_length_, &data);
                 if (num_read == 0) continue;
@@ -192,14 +205,11 @@ void NnetVadDecodeThread::operator() (void *resource) {
                 // Feature extraction 
                 SubVector<BaseFloat> wave_part(data.data(), num_read);
                 vad_pipeline->AcceptWaveform(samp_freq_, wave_part);
+                if (vad_pipeline->EndpointDetected()) break;
             }
 
-            // Get chunk_length_ seconds vad feature, and add in the feature pool 
-            int num_voice_frames = 
-                vad_pipeline->GetVadFeature(forward_batch_, &vad_feat);
-            if (num_voice_frames > 0) {
-                feature_pool->AcceptFeature(vad_feat);
-            }
+            // Get voiced frames to feature pool 
+            AddVadFeatureToFeaturePool(forward_batch_, vad_pipeline, feature_pool);
 
             // Advance decoding
             decoder.AdvanceDecoding();
@@ -222,11 +232,7 @@ void NnetVadDecodeThread::operator() (void *resource) {
             if (vad_pipeline->EndpointDetected() && 
                     decoder.NumFramesDecoded() > 0) {
                 vad_pipeline->InputFinished();
-                num_voice_frames = 
-                    vad_pipeline->GetVadFeature(forward_batch_, &vad_feat);
-                if (num_voice_frames > 0) {
-                    feature_pool->AcceptFeature(vad_feat);
-                }
+                AddVadFeatureToFeaturePool(forward_batch_, vad_pipeline, feature_pool);
                 feature_pool->InputFinished();
                 decoder.AdvanceDecoding();
 
@@ -246,12 +252,9 @@ void NnetVadDecodeThread::operator() (void *resource) {
             }
 
         } // end while
+
         vad_pipeline->InputFinished();
-        int num_voice_frames = 
-            vad_pipeline->GetVadFeature(forward_batch_, &vad_feat);
-        if (num_voice_frames > 0) {
-            feature_pool->AcceptFeature(vad_feat);
-        }
+        AddVadFeatureToFeaturePool(forward_batch_, vad_pipeline, feature_pool);
         feature_pool->InputFinished();
 
         decoder.FinalizeDecoding();

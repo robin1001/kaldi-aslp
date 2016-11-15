@@ -37,9 +37,8 @@ void OnlineVadFeaturePipeline::Vad() {
     nnet_vad_.DoVad(raw_feats);
     const std::vector<bool> &chunk_result = nnet_vad_.VadResult();
     int prev_size = vad_result_.size();
-    vad_result_.insert(vad_result_.begin(), 
+    vad_result_.insert(vad_result_.end(), 
                        chunk_result.begin(), chunk_result.end());
-
     int cur = prev_size;
     // Lookback
     while (cur < vad_result_.size()) {
@@ -54,10 +53,22 @@ void OnlineVadFeaturePipeline::Vad() {
         while (cur < vad_result_.size() && vad_result_[cur]) cur++;
     }
     KALDI_ASSERT(cur == vad_result_.size());
+    //printf("before lookback ");
+    //for (int i = 0; i < chunk_result.size(); i++) {
+    //    printf("%d ", static_cast<int>(chunk_result[i]));
+    //}
+    //printf("\n");
+    //printf("after  lookback ");
+    //for (int i = prev_size; i < vad_result_.size(); i++) {
+    //    printf("%d ", static_cast<int>(vad_result_[i]));
+    //}
+    //printf("\n");
 
     endpoint_detected_ = false;
+    int num_sil = 0;
     for (int i = prev_size; i < vad_result_.size(); i++) {
         if (!vad_result_[i]) {
+            num_sil++;
             num_continuous_silence_++;
             if (num_continuous_silence_ > endpoint_frames_) {
                 KALDI_LOG << "endpoint detected";
@@ -68,6 +79,8 @@ void OnlineVadFeaturePipeline::Vad() {
             num_continuous_silence_ = 0;
         }
     }
+    KALDI_VLOG(1) << "Vad Total " << chunk_result.size() 
+                  << " Silence " << num_sil;
 }
 
 int OnlineVadFeaturePipeline::GetVadFeature(int num_frames, 
@@ -77,6 +90,9 @@ int OnlineVadFeaturePipeline::GetVadFeature(int num_frames,
     if (input_finished_ || num_frames > NumSpeechFramesReady()) {
         num_valid_frames = NumSpeechFramesReady();
     }
+
+    if (num_valid_frames == 0) return 0;
+
     vad_feats->Resize(num_valid_frames, AdaptedFeature()->Dim());
     int count = 0;
     while (count < num_valid_frames) {
@@ -94,7 +110,9 @@ int OnlineVadFeaturePipeline::GetVadFeature(int num_frames,
 int OnlineVadFeaturePipeline::NumSpeechFramesReady() const {
     int count = 0; 
     int lookback = input_finished_ ? 0 : lookback_frames_;
-    for (int i = get_vad_feat_offset_; i < vad_result_.size() - lookback; i++) {
+    int stop = vad_result_.size() - lookback;
+    if (stop <= 0) return 0;
+    for (int i = get_vad_feat_offset_; i < stop; i++) {
         if (vad_result_[i]) count++;
     }
     return count;

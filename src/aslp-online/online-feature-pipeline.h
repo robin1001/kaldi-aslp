@@ -168,7 +168,6 @@ class OnlineFeaturePipeline: public OnlineFeatureInterface {
 
   // This is supplied for debug purposes.
   void GetAsMatrix(Matrix<BaseFloat> *feats);
-  int GetFeature(Matrix<BaseFloat> *feats); 
   
   void FreezeCmvn();  // stop it from moving further (do this when you start
                       // using fMLLR). This will crash if NumFramesReady() == 0.
@@ -253,8 +252,6 @@ class OnlineFeaturePipeline: public OnlineFeatureInterface {
   /// const and non-const pointers.
   OnlineFeatureInterface* AdaptedFeature() const;
   
-  // Get feature offset time
-  int get_feat_offset_;
 };
 
 

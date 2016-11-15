@@ -41,7 +41,7 @@ public:
         num_continuous_silence_(0),
         nnet_vad_(vad_nnet, online_vad_cfg), 
         online_vad_cfg_(online_vad_cfg) {
-
+        //KALDI_LOG << vad_nnet.InputDim();
         endpoint_frames_ = online_vad_cfg_.endpoint_trigger_threshold_ms / 
                            online_vad_cfg_.frame_length_ms;
         lookback_frames_ = online_vad_cfg_.lookback_ms / 
@@ -60,7 +60,6 @@ public:
             Matrix<BaseFloat> *vad_feats); 
 
     int NumSpeechFramesReady() const;
-
     bool EndpointDetected() const {
         return endpoint_detected_;
     }
