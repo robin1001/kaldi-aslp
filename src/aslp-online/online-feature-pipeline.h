@@ -168,7 +168,6 @@ class OnlineFeaturePipeline: public OnlineFeatureInterface {
 
   // This is supplied for debug purposes.
   void GetAsMatrix(Matrix<BaseFloat> *feats);
-  int GetFeature(Matrix<BaseFloat> *feats); 
   
   void FreezeCmvn();  // stop it from moving further (do this when you start
                       // using fMLLR). This will crash if NumFramesReady() == 0.
@@ -181,7 +180,7 @@ class OnlineFeaturePipeline: public OnlineFeatureInterface {
   /// Accept more data to process (won't actually process it, will
   /// just copy it).   sampling_rate is necessary just to assert
   /// it equals what's in the config.
-  void AcceptWaveform(BaseFloat sampling_rate,
+  virtual void AcceptWaveform(BaseFloat sampling_rate,
                       const VectorBase<BaseFloat> &waveform);
 
   BaseFloat FrameShiftInSeconds() const {
@@ -192,7 +191,7 @@ class OnlineFeaturePipeline: public OnlineFeatureInterface {
   // more waveform.  This will help flush out the last few frames
   // of delta or LDA features, and finalize the pitch features
   // (making them more accurate).
-  void InputFinished();
+  virtual void InputFinished();
 
   // This object is used to set the fMLLR transform.  Call it with
   // the empty matrix if you want to stop it using any transform.
@@ -212,7 +211,7 @@ class OnlineFeaturePipeline: public OnlineFeatureInterface {
 
   virtual ~OnlineFeaturePipeline();
 
- private:
+ protected:
   /// The following constructor is used internally in the New() function;
   /// it has the same effect as initializing from just "cfg", but avoids
   /// re-reading the LDA transform from disk.
@@ -253,8 +252,6 @@ class OnlineFeaturePipeline: public OnlineFeatureInterface {
   /// const and non-const pointers.
   OnlineFeatureInterface* AdaptedFeature() const;
   
-  // Get feature offset time
-  int get_feat_offset_;
 };
 
 

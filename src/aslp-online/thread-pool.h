@@ -111,6 +111,7 @@ public:
 
     // PoolWorker thread
     static void *WorkerThread(void *arg) {
+        sleep(3); // wait main thread to construct the resource_table_
         ThreadPool *pool = static_cast<ThreadPool *>(arg);
         void *resource = pool->GetResource(pthread_self());
         for(;;) {

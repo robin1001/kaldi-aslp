@@ -6,7 +6,7 @@
 
 namespace kaldi {
 
-Vad::Vad(const VadOptions &config): config_(config), state_(kSilence),
+Vad::Vad(const VadOptions &config): state_(kSilence), config_(config),
     silence_frame_cnt_(0), speech_frame_cnt_(0) {
     nframes_silence_trigger_ = config_.silence_trigger_threshold_ms / 
                                  config_.frame_length_ms;

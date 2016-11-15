@@ -37,6 +37,7 @@ public:
 
     void AcceptFeature(const MatrixBase<BaseFloat> &feat) {
         KALDI_ASSERT(feat.NumCols() == dim_);
+        if (feat.NumRows() == 0) return;
         int new_num_frames = num_frames_ + feat.NumRows();
         // If the feature pool is not big enough, expand it
         if (new_num_frames > feature_pool_.NumRows()) {

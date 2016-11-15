@@ -31,8 +31,8 @@ struct VadOptions {
         ss << "\nsamp_freq: " << samp_freq;
         ss << "\nframe_length_ms: " << frame_length_ms;
         ss << "\nsilence_trigger_threshold_ms: " << silence_trigger_threshold_ms;
-        ss << "\nspeech_trigger_threshold_ms: " << silence_trigger_threshold_ms;
-        ss << "\nlookback_ms: " << silence_trigger_threshold_ms;
+        ss << "\nspeech_trigger_threshold_ms: " << speech_trigger_threshold_ms;
+        ss << "\nlookback_ms: " << lookback_ms;
         return ss.str();
     }
 
@@ -69,6 +69,7 @@ protected:
            kSpeech2Silence = 0x01,
            kSpeech = 0x02
     } state_;
+    const VadOptions &config_;
     int silence_frame_cnt_;
     int speech_frame_cnt_;
     int nframes_silence_trigger_;
@@ -76,7 +77,6 @@ protected:
     int nframes_lookback_;
     int num_points_per_frame_;
     std::vector<bool> vad_result_; // vad result, voice(true), sil(false)
-    const VadOptions &config_;
 };
 
 } // namespace kaldi
