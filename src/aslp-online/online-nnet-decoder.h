@@ -122,7 +122,7 @@ public:
         GetLinearSymbolSequence(lat_, static_cast<std::vector<int32> *>(0), 
                 &words_,
                 static_cast<LatticeWeight *>(0));
-        aslp_online::WordsToString(words_, word_syms, " ", result);
+        aslp_online::WordsToString(words_, word_syms, "", result);
     }
 
 private:
