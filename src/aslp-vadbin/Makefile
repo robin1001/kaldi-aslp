@@ -14,7 +14,7 @@ BINFILES = aslp-ali-to-sil aslp-select-frames \
            aslp-eval-gmm-vad aslp-eval-nn-vad aslp-apply-nn-vad \
 		   aslp-eval-vad-boundary aslp-eval-nn-vad-boundary \
 		   aslp-apply-nn-vad-segment aslp-apply-nn-vad-frame \
-		   aslp-compute-spectrum-feats
+		   aslp-compute-spectrum-feats aslp-apply-energy-vad
 
 ADDLIBS = ../aslp-vad/aslp-vad.a ../aslp-nnet/aslp-nnet.a ../aslp-cudamatrix/aslp-cudamatrix.a \
           $(KALDI_DIR)/hmm/kaldi-hmm.a \
