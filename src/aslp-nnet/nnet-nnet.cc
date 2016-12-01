@@ -32,6 +32,7 @@
 #include "aslp-nnet/nnet-gru-streams.h"
 #include "aslp-nnet/nnet-lstm-couple-if-projected-streams.h"
 #include "aslp-nnet/nnet-batch-normalization.h"
+#include "aslp-nnet/nnet-cfsmn-component.h"
 
 namespace kaldi {
 namespace aslp_nnet {
@@ -93,7 +94,10 @@ void Nnet::Propagate(const std::vector<const CuMatrixBase<BaseFloat> *> &in,
                     output_buf_[input_idx[j]]);
             }
         }
-        components_[i]->Propagate(input_buf_[i], &output_buf_[i]);
+        Timer tim1;
+		components_[i]->Propagate(input_buf_[i], &output_buf_[i]);
+		propagate_time_[i].first = Component::TypeToMarker(components_[i]->GetType());
+		propagate_time_[i].second += tim1.Elapsed();
     }
     // 4. Copy to Output
     for (int i = 0; i < output_.size(); i++) {
@@ -116,12 +120,16 @@ void Nnet::Backpropagate(const std::vector<const CuMatrixBase<BaseFloat> *> &out
     }
     // 3. Do BackPropagate
     for (int32 i = NumComponents()-1; i >= 0; i--) {
-        components_[i]->Backpropagate(input_buf_[i], output_buf_[i],
+        Timer tim2;
+		components_[i]->Backpropagate(input_buf_[i], output_buf_[i],
                             output_diff_buf_[i], &input_diff_buf_[i]);
         if (components_[i]->IsUpdatable()) {
             UpdatableComponent *uc = dynamic_cast<UpdatableComponent*>(components_[i]);
             uc->Update(input_buf_[i], output_diff_buf_[i]);
         }
+		back_propagate_time_[i].first = Component::TypeToMarker(components_[i]->GetType());
+		back_propagate_time_[i].second += tim2.Elapsed();
+
         if (components_[i]->GetType() != Component::kInputLayer) {
             const std::vector<int32> &input_idx = components_[i]->GetInput();
             const std::vector<int32> &offset = components_[i]->GetOffset();
@@ -555,41 +563,37 @@ void Nnet::Init(const std::string &file) {
   std::istream &is = in.Stream();
   // do the initialization with config lines,
   std::string conf_line, token;
-  // flags Have "<Id>" and "<Input>" field in every component
   bool simple_net = true;
   while (!is.eof()) {
     KALDI_ASSERT(is.good());
     std::getline(is, conf_line); // get a line from config file,
     if (conf_line == "") continue;
     KALDI_VLOG(1) << conf_line; 
-    std::istringstream(conf_line) >> std::ws >> token; // get 1st token,
-    if (token == "<NnetProto>" || token == "</NnetProto>") continue; // ignored tokens,
-    //AppendComponent(Component::Init(conf_line+"\n"));
+    std::istringstream is(conf_line);
+	is >> std::ws >> token; // get 1st token,
+	if (token == "<NnetProto>" || token == "</NnetProto>") continue; // ignored tokens,
+    if (token == "<StructureType>") {
+		is >> std::ws >> token;
+		if (token == "graph") {
+			simple_net = false;
+			//std::vector<std::vector<std::pair<std::string, int32> > > nnet_map;
+		}
+		else if (token == "simple") simple_net = true;
+		else KALDI_ERR << "The net's structure must be simple or graphi!";
+		continue;
+	}
+	
+	//AppendComponent(Component::Init(conf_line+"\n"));
     Component *comp = Component::Init(conf_line+"\n");
-    int id = comp->Id();
-    // If the layer's id have been inited, or is InputLayer or OutputLayer, it is 
-    // not a simple_net
-    if (id >= 0 || comp->GetType() == Component::kInputLayer || 
-          comp->GetType() == Component::kOutputLayer) {
-      simple_net = false;
-    }
-    if (!simple_net) {
-      if (id < 0) {
-        KALDI_ERR << "You use graph net config, the nnet proto must have InputLayer and OutputLayer "
-                     "And every layer must have <Id> and <Input> field ";
-      }
-      if (id >= components_.size()) components_.resize(id+1, NULL);
-      if (components_[id] != NULL) {
-        KALDI_ERR << "Component id " << id << " already be taken" 
-                  << "the id must be unique"; 
-      }
-      components_[id] = comp;
-    }
-    else {
-      components_.push_back(comp);
-    }
+    components_.push_back(comp);
+	
     is >> std::ws;
   }
+  if (!simple_net) {
+	AssignComponentId(components_);
+	SortComponent(components_);
+  }
+
   // Automatic assgin id and input for simple net
   if (simple_net) AutoComplete();
   // cleanup
@@ -646,6 +650,32 @@ void Nnet::Write(std::ostream &os, bool binary) const {
   }
   WriteToken(os, binary, "</Nnet>");  
   if(binary == false) os << std::endl;
+}
+
+void Nnet::WriteDotFile(std::ofstream &os) const {
+	if (!os.is_open())
+		KALDI_ERR << "Open dot file fialed!";
+	os << "digraph net{" << std::endl;
+	os << "rankdir=BT" << std::endl;
+	os << "node[shape = box; height = 1; width = 3; fontsize = 40];" << std::endl;
+	os << "edge[minlen = 1 ]" << std::endl;
+	for (int32 i = 0; i < NumComponents(); i++) {
+		std::string name = components_[i]->GetName();
+		int id = components_[i]->Id();
+		std::vector<int32> input = components_[i]->GetInput();
+		std::vector<int32> offset = components_[i]->GetOffset();
+		if (name != "")
+			os << id << " [label = " << "\"" << name << "\"]" << std::endl;
+		else
+			os << id << " [label = " << "\"" << Component::TypeToMarker(components_[i]->GetType()) << "\"]" << std::endl;
+		if (input.size() == 1 && input[0] == -1) continue;
+		for (int32 j = 0; j < input.size(); j++) {
+			os << "\t" << input[j] << " -> " << id << " [label = " << offset[j] << "; fontsize = 40]" << std::endl;
+		}
+
+	}
+
+	os << "}" << std::endl;
 }
 
 void Nnet::WriteStandard(const std::string &file, bool binary) const {
@@ -830,8 +860,102 @@ void Nnet::InitInputOutput() {
     output_buf_.resize(NumComponents());
     input_diff_buf_.resize(NumComponents());
     output_diff_buf_.resize(NumComponents());
+
+	propagate_time_.resize(NumComponents());
+	back_propagate_time_.resize(NumComponents());
+	for (int i = 0; i < NumComponents(); i++) {
+		propagate_time_[i].second = 0.0;
+		back_propagate_time_[i].second = 0.0;
+	}
 }
 
- 
+void Nnet::GetComponentTime() {
+	for (int i = 0; i < propagate_time_.size(); i++) {
+		KALDI_LOG << propagate_time_[i].first
+				  <<": Propagate time "
+				  << propagate_time_[i].second << "s, "
+				  << "Back-Propagate time "
+				  << back_propagate_time_[i].second << "s, "
+				  << "total time "
+				  << propagate_time_[i].second +  back_propagate_time_[i].second << "s";
+		propagate_time_[i].second = 0.0;
+		back_propagate_time_[i].second = 0.0;
+	}
+}
+
+void Nnet::AssignComponentId(std::vector<Component*> &comp) {
+	int32 num_comp = comp.size();
+	std::vector<int32> indegree;
+	std::vector<std::string> input_name;
+	for (int i = 0; i < num_comp; i++) {
+		input_name = comp[i]->GetInputName();
+		if (input_name.size() == 1 && input_name[0] == "-1") {
+			indegree.push_back(0);
+		}
+		else {
+			indegree.push_back(input_name.size());		
+		}
+	}
+	std::vector<std::string> comp_queue;
+	for (int i = 0; i < num_comp; i++) {
+		if(indegree[i] == 0)
+			comp_queue.push_back(comp[i]->GetName());
+	}
+	int32 id = 0;
+	while(!comp_queue.empty()) {
+		std::string name = comp_queue.back();
+		comp_queue.pop_back();
+		for (int i = 0; i < num_comp; i++) {
+			input_name = comp[i]->GetInputName();
+			if (comp[i]->GetName() == name) {
+				comp[i]->SetId(id);
+				++id;
+			}
+			for (int j = 0; j < input_name.size(); j++) {
+				if (input_name[j] == comp[i]->GetName())
+					KALDI_ERR << "The input of component " << comp[i]->GetName() 
+						      << "include itself, Please check it!";
+				else if (input_name[j] == name)
+						if (--indegree[i] == 0)
+							comp_queue.push_back(comp[i]->GetName());
+			}
+		}
+	}	
+	
+	if (id != num_comp)
+		KALDI_ERR << "The graph has a cycle";
+	
+	std::map<std::string, int32> name_to_id;
+	for (int i = 0; i < num_comp; i++) {
+		name_to_id.insert(make_pair(comp[i]->GetName(), comp[i]->GetId()));
+	}
+	
+	for (int i = 0; i < num_comp; i++) {
+		input_name = comp[i]->GetInputName();
+		int32 num_input = input_name.size();
+		std::vector<int32> input(num_input, 0);
+		for (int j = 0; j < num_input; j++) {
+			if (input_name[j] == "-1")
+				input[j] = -1;
+			else {
+				for (std::map<std::string, int32>::iterator iter = name_to_id.begin(); iter != name_to_id.end(); ++iter) {
+					if (input_name[j] == iter->first)
+						input[j] = iter->second;
+				}
+			}
+		}
+		comp[i]->SetInput(input);
+	}
+}
+
+void Nnet::SortComponent(std::vector<Component*> &comp) {
+	std::vector<Component*> tmp_comp(comp.size());
+	for (int i = 0; i < comp.size(); i++) {
+		int id = comp[i]->GetId();
+		tmp_comp[id] = comp[i];
+	}
+	comp.swap(tmp_comp);
+}
+
 } // namespace aslp_nnet
 } // namespace kaldi

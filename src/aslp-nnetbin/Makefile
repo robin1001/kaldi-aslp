@@ -9,6 +9,7 @@ EXTRA_CXXFLAGS += -Wno-sign-compare -fopenmp
 LDFLAGS += $(CUDA_LDFLAGS)
 LDLIBS += $(CUDA_LDLIBS)
 
+
 BINFILES = aslp-nnet-info aslp-nnet-init \
          aslp-nnet-insert \
          aslp-nnet-train-simple \
@@ -24,7 +25,8 @@ BINFILES = aslp-nnet-info aslp-nnet-init \
          aslp-nnet-convert-to-standard \
 		 aslp-nnet-train-blstm-streams-lc \
 		 aslp-nnet-forward-blstm-lc \
-         aslp-nnet-train-perutt
+         aslp-nnet-train-perutt \
+		 aslp-nnet-dot
 
 #        nnet-train-perutt \
 #        nnet-train-mmi-sequential \

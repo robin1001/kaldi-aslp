@@ -96,7 +96,8 @@ class Component {
     kRowConvolution,
     kBLstmProjectedStreamsLC,
     kGruStreams,
-    kLstmCifgProjectedStreams
+    kLstmCifgProjectedStreams,
+	kCompactFsmn
   } ComponentType;
   /// A pair of type and marker 
   struct key_value {
@@ -140,11 +141,26 @@ class Component {
   void SetId(int id) {
     id_ = id;
   }
+  const int32 GetId() const {
+	return id_;
+  }
+  void SetName(std::string name) {
+	name_ = name;
+  }
+  const std::string &GetName() const {
+	return name_;
+  }
   const std::vector<int32> & GetInput() const {
     return input_;
   }
   void SetInput(const std::vector<int32> &input) {
     input_ = input;
+  }
+  void SetInputName(const std::vector<std::string> &input_name) {
+	input_name_ = input_name;
+  }
+  const std::vector<std::string> &GetInputName() const {
+	return input_name_;
   }
   void SetMonoInput(int id) {
     input_.resize(1);
@@ -211,6 +227,8 @@ class Component {
   int32 input_dim_;  ///< Size of input vectors
   int32 output_dim_; ///< Size of output vectors
   int32 id_;
+  std::string name_;
+  std::vector<std::string> input_name_;
   std::vector<int32> input_, offset_;
 
  private:
