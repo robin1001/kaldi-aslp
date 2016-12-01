@@ -1,25 +1,7 @@
-// aslp-nnetbin/aslp-nnet-train-lstm-streams.cc
-
-// Copyright 2015  Brno University of Technology (Author: Karel Vesely)
-//           2014  Jiayu DU (Jerry), Wei Li
-// Copyright 2016  ASLP(Author: zhangbinbin)
-// Modified on 2016-02-29
-
-// See ../../COPYING for clarification regarding multiple authors
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//  http://www.apache.org/licenses/LICENSE-2.0
-//
-// THIS CODE IS PROVIDED *AS IS* BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-// KIND, EITHER EXPRESS OR IMPLIED, INCLUDING WITHOUT LIMITATION ANY IMPLIED
-// WARRANTIES OR CONDITIONS OF TITLE, FITNESS FOR A PARTICULAR PURPOSE,
-// MERCHANTABLITY OR NON-INFRINGEMENT.
-// See the Apache 2 License for the specific language governing permissions and
-// limitations under the License.
-
+// aslp-nnetbin/aslp-nnet-train-lstm-subsequence-stream.cc
+// Copyright 2016  ASLP (Author: liwenpeng zhangbinbin)
+ 
+// Created on 2016-08-24
 
 
 #include "aslp-nnet/nnet-trnopts.h"
@@ -30,6 +12,7 @@
 #include "util/common-utils.h"
 #include "base/timer.h"
 #include "aslp-cudamatrix/cu-device.h"
+#include "aslp-nnet/data-reader.h"
 
 int main(int argc, char *argv[]) {
   using namespace kaldi;
@@ -50,57 +33,33 @@ int main(int argc, char *argv[]) {
 
     NnetTrainOptions trn_opts;
     trn_opts.Register(&po);
-
-    bool binary = true, 
-         crossvalidate = false;
+	// Add dummy randomizer options, to make the tool compatible with standard scripts
+	NnetDataRandomizerOptions rnd_opts;
+    rnd_opts.Register(&po);
+    SequenceDataReaderOptions read_opts;
+	read_opts.Register(&po);
+   
+   bool binary = true, 
+   		crossvalidate = false;
     po.Register("binary", &binary, "Write output in binary mode");
     po.Register("cross-validate", &crossvalidate, "Perform cross-validation (don't backpropagate)");
 
-    std::string feature_transform;
-    po.Register("feature-transform", &feature_transform, "Feature transform in Nnet format");
     std::string objective_function = "xent";
     po.Register("objective-function", &objective_function, "Objective function : xent|mse");
 
-    /*
-    int32 length_tolerance = 5;
-    po.Register("length-tolerance", &length_tolerance, "Allowed length difference of features/targets (frames)");
-    
-    std::string frame_weights;
-    po.Register("frame-weights", &frame_weights, "Per-frame weights to scale gradients (frame selection/weighting).");
-    */
-
     std::string use_gpu="yes";
     po.Register("use-gpu", &use_gpu, "yes|no|optional, only has effect if compiled with CUDA"); 
-    
-    //<jiayu>
-    int32 targets_delay=5;
-    po.Register("targets-delay", &targets_delay, "---LSTM--- BPTT targets delay"); 
-
-    int32 batch_size=20;
-    po.Register("batch-size", &batch_size, "---LSTM--- BPTT batch size"); 
-
-    int32 num_stream=4;
-    po.Register("num-stream", &num_stream, "---LSTM--- BPTT multi-stream training"); 
-
-    int32 dump_interval=0;
-    po.Register("dump-interval", &dump_interval, "---LSTM--- num utts between model dumping [ 0 == disabled ]"); 
-    //</jiayu>
-
-    // Add dummy randomizer options, to make the tool compatible with standard scripts
-    NnetDataRandomizerOptions rnd_opts;
-    rnd_opts.Register(&po);
-    bool randomize = false;
+	
+	int32 gpu_id = -1;
+    po.Register("gpu-id", &gpu_id, "selected gpu id, if negative then select automaticly");
+	bool randomize = false;
     po.Register("randomize", &randomize, "Dummy option, for compatibility...");
-    //
     int report_period = 200; // 200 sentence with one report 
     po.Register("report-period", &report_period, "Number of sentence for one report log, default(200)");
-    int drop_len = 0;
-    po.Register("drop-len", &drop_len, "if Sentence frame length greater than drop_len,"
-                "then drop it, default(0, no drop)");
-    int skip_width = 0;
-    po.Register("skip-width", &skip_width, "num of frame for one skip(default 0, not use skip)");
+   	int32 dump_interval=0;
+   	po.Register("dump-interval", &dump_interval, "---LSTM--- num utts between model dumping [ 0 == disabled ]");
     
-    po.Read(argc, argv);
+	po.Read(argc, argv);
 
     if (po.NumArgs() != 4-(crossvalidate?1:0)) {
       po.PrintUsage();
@@ -118,175 +77,60 @@ int main(int argc, char *argv[]) {
 
     //Select the GPU
 #if HAVE_CUDA==1
-    CuDevice::Instantiate().SelectGpuId(use_gpu);
-#endif
-
-    Nnet nnet_transf;
-    if(feature_transform != "") {
-      nnet_transf.Read(feature_transform);
+    if (gpu_id >= 0) {
+      CuDevice::Instantiate().SetGpuId(gpu_id);
+    } else {
+      CuDevice::Instantiate().SelectGpuId(use_gpu);
     }
+#endif
 
     Nnet nnet;
     nnet.Read(model_filename);
     nnet.SetTrainOptions(trn_opts);
 
     kaldi::int64 total_frames = 0;
-
-    SequentialBaseFloatMatrixReader feature_reader(feature_rspecifier);
-    RandomAccessPosteriorReader target_reader(targets_rspecifier);
-    
-    /*
-    RandomAccessBaseFloatVectorReader weights_reader;
-    if (frame_weights != "") {
-      weights_reader.Open(frame_weights);
-    }
-    */
+	int32 num_done = 0, num_sentence = 0;
 
     RandomizerMask randomizer_mask(rnd_opts);
     MatrixRandomizer feature_randomizer(rnd_opts);
     PosteriorRandomizer targets_randomizer(rnd_opts);
     VectorRandomizer weights_randomizer(rnd_opts);
-
-    Xent xent;
-    Mse mse;
+	
+	LossItf *loss = NULL;
+	if (objective_function == "xent") {
+		loss = new Xent;
+	} else if (objective_function == "mse") {
+		loss = new Mse;
+	} else {
+		KALDI_ERR << "Unsupported objective function: " << objective_function;
+	}
     
     Timer time;
     KALDI_LOG << (crossvalidate?"CROSS-VALIDATION":"TRAINING") << " STARTED";
+	
+	SequenceDataReader reader(feature_rspecifier, targets_rspecifier, read_opts);
 
-    int32 num_done = 0, num_no_tgt_mat = 0, num_other_error = 0;
-    int32 num_sentence = 0;
-
-    //  book-keeping for multi-streams
-    std::vector<std::string> keys(num_stream);
-    std::vector<Matrix<BaseFloat> > feats(num_stream);
-    std::vector<Posterior> targets(num_stream);
-    std::vector<int> curt(num_stream, 0);
-    std::vector<int> lent(num_stream, 0);
-    std::vector<int> new_utt_flags(num_stream, 0);
-
-    // bptt batch buffer
-    int32 feat_dim = nnet.InputDim();
-    Vector<BaseFloat> frame_mask(batch_size * num_stream, kSetZero);
-    Matrix<BaseFloat> feat(batch_size * num_stream, feat_dim, kSetZero);
-    Posterior target(batch_size * num_stream);
-    CuMatrix<BaseFloat> feat_transf, nnet_out, obj_diff;
-
-    while (1) {
-        // loop over all streams, check if any stream reaches the end of its utterance,
-        // if any, feed the exhausted stream with a new utterance, update book-keeping infos
-        for (int s = 0; s < num_stream; s++) {
-            // this stream still has valid frames
-            if (curt[s] < lent[s]) {
-                new_utt_flags[s] = 0;
-                continue;
-            }
-            // else, this stream exhausted, need new utterance
-            while (!feature_reader.Done()) {
-                const std::string& key = feature_reader.Key();
-                // get the feature matrix,
-                const Matrix<BaseFloat> &mat = feature_reader.Value();
-                if (drop_len > 0 && mat.NumRows() > drop_len) {
-                    KALDI_WARN << key << ", too long, droped";
-                    feature_reader.Next();
-                    continue;
-                }
-                // forward the features through a feature-transform,
-                nnet_transf.Feedforward(CuMatrix<BaseFloat>(mat), &feat_transf);
-                
-                // get the labels,
-                if (!target_reader.HasKey(key)) {
-                    KALDI_WARN << key << ", missing targets";
-                    num_no_tgt_mat++;
-                    feature_reader.Next();
-                    continue;
-                }
-                const Posterior& target = target_reader.Value(key);
-
-                // check that the length matches,
-                if (feat_transf.NumRows() != target.size()) {
-                    KALDI_WARN << key << ", length miss-match between feats and targets, skip";
-                    num_other_error++;
-                    feature_reader.Next();
-                    continue;
-                }
-
-                // Use skip
-                if (skip_width > 1) {
-                    int skip_len = (feat_transf.NumRows() - 1) / skip_width + 1;
-                    CuMatrix<BaseFloat> skip_feat(skip_len, feat_transf.NumCols());
-                    Posterior skip_target(skip_len);
-                    for (int i = 0; i < skip_len; i++) {
-                        skip_feat.Row(i).CopyFromVec(feat_transf.Row(i * skip_width));
-                        skip_target[i] = target[i * skip_width];
-                    }
-                    feats[s].Resize(skip_feat.NumRows(), skip_feat.NumCols());
-                    skip_feat.CopyToMat(&feats[s]); 
-                    targets[s] = skip_target;
-                } else {
-                    feats[s].Resize(feat_transf.NumRows(), feat_transf.NumCols());
-                    feat_transf.CopyToMat(&feats[s]); 
-                    targets[s] = target;
-                }
-                // checks ok, put the data in the buffers,
-                keys[s] = key;
-                curt[s] = 0;
-                lent[s] = feats[s].NumRows();
-                new_utt_flags[s] = 1;  // a new utterance feeded to this stream
-                feature_reader.Next();
-                break;
-            }
-        }
-
-        // we are done if all streams are exhausted
-        int done = 1;
-        for (int s = 0; s < num_stream; s++) {
-            if (curt[s] < lent[s]) done = 0;  // this stream still contains valid data, not exhausted
-        }
-        if (done) break;
-
-        // fill a multi-stream bptt batch
-        // * frame_mask: 0 indicates padded frames, 1 indicates valid frames
-        // * target: padded to batch_size
-        // * feat: first shifted to achieve targets delay; then padded to batch_size
-        for (int t = 0; t < batch_size; t++) {
-            for (int s = 0; s < num_stream; s++) {
-                // frame_mask & targets padding
-                if (curt[s] < lent[s]) {
-                    frame_mask(t * num_stream + s) = 1;
-                    target[t * num_stream + s] = targets[s][curt[s]];
-                } else {
-                    frame_mask(t * num_stream + s) = 0;
-                    target[t * num_stream + s] = targets[s][lent[s]-1];
-                }
-                // feat shifting & padding
-                if (curt[s] + targets_delay < lent[s]) {
-                    feat.Row(t * num_stream + s).CopyFromVec(feats[s].Row(curt[s]+targets_delay));
-                } else {
-                    feat.Row(t * num_stream + s).CopyFromVec(feats[s].Row(lent[s]-1));
-                }
-
-                curt[s]++;
-            }
-        }
-
-        // for streams with new utterance, history states need to be reset
-        nnet.ResetLstmStreams(new_utt_flags);
+    CuMatrix<BaseFloat> nnet_out, obj_diff;
+	CuMatrix<BaseFloat> nnet_in;
+	Vector<BaseFloat> frame_mask;
+	Posterior nnet_tgt;	
+	
+	while (!reader.Done()) {
+        
+		reader.ReadData(&nnet_in, &nnet_tgt, &frame_mask);	
+		// for streams with new utterance, history states need to be reset
+		std::vector<int> new_utt_flags;
+		new_utt_flags = reader.GetNewUttFlags();
+		nnet.ResetLstmStreams(new_utt_flags);
 
         // forward pass
         if (!crossvalidate) {
-            nnet.Propagate(CuMatrix<BaseFloat>(feat), &nnet_out);
+            nnet.Propagate(nnet_in, &nnet_out);
         } else {
-            nnet.Feedforward(CuMatrix<BaseFloat>(feat), &nnet_out);
+            nnet.Feedforward(nnet_in, &nnet_out);
         }
-    
-        // evaluate objective function we've chosen
-        if (objective_function == "xent") {
-            xent.Eval(frame_mask, nnet_out, target, &obj_diff);
-        //} else if (objective_function == "mse") {     // not supported yet
-        //    mse.Eval(frame_mask, nnet_out, targets_batch, &obj_diff);
-        } else {
-            KALDI_ERR << "Unknown objective function code : " << objective_function;
-        }
+  		//evalute objective function we've chose 
+   		loss->Eval(frame_mask, nnet_out, nnet_tgt, &obj_diff);
     
         // backward pass
         if (!crossvalidate) {
@@ -314,7 +158,7 @@ int main(int argc, char *argv[]) {
         num_sentence += num_done_progress;
         // Report likelyhood
         if (num_sentence >= report_period) {
-            KALDI_LOG << xent.Report();
+            KALDI_LOG << loss->Report();
             num_sentence -= report_period;
         }
 
@@ -369,22 +213,23 @@ int main(int argc, char *argv[]) {
       nnet.Write(target_model_filename, binary);
     }
 
-    KALDI_LOG << "Done " << num_done << " files, " << num_no_tgt_mat
-              << " with no tgt_mats, " << num_other_error
-              << " with other errors. "
-              << "[" << (crossvalidate?"CROSS-VALIDATION":"TRAINING")
+    KALDI_LOG << "Done " << num_done << " files, " 
+			  << "[" << (crossvalidate?"CROSS-VALIDATION":"TRAINING")
               << ", " << (randomize?"RANDOMIZED":"NOT-RANDOMIZED") 
               << ", " << time.Elapsed()/60 << " min, fps" << total_frames/time.Elapsed()
               << "]";  
-
-    if (objective_function == "xent") {
+	loss->Report();
+	if (loss != NULL) delete loss;
+/*
+ * if (objective_function == "xent") {
       KALDI_LOG << xent.Report();
     } else if (objective_function == "mse") {
       KALDI_LOG << mse.Report();
     } else {
       KALDI_ERR << "Unknown objective function code : " << objective_function;
     }
-
+*
+* */
 #if HAVE_CUDA==1
     CuDevice::Instantiate().PrintProfile();
 #endif
