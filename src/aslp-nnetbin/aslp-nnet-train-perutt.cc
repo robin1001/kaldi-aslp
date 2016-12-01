@@ -255,6 +255,8 @@ int main(int argc, char *argv[]) {
         }
         report_frames -= report_period;
       }
+	  if (!crossvalidate)
+		  nnet.GetComponentTime();
     }
       
     // after last minibatch : show what happens in network 

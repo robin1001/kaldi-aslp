@@ -68,7 +68,8 @@ int main(int argc, char *argv[]) {
     bool binary_write = true;
     bool randomize_next_component = true;
     int32 insert_at = -1;
-    BaseFloat stddev_factor = 0.1;
+    int32 insert_offset = 0;
+	BaseFloat stddev_factor = 0.1;
     int32 srand_seed = 0;
     
     po.Register("binary", &binary_write, "Write output in binary mode");
@@ -78,7 +79,9 @@ int main(int argc, char *argv[]) {
     po.Register("insert-at", &insert_at, "Inserts new components before the "
                 "specified component (note: indexes are zero-based).  If <0, "
                 "inserts before the last updatable component(typically before the softmax).");
-    po.Register("stddev-factor", &stddev_factor, "Factor on the standard "
+    po.Register("insert_offset", &insert_offset, "if insert-at = -1, assume the ID of the last updatable component"
+				"(typically before the softmax) is k, inserts before the k-offset component.");
+	po.Register("stddev-factor", &stddev_factor, "Factor on the standard "
                 "deviation when randomizing next component (only relevant if "
                 "--randomize-next-component=true");
    po.Register("srand", &srand_seed, "Seed for random number generator");
@@ -113,6 +116,7 @@ int main(int argc, char *argv[]) {
             "and you didn't use the --insert-at option.";
       //insert_at--; // we want to insert before the linearity before
       // the softmax layer.
+	  insert_at = insert_at - insert_offset;
     }
     InsertComponents(src_nnet, insert_at, &nnet);
     KALDI_LOG << "Inserted " << src_nnet.NumComponents() - 2 << " components at "

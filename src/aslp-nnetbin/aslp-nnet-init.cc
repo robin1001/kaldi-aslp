@@ -53,7 +53,6 @@ int main(int argc, char *argv[]) {
         nnet_out_filename = po.GetArg(2);
 
     std::srand(seed);
-
     // initialize the network
     Nnet nnet;
     nnet.Init(nnet_config_in_filename); 

@@ -3,11 +3,11 @@
 # Copyright 2016  ASLP (Author: zhangbinbin)
 # Apache 2.0
 
-stage=3
+stage=1
 feat_dir=data_fbank
 gmmdir=exp/tri2b
-dir=exp/dnn_fbank_2lstm
-ali=${gmmdir}_ali
+dir=exp/2lstm
+ali=${gmmdir}_dnn
 num_cv_utt=3484
 
 echo "$0 $@"  # Print the command line for logging
@@ -79,7 +79,7 @@ if [ $stage -le 3 ]; then
     aslp-nnet-init $dir/nnet.proto $nnet_init
     #"$train_cmd" $dir/log/train.log \
     aslp_scripts/aslp_nnet/train_scheduler.sh --train-tool "aslp-nnet-train-lstm-streams" \
-        --learn-rate 0.00001 \
+        --learn-rate 0.000032 \
         --momentum 0.9 \
         --train-tool-opts "--batch-size=40 --num-stream=64 --targets-delay=5 --report-period=200" \
         $nnet_init "$feats_tr" "$feats_cv" "$labels_tr" "$labels_cv" $dir
