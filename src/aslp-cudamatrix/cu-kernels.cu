@@ -749,6 +749,39 @@ static void _add_mat_mat_elements(Real *data, const Real *srcA_data, const Real 
     }
 }
 
+template<typename Real>
+__global__
+static void _add_row_sum_mat(Real *data, const Real *src_data, MatrixDim dim, int src_stride, int patch_nrows, Real alpha, Real beta) {
+    int32_cuda i = blockIdx.x * blockDim.x + threadIdx.x;
+    int32_cuda j = blockIdx.y * blockDim.y + threadIdx.y;
+    int32_cuda tgt_index = i + j*dim.stride;
+    int32_cuda src_index = i + j*src_stride*patch_nrows;
+    
+    if (i < dim.cols && j < dim.rows) {
+        Real sum = 0.0;
+        for (int32_cuda k = 0; k < patch_nrows; k++) {
+            sum += src_data[src_index];
+            src_index += src_stride;
+        }
+        data[tgt_index] = alpha * sum + beta * data[tgt_index];
+    }
+}
+
+template<typename Real>
+__global__
+static void _add_conv_mat_mat_elements(Real *data, const Real *srcA_data, const Real *srcB_data, MatrixDim dim, int srcA_stride, int srcB_stride, Real alpha, Real beta) {
+    int32_cuda i = blockIdx.x * blockDim.x + threadIdx.x;
+    int32_cuda tgt_j = blockIdx.y * blockDim.y + threadIdx.y;
+    int32_cuda tgt_index = i + tgt_j*dim.stride;
+    int32_cuda srcA_index = i + (blockIdx.y + threadIdx.y)*srcA_stride;
+    int32_cuda srcB_index = i + threadIdx.y*srcB_stride;
+    
+    if (i < dim.cols && tgt_j < dim.rows) {
+        data[tgt_index] = alpha * srcA_data[srcA_index] * srcB_data[srcB_index] + beta * data[tgt_index] ;
+    }
+}
+
+
 
 /*
  * CuVector
@@ -2380,6 +2413,13 @@ void cudaF_add_mat_mat_elements(dim3 Gr, dim3 Bl, float *data, const float *srcA
     _add_mat_mat_elements<<<Gr, Bl>>>(data, srcA_data, srcB_data, dim, srcA_stride, srcB_stride, alpha, beta);
 }
 
+void cudaF_add_row_sum_mat(dim3 Gr, dim3 Bl, float *data, const float *src_data, MatrixDim dim, int src_stride, int patch_nrows, float alpha, float beta) {
+    _add_row_sum_mat<<<Gr, Bl>>>(data, src_data, dim, src_stride, patch_nrows, alpha, beta);
+}
+
+void cudaF_add_conv_mat_mat_elements(dim3 Gr, dim3 Bl, float *data, const float *srcA_data, const float *srcB_data, MatrixDim dim, int srcA_stride, int srcB_stride, float alpha, float beta) {
+    _add_conv_mat_mat_elements<<<Gr, Bl>>>(data, srcA_data, srcB_data, dim, srcA_stride, srcB_stride, alpha, beta);
+}
 
 // CURRENTLY UNUSED...
 void cudaF_apply_mask(dim3 Gr, dim3 Bl, float* mat, const char* mask, MatrixDim dmat, MatrixDim dmask) {
@@ -2848,6 +2888,14 @@ void cudaD_add_mat_diag_vec(dim3 Gr, dim3 Bl, double alpha, double *mat, MatrixD
 
 void cudaD_add_mat_mat_elements(dim3 Gr, dim3 Bl, double *data, const double *srcA_data, const double *srcB_data, MatrixDim dim, int srcA_stride, int srcB_stride, double alpha, double beta) {
     _add_mat_mat_elements<<<Gr, Bl>>>(data, srcA_data, srcB_data, dim, srcA_stride, srcB_stride, alpha, beta);
+}
+
+void cudaD_add_row_sum_mat(dim3 Gr, dim3 Bl, double *data, const double *src_data, MatrixDim dim, int src_stride, int patch_nrows, double alpha, double beta) {
+    _add_row_sum_mat<<<Gr, Bl>>>(data, src_data, dim, src_stride, patch_nrows, alpha, beta);
+}
+
+void cudaD_add_conv_mat_mat_elements(dim3 Gr, dim3 Bl, double *data, const double *srcA_data, const double *srcB_data, MatrixDim dim, int srcA_stride, int srcB_stride, double alpha, double beta) {
+    _add_conv_mat_mat_elements<<<Gr, Bl>>>(data, srcA_data, srcB_data, dim, srcA_stride, srcB_stride, alpha, beta);
 }
 
 // CURRENTLY UNUSED...
