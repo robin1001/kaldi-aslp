@@ -57,12 +57,15 @@ void AsgdServer::Run() {
             default:
                 KALDI_WARN << "Unknown mpi msg type " << msg_type;
         }
-		if (synchronized_count >= sync_period_ && waited_worker.size() == num_running_workers && num_running_workers != 0) {
+		if (synchronized_count >= sync_period_ && 
+				waited_worker.size() == num_running_workers && 
+				num_running_workers != 0) {
 			for (int j = 0; j < waited_worker.size(); j++) {
+				KALDI_LOG << "Worker " << waited_worker[j] << " synchronized!";
 				for (int i = 0; i < cpu_params_.size(); i++) {
         		//KALDI_LOG << "send " << i << " size " << cpu_params_[i]->Dim();
         			MPI_Send(cpu_params_[i]->Data(), cpu_params_[i]->Dim(), 
-            	    	 MPI_FLOAT, waited_worker[j], kTagModel, MPI_COMM_WORLD);
+            	    	 	 MPI_FLOAT, waited_worker[j], kTagModel, MPI_COMM_WORLD);
     			}
 			}
 			synchronized_count = synchronized_count - sync_period_;

@@ -7,7 +7,7 @@ stage=4
 feat_dir=data_fbank
 gmmdir=exp/tri2b
 skip_width=3
-dir=exp/cnn_3lstm_dnn_asgd
+dir=exp/cnn_2dnn_2lstm_sync_asgd
 ali=${gmmdir}_dnn
 num_cv_utt=4000
 #graph=graph_000_009_kni_p1e8_3gram
@@ -87,7 +87,7 @@ if [ $stage -le 3 ]; then
 	aslp_scripts/aslp_nnet/train_scheduler.sh --train-tool "aslp-nnet-train-lstm-streams" \
         --learn-rate 0.000032 \
         --momentum 0.9 \
-        --max-iters 25 \
+        --max-iters 1 \
 		--train-tool-opts "--gpu-id=2 --skip-width=3 --batch-size=20 --num-stream=100  --report-period=1000" \
         $nnet_init "$feats_tr" "$feats_cv" "$labels_tr" "$labels_cv" $dir
 	cp $dir/final.nnet $single_init
@@ -108,6 +108,7 @@ if [ $stage -le 4 ]; then
 		--gpu-num 4 --gpu-id 4 \
 		--skip-width 3 \
 		--max-iters 40 \
+		--server-tool-opts "--sync-period=100" \
 		--worker-tool-opts "--sync-period=10000" \
 		--train-tool "aslp-nnet-train-lstm-streams" \
 		--worker-tool "aslp-nnet-train-lstm-stream-worker" \

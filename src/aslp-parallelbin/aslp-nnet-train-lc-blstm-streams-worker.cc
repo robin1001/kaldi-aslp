@@ -407,10 +407,15 @@ int main(int argc, char *argv[]) {
 
 	// Stop Worker
 	worker->Stop();
+	// Acc stats
+    std::vector<double *> acc_params; 
+    std::vector<std::pair<double*, int> > data_params;
+    nnet.GetAccStats(&acc_params, &data_params);
+    worker->ReduceAccStat(acc_params, data_params);
 
-	if ((worker_type == "bsp" || worker_type == "bmuf") && worker->IsMainNode()) {
-    	nnet.Write(target_model_filename, binary);
-	}
+    if (worker->IsMainNode()) {
+        nnet.Write(target_model_filename, binary);
+    }
 
     KALDI_LOG << "Done " << num_done << " files, " << num_no_tgt_mat
               << " with no tgt_mats, " << num_other_error
