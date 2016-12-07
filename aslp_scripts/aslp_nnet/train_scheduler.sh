@@ -164,7 +164,7 @@ for iter in $(seq -w $max_iters); do
     fi 
   fi
   # reset halving
-  halving=0
+  ##halving=0
   # start learning-rate fade-out when improvement is low,
   if [ 1 == $(bc <<< "$rel_impr < $start_halving_impr") ]; then
     halving=1

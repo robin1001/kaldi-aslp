@@ -27,7 +27,7 @@ worker_tool_opts=
 train_type="easgd"
 gpu_num=4
 gpu_id=0
-
+skip_width=3
 # learn rate scheduling,
 max_iters=20
 min_iters=0 # keep training, disable weight rejection, start learn-rate halving as usual,
@@ -96,7 +96,7 @@ if [ -e $dir/.init_cv ]; then
     echo "CROSSVAL PRERUN AVG.LOSS $(printf "%.4f" $loss) $loss_type"
 else
     log=$dir/log/iter00.initial.log; hostname>$log
-    $train_tool --gpu-id=$gpu_id --cross-validate=true --randomize=false --verbose=$verbose $train_tool_opts \
+    $train_tool --gpu-id=$gpu_id --skip-width=$skip_width --cross-validate=true --randomize=false --verbose=$verbose $train_tool_opts \
       ${feature_transform:+ --feature-transform=$feature_transform} \
       "$feats_cv" "$labels_cv" $mlp_best \
       2>> $log
@@ -191,7 +191,8 @@ for iter in $(seq -w $max_iters); do
     echo finished, too small rel. improvement $rel_impr
     break
   fi
-
+  #reset halving
+  halving=0
   # start learning-rate fade-out when improvement is low,
   if [ 1 == $(bc <<< "$rel_impr < $start_halving_impr") ]; then
     halving=1
