@@ -126,7 +126,7 @@ fi
 if [ $stage -le 0 ]; then
   $cmd --num-threads $((num_threads+1)) JOB=1:$nj $dir/log/decode.JOB.log \
     $forward_tool $nnet_forward_opts --class-frame-counts=$class_frame_counts --use-gpu=$use_gpu "$nnet" "$feats" ark:- \| \
-    latgen-faster-mapped$thread_string $decode_opts -min-active=$min_active --max-active=$max_active --max-mem=$max_mem --beam=$beam \
+    latgen-faster-mapped$thread_string $decode_opts --min-active=$min_active --max-active=$max_active --max-mem=$max_mem --beam=$beam \
     --lattice-beam=$lattice_beam --acoustic-scale=$acwt --allow-partial=true --word-symbol-table=$graphdir/words.txt \
     $model $graphdir/HCLG.fst ark:- "ark:|gzip -c > $dir/lat.JOB.gz" || exit 1;
 fi
