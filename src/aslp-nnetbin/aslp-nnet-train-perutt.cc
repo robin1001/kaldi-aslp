@@ -197,8 +197,9 @@ int main(int argc, char *argv[]) {
  
       // get block of feature/target pairs
       //const Vector<BaseFloat>& frm_weights = weights_randomizer.Value();
-      trn_opts.learn_rate = norm_lr / feats_transf.NumRows();
-      nnet.SetTrainOptions(trn_opts);
+	  //trn_opts.learn_rate = norm_lr / feats_transf.NumRows();
+      trn_opts.learn_rate = norm_lr / 1024.0;
+	  nnet.SetTrainOptions(trn_opts);
 
       // forward pass
       if (!crossvalidate) {
@@ -253,10 +254,10 @@ int main(int argc, char *argv[]) {
         if (objective_function == "xent") {
           KALDI_LOG << xent.Report();
         }
-        report_frames -= report_period;
-      }
-	  if (!crossvalidate)
+		if (!crossvalidate)
 		  nnet.GetComponentTime();
+		report_frames -= report_period;
+      }
     }
       
     // after last minibatch : show what happens in network 
