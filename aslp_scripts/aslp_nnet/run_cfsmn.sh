@@ -6,7 +6,7 @@
 stage=3
 feat_dir=data_fbank
 gmmdir=exp/tri2b
-dir=exp/3cfsmn
+dir=exp/cnn_4cfsmn
 ali=${gmmdir}_ali
 num_cv_utt=4000
 
@@ -41,7 +41,8 @@ if [ $stage -le 1 ]; then
     echo "Preparing alignment and feats"
         #--delta_opts "--delta-order=2" \
     aslp_scripts/aslp_nnet/prepare_feats_ali.sh \
-        --cmvn_opts "--norm-means=true --norm-vars=true" \
+        --delta_opts "--delta-order=2" \
+		--cmvn_opts "--norm-means=true --norm-vars=true" \
         --splice_opts "--left-context=1 --right-context=1" \
         $feat_dir/train_tr $feat_dir/train_cv data/lang $ali $ali $dir || exit 1;
 fi
@@ -96,20 +97,21 @@ fi
 if [ $stage -le 3 ]; then
     echo "Training nnet"
     nnet_init=$dir/nnet/train.nnet.init
-    aslp-nnet-init $dir/nnet.proto $nnet_init
-    aslp-nnet-info $nnet_init
+	aslp-nnet-init $dir/nnet.proto $nnet_init
+	aslp-nnet-info $nnet_init
 	#"$train_cmd" $dir/log/train.log \
-    aslp_scripts/aslp_nnet/train_scheduler.sh --train-tool "aslp-nnet-train-perutt" \
-        --learn-rate 0.005 \
-        --momentum 0.9 \
-		--train-tool-opts "--gpu-id=2 --report-period=360000" \
+	# --momentum 0.9
+	aslp_scripts/aslp_nnet/train_scheduler.sh --train-tool "aslp-nnet-train-perutt" \
+        --learn-rate 0.04 \
+		--max-iters 30 \
+		--train-tool-opts "--gpu-id=1 --report-period=360000" \
         $nnet_init "$feats_tr" "$feats_cv" "$labels_tr" "$labels_cv" $dir
 fi
 
 # Decoding 
 if [ $stage -le 4 ]; then
 	for x in test3000; do
-    	aslp_scripts/aslp_nnet/decode.sh --nj 2 --num-threads 5 \
+    	aslp_scripts/aslp_nnet/decode.sh --nj 8 --num-threads 4 \
         	--cmd "$decode_cmd" --acwt 0.0666667 \
         	--nnet-forward-opts "--no-softmax=false --apply-log=true" \
         	--forward-tool "aslp-nnet-forward" \
