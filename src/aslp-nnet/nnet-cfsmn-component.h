@@ -76,8 +76,8 @@ class CompactFsmn : public UpdatableComponent {
 		
 
 		Matrix<BaseFloat> vec_coef_mat(num_row, num_col);
-		//float param_scale = sqrt(6.0f / num_row);
-		float param_scale = 1.0f / num_row;
+		//float param_scale = 1.0f / num_col;
+		float param_scale = 0.5 * sqrt(6.0 / (num_col + num_row));
 		InitMatParam(vec_coef_mat, param_scale);
 		vec_coef_ = vec_coef_mat;
 		reversed_vec_coef_.Resize(vec_coef_.NumRows(), vec_coef_.NumCols());
