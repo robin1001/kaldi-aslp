@@ -27,6 +27,8 @@
 #include <vector>
 #include <cstdlib>
 
+#include "base/timer.h"
+
 #include "base/kaldi-common.h"
 #include "util/common-utils.h"
 #include "aslp-cudamatrix/cu-matrix-lib.h"
@@ -1049,6 +1051,76 @@ template<typename Real> static void UnitTestCuMatrixAddMatMatElements() {
   M.AddMatMatElements(alpha, A, B, beta);
   AssertEqual(M, Mcheck);
   KALDI_ASSERT(M.Sum() != 0.0);
+}
+
+template<typename Real> static void UnitTestCuMatrixAddRowSumMat() {
+  // M.AddRowSumMat(alpha, A, beta)
+  //MatrixIndexT rowsM = 2000 + Rand() % 255, cols = 512 + Rand() % 255;
+  //MatrixIndexT patch_nrows = 61 + Rand() % 255;
+  MatrixIndexT rowsM = 20 + Rand() % 2, cols = 5 + Rand() % 2;
+  MatrixIndexT patch_nrows = 6 + Rand() % 2;
+  MatrixIndexT rowsA = rowsM * patch_nrows;
+  Real alpha = 0.43243, beta = 1.423;
+  
+  Timer tim;
+  CuMatrix<Real> M(rowsM, cols), A(rowsA, cols);
+  KALDI_LOG << "matrix malloc " << tim.Elapsed(); tim.Reset();
+  M.SetRandn();
+  A.SetRandn();
+  KALDI_LOG << "matrix SetRandn " << tim.Elapsed(); tim.Reset();
+
+  CuMatrix<Real> Mcheck(M);
+
+  tim.Reset();
+  for (int k = 0; k < rowsM ; k++) {
+    Mcheck.Row(k).AddRowSumMat(alpha, A.RowRange(k*patch_nrows, patch_nrows), beta);
+  }
+  KALDI_LOG << "slow version time" << tim.Elapsed(); tim.Reset();
+  KALDI_LOG << "time reset " << tim.Elapsed(); tim.Reset();
+
+  M.AddRowSumMat(alpha, A, beta);
+  
+  KALDI_LOG << "fast version time" << tim.Elapsed(); tim.Reset();
+
+  AssertEqual(M, Mcheck);
+}
+
+template<typename Real> static void UnitTestCuMatrixAddConvMatMatElements() {
+
+  MatrixIndexT cols = 5;
+  MatrixIndexT rowsB = 8;
+  MatrixIndexT rowsA = 1000;
+  MatrixIndexT rowsM = (rowsA - rowsB + 1) * rowsB;
+  //Real alpha = 0.43243, beta = 1.423;
+  Real alpha = 1.0, beta = 0.0;
+  
+  Timer tim;
+  CuMatrix<Real> M(rowsM, cols), A(rowsA, cols), B(rowsB, cols);
+  KALDI_LOG << "matrix malloc " << tim.Elapsed(); tim.Reset();
+  M.SetRandn();
+  A.SetRandn();
+  //B.SetRandn();
+  B.Set(1.0);
+  KALDI_LOG << "matrix SetRandn " << tim.Elapsed(); tim.Reset();
+
+  CuMatrix<Real> Mcheck(M);
+  tim.Reset();
+  for (int k = 0; k < (rowsA-rowsB+1); k++) {
+    Mcheck.RowRange(k * rowsB, rowsB).AddMatMatElements(alpha, A.RowRange(k, rowsB), B, beta);
+  }
+  KALDI_LOG << "slow time " << tim.Elapsed(); tim.Reset();
+
+  //KALDI_LOG << "A \n" << A;
+  //KALDI_LOG << "B \n" << B;
+  //KALDI_LOG << "M \n" << M;
+  tim.Reset();
+  M.AddConvMatMatElements(alpha, A, B, beta);
+  M.AddConvMatMatElements(alpha, A, B, beta);
+  M.AddConvMatMatElements(alpha, A, B, beta);
+  KALDI_LOG << "fast time " << tim.Elapsed(); tim.Reset();
+  //KALDI_LOG << "M after\n" << M;
+  
+  AssertEqual(M, Mcheck);
 }
 
 template<typename Real>
@@ -2517,6 +2589,8 @@ template<typename Real> void CudaMatrixUnitTest() {
   UnitTestCuMatrixAddDiagVecMat<Real>();
   UnitTestCuMatrixAddMatDiagVec<Real>();
   UnitTestCuMatrixAddMatMatElements<Real>();
+  UnitTestCuMatrixAddRowSumMat<Real>();
+  UnitTestCuMatrixAddConvMatMatElements<Real>();
   UnitTestCuTanh<Real>();
   UnitTestCuCholesky<Real>();
   UnitTestCuDiffTanh<Real>();

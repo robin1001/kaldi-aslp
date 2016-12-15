@@ -98,6 +98,7 @@ thread_string=
 cmvn_opts=
 delta_opts=
 splice_opts=
+global_cmvn_opts=
 D=$srcdir
 [ -e $D/norm_vars ] && cmvn_opts="--norm-means=true --norm-vars=$(cat $D/norm_vars)" # Bwd-compatibility,
 [ -e $D/cmvn_opts ] && cmvn_opts=$(cat $D/cmvn_opts)
@@ -110,8 +111,9 @@ D=$srcdir
 # Create the feature stream,
 feats="ark,s,cs:copy-feats scp:$sdata/JOB/feats.scp ark:- |"
 # apply-cmvn (optional),
-if [ ! -z $global_cmvn_file ]; then 
-    [ ! -z "$cmvn_opts" -a ! -f $global_cmvn_file ] && echo "$0: Missing $global_cmvn_file" && exit 1
+#if [ ! -z $global_cmvn_file ]; then 
+if [ ! -z "$global_cmvn_opts" ]; then
+	[ ! -z "$cmvn_opts" -a ! -f $global_cmvn_file ] && echo "$0: Missing $global_cmvn_file" && exit 1
     [ ! -z "$cmvn_opts" ] && feats="$feats apply-cmvn $cmvn_opts $global_cmvn_file ark:- ark:- |"
 else
     [ ! -z "$cmvn_opts" -a ! -f $sdata/1/cmvn.scp ] && echo "$0: Missing $sdata/1/cmvn.scp" && exit 1
@@ -126,7 +128,7 @@ fi
 if [ $stage -le 0 ]; then
   $cmd --num-threads $((num_threads+1)) JOB=1:$nj $dir/log/decode.JOB.log \
     $forward_tool $nnet_forward_opts --class-frame-counts=$class_frame_counts --use-gpu=$use_gpu "$nnet" "$feats" ark:- \| \
-    latgen-faster-mapped$thread_string $decode_opts -min-active=$min_active --max-active=$max_active --max-mem=$max_mem --beam=$beam \
+    latgen-faster-mapped$thread_string $decode_opts --min-active=$min_active --max-active=$max_active --max-mem=$max_mem --beam=$beam \
     --lattice-beam=$lattice_beam --acoustic-scale=$acwt --allow-partial=true --word-symbol-table=$graphdir/words.txt \
     $model $graphdir/HCLG.fst ark:- "ark:|gzip -c > $dir/lat.JOB.gz" || exit 1;
 fi

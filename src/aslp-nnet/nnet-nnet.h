@@ -59,7 +59,8 @@ class Nnet {
   /// Perform forward pass through the network, don't keep buffers (use it when not training)
   void Feedforward(const std::vector<const CuMatrixBase<BaseFloat> *> &in, 
         std::vector<CuMatrix<BaseFloat> *> *out); 
-
+  /// Print component's propagate time and backpropagate time
+  void GetComponentTime();
   /// Dimensionality on network input (input feature dim.)
   int32 InputDim() const;
   /// Dimensionality of network outputs (posteriors | bn-features | etc.)
@@ -143,6 +144,8 @@ class Nnet {
   /// Write MLP to stream
   void Write(std::ostream &out, bool binary) const;
   void WriteStandard(std::ostream &out, bool binary) const;
+  /// Write dot file
+  void WriteDotFile(std::ofstream &out) const;
 
   /// Create string with human readable description of the nnet
   std::string Info() const;
@@ -165,7 +168,10 @@ class Nnet {
   }
   /// Automatic complete simple feedforward net, assign id and input for each layer
   void AutoComplete(); 
-
+  /// Assign id and input for each layer for graph net
+  void AssignComponentId(std::vector<Component*> &components); 
+  /// sort component based on component id
+  void SortComponent(std::vector<Component*> &components);
  private:
    void InitInputOutput();
   /// Vector which contains all the components composing the neural network,
@@ -173,6 +179,9 @@ class Nnet {
   std::vector<Component*> components_;
   /// Inputs, Outputs
   std::vector<int32> input_, output_;
+
+  std::vector<std::pair<std::string, BaseFloat> > propagate_time_;
+  std::vector<std::pair<std::string, BaseFloat> > back_propagate_time_;
 
   std::vector<CuMatrix<BaseFloat> > propagate_buf_;  ///< buffers for forward pass
   std::vector<CuMatrix<BaseFloat> > backpropagate_buf_;  ///< buffers for backward pass

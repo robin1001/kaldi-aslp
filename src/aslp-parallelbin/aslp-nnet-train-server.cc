@@ -42,7 +42,9 @@ int main(int argc, char *argv[]) {
         po.Register("server-type", &server_type, "Server type(easgd | asgd)");
         float alpha = 0.5;
         po.Register("alpha", &alpha, "Moving rate alpha for easgd server");
-        int gpu_id = -1;
+        int sync_period = 1000;
+		po.Register("sync-period", &sync_period, "Synchronization period for ASGD");
+		int gpu_id = -1;
         po.Register("gpu-id", &gpu_id, "selected gpu id, if negative then select automaticly");
         
         po.Read(argc, argv);
@@ -70,7 +72,7 @@ int main(int argc, char *argv[]) {
         if (server_type == "easgd") {
             server = new EasgdServer(alpha);
         } else if (server_type == "asgd") {
-            server = new AsgdServer(alpha);
+            server = new AsgdServer(alpha, sync_period);
         }
         else {
             KALDI_ERR << "Unsupported server type: " << server_type;

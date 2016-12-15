@@ -1,7 +1,6 @@
-// nnetbin/nnet-initialize.cc
+// aslpnnetbin/aslp-nnet-generate-graph.cc
 
-// Copyright 2014  Brno University of Technology (author: Karel Vesely)
-// Copyright 2016  ASLP (Author: zhangbinbin liwenpeng duwei)
+// Copyright 2016  ASLP (Author: liwenpeng zhangbinbin)
 
 // See ../../COPYING for clarification regarding multiple authors
 //
@@ -29,19 +28,12 @@ int main(int argc, char *argv[]) {
     typedef kaldi::int32 int32;
 
     const char *usage =
-        "Initialize Neural Network parameters according to a prototype (aslp_nnet).\n"
-        "Usage:  aslp-nnet-initialize [options] <nnet-prototype-in> <nnet-out>\n"
+        "Generate dot file about the neural network.\n"
+        "Usage:  aslp-nnet-generate-graph [options] <nnet-in> <dot-out>\n"
         "e.g.:\n"
-        " aslp-nnet-initialize --binary=false nnet.proto nnet.init\n";
-
-    SetVerboseLevel(1); // be verbose by default
-
+        " aslp-nnet-info 1.nnet 1.dot\n";
+    
     ParseOptions po(usage);
-    bool binary_write = true;
-    po.Register("binary", &binary_write, "Write output in binary mode");
-    int32 seed = 777;
-    po.Register("seed", &seed, "Seed for random number generator");
-
     po.Read(argc, argv);
 
     if (po.NumArgs() != 2) {
@@ -49,19 +41,19 @@ int main(int argc, char *argv[]) {
       exit(1);
     }
 
-    std::string nnet_config_in_filename = po.GetArg(1),
-        nnet_out_filename = po.GetArg(2);
+    std::string nnet_rxfilename = po.GetArg(1);
+	std::string dot_wxfilename = po.GetArg(2);
+    // load the network
+    Nnet nnet; 
+    {
+      bool binary_read;
+      Input ki(nnet_rxfilename, &binary_read);
+      nnet.Read(ki.Stream(), binary_read);
+	  std::ofstream ko(dot_wxfilename.c_str());
+	  nnet.WriteDotFile(ko);
+    }
 
-    std::srand(seed);
-    // initialize the network
-    Nnet nnet;
-    nnet.Init(nnet_config_in_filename); 
-    
-    // store the network
-    Output ko(nnet_out_filename, binary_write);
-    nnet.Write(ko.Stream(), binary_write);
-
-    KALDI_LOG << "Written initialized model to " << nnet_out_filename;
+    KALDI_LOG << "Generate dot file for " << nnet_rxfilename;
     return 0;
   } catch(const std::exception &e) {
     std::cerr << e.what() << '\n';

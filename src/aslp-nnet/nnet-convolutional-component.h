@@ -75,14 +75,34 @@ class ConvolutionalComponent : public UpdatableComponent {
   Component* Copy() const { return new ConvolutionalComponent(*this); }
   ComponentType GetType() const { return kConvolutionalComponent; }
 
+  static void InitMatParam(CuMatrix<BaseFloat> &m, float scale) {
+    m.SetRandUniform();  // uniform in [0, 1]
+    m.Add(-0.5);         // uniform in [-0.5, 0.5]
+    m.Scale(2 * scale);  // uniform in [-scale, +scale]
+  }
+
+  static void InitVecParam(CuVector<BaseFloat> &v, float scale) {
+    Vector<BaseFloat> tmp(v.Dim());
+    for (int i=0; i < tmp.Dim(); i++) {
+      tmp(i) = (RandUniform() - 0.5) * 2 * scale;
+    }
+    v = tmp;
+  }
+
   void InitData(std::istream &is) {
     // define options
     BaseFloat bias_mean = -2.0, bias_range = 2.0, param_stddev = 0.1;
-    // parse config
+    BaseFloat norm_init_scale = 1.0;
+	bool gauss_init = true;
+	// parse config
     std::string token; 
     while (!is.eof()) {
       ReadToken(is, false, &token); 
-      /**/ if (token == "<ParamStddev>") ReadBasicType(is, false, &param_stddev);
+      /**/ if (token == "<NormInit>") {
+			ReadBasicType(is, false, &norm_init_scale);
+			gauss_init = false;
+	  }
+	  else if (token == "<ParamStddev>") ReadBasicType(is, false, &param_stddev);
       else if (token == "<BiasMean>")    ReadBasicType(is, false, &bias_mean);
       else if (token == "<BiasRange>")   ReadBasicType(is, false, &bias_range);
       else if (token == "<PatchDim>")    ReadBasicType(is, false, &patch_dim_);
@@ -119,21 +139,28 @@ class ConvolutionalComponent : public UpdatableComponent {
     //
     // Initialize parameters
     //
-    Matrix<BaseFloat> mat(num_filters, filter_dim);
-    for(int32 r=0; r<num_filters; r++) {
-      for(int32 c=0; c<filter_dim; c++) {
-        mat(r,c) = param_stddev * RandGauss(); // 0-mean Gauss with given std_dev
-      }
-    }
-    filters_ = mat;
-    //
-    Vector<BaseFloat> vec(num_filters);
-    for(int32 i=0; i<num_filters; i++) {
-      // +/- 1/2*bias_range from bias_mean:
-      vec(i) = bias_mean + (RandUniform() - 0.5) * bias_range; 
-    }
-    bias_ = vec;
-    //
+	if (!gauss_init) {
+    	filters_.Resize(num_filters, filter_dim);
+		bias_.Resize(num_filters);
+		float scale = norm_init_scale * sqrt(6.0 / (num_filters + filter_dim));
+		InitMatParam(filters_, scale);
+		InitVecParam(bias_, scale);
+	} else {
+		Matrix<BaseFloat> mat(num_filters, filter_dim);
+    	for(int32 r=0; r<num_filters; r++) {
+      		for(int32 c=0; c<filter_dim; c++) {
+        		mat(r,c) = param_stddev * RandGauss(); // 0-mean Gauss with given std_dev
+    	  	}
+    	}
+    	filters_ = mat;
+    	//
+    	Vector<BaseFloat> vec(num_filters);
+    	for(int32 i=0; i<num_filters; i++) {
+      		// +/- 1/2*bias_range from bias_mean:
+      		vec(i) = bias_mean + (RandUniform() - 0.5) * bias_range; 
+    	}
+    	bias_ = vec;
+	}
   }
 
   void ReadData(std::istream &is, bool binary) {

@@ -20,7 +20,8 @@ namespace kaldi {
 
 class AsgdServer : public IServer {
 public:
-    AsgdServer(float alpha = 1.0): alpha_(alpha) {}
+    AsgdServer(float alpha = 1.0, int sync_period = 1000): 
+				alpha_(alpha), sync_period_(sync_period) {}
     ~AsgdServer();
     // @params type pair: first is to the gpu data points, 
     //                    second is the size of it
@@ -33,10 +34,11 @@ public:
     // Start serve
     void Run();
     // Update server model with one worker
-    void Update(int worker_rank);
+    void Update(int worker_rank, int count);
 private:
     float alpha_;
-    // Here we use CuSubVector for that the memory is hold and managed by train model,
+    int32 sync_period_;
+	// Here we use CuSubVector for that the memory is hold and managed by train model,
     // CuSubVector only share and update this pointer, refer to CuSubVector for details
     std::vector<CuSubVector<BaseFloat> *> server_gpu_params_;
     std::vector<CuVector<BaseFloat> *> worker_gpu_params_;
