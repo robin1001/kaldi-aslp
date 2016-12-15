@@ -4,15 +4,21 @@
 // Created on 2016-08-24
 
 
-#include "aslp-nnet/nnet-trnopts.h"
-#include "aslp-nnet/nnet-nnet.h"
-#include "aslp-nnet/nnet-loss.h"
-#include "aslp-nnet/nnet-randomizer.h"
 #include "base/kaldi-common.h"
 #include "util/common-utils.h"
 #include "base/timer.h"
 #include "aslp-cudamatrix/cu-device.h"
+
+#include "aslp-nnet/nnet-trnopts.h"
+#include "aslp-nnet/nnet-nnet.h"
+#include "aslp-nnet/nnet-loss.h"
 #include "aslp-nnet/data-reader.h"
+
+#include "aslp-parallel/itf.h"
+#include "aslp-parallel/bsp-worker.h"
+#include "aslp-parallel/easgd-worker.h"
+#include "aslp-parallel/bmuf-worker.h"
+#include "aslp-parallel/asgd-worker.h"
 
 int main(int argc, char *argv[]) {
   using namespace kaldi;
@@ -21,13 +27,12 @@ int main(int argc, char *argv[]) {
   
   try {
     const char *usage =
-        "Perform one iteration of LSTM training by Stochastic Gradient Descent.\n"
-        "This version use pdf-posterior as targets, prepared typically by ali-to-post.\n"
-        "The updates are done per-utterance, shuffling options are dummy for compatibility reason.\n"
-        "\n"
-        "Usage: aslp-nnet-train-lstm-streams [options] <feature-rspecifier> <targets-rspecifier> <model-in> [<model-out>]\n"
-        "e.g.: \n"
-        " aslp-nnet-train-lstm-streams scp:feature.scp ark:posterior.ark nnet.init nnet.iter1\n";
+        "Parallel worker of aslp-nnet-train-lstm-stream, but don't do cross validation"
+		"see aslp-nnet-train-lstm-subsequence-stream for details\n"
+		"Usage: aslp-nnet-train-lstm-stream-worker [options] "
+		"<feature-rspecifier> <targets-respecifier> <model-in> <model-out>\n"
+		"e.g.: \n"
+		"aslp-nnet-train-lstm-stream-worker scp:feature.scp ark:posterior.ark nnet.init nnet.iter1\n";
 
     ParseOptions po(usage);
 
@@ -51,7 +56,8 @@ int main(int argc, char *argv[]) {
     po.Register("use-gpu", &use_gpu, "yes|no|optional, only has effect if compiled with CUDA"); 
 	
 	int32 gpu_id = -1;
-    po.Register("gpu-id", &gpu_id, "selected gpu id, if negative then select automaticly");
+	po.Register("gpu-id", &gpu_id, "selected gpu id, if negative then select automaticly");
+
 	bool randomize = false;
     po.Register("randomize", &randomize, "Dummy option, for compatibility...");
     int report_period = 200; // 200 sentence with one report 
@@ -59,29 +65,37 @@ int main(int argc, char *argv[]) {
    	int32 dump_interval=0;
    	po.Register("dump-interval", &dump_interval, "---LSTM--- num utts between model dumping [ 0 == disabled ]");
     
+	// for worker
+	std::string worker_type = "bsp";
+	po.Register("worker-type", &worker_type, "Worker type(bsp | bmuf | easgd)");
+	float alpha = 0.5;
+	po.Register("alpha", &alpha, "Moving rate alpha for easgd worker");
+	float bmuf_momentum = 0.9;
+	po.Register("bmuf-momentum", &bmuf_momentum, "momentum for bmuf worker");
+	float bmuf_learn_rate = 1.0;
+	po.Register("bmuf-learn-rate", &bmuf_learn_rate, "learn rate for bmuf worker");
+	int sync_period = 25600;
+	po.Register("sync-period", &sync_period, "number frames for every synchronization");
+
 	po.Read(argc, argv);
 
-    if (po.NumArgs() != 4-(crossvalidate?1:0)) {
+    if (po.NumArgs() != 4) {
       po.PrintUsage();
       exit(1);
     }
 
     std::string feature_rspecifier = po.GetArg(1),
-      targets_rspecifier = po.GetArg(2),
-      model_filename = po.GetArg(3);
-        
-    std::string target_model_filename;
-    if (!crossvalidate) {
-      target_model_filename = po.GetArg(4);
-    }
-
+        targets_rspecifier = po.GetArg(2),
+        model_filename = po.GetArg(3),
+		target_model_filename = po.GetArg(4);
+       
     //Select the GPU
 #if HAVE_CUDA==1
     if (gpu_id >= 0) {
-      CuDevice::Instantiate().SetGpuId(gpu_id);
-    } else {
-      CuDevice::Instantiate().SelectGpuId(use_gpu);
-    }
+		CuDevice::Instantiate().SetGpuId(gpu_id);
+	} else {
+		CuDevice::Instantiate().SelectGpuId(use_gpu);
+	}
 #endif
 
     Nnet nnet;
@@ -104,10 +118,30 @@ int main(int argc, char *argv[]) {
 	} else {
 		KALDI_ERR << "Unsupported objective function: " << objective_function;
 	}
+   
+	// Init Worker
+	IWorker *worker = NULL;
+	if (worker_type == "bsp") {
+		worker = new BspWorker();
+	} else if (worker_type == "easgd") {
+		worker = new EasgdWorker(alpha);
+	} else if (worker_type == "bmuf") {
+		worker = new BmufWorker(bmuf_learn_rate, bmuf_momentum);
+	} else if (worker_type == "asgd") {
+		worker = new AsgdWorker();
+	} else {
+		KALDI_ERR << "Unsupported worker type: " << worker_type;
+	}
+
+    std::vector<std::pair<BaseFloat *, int> > params;
+    nnet.GetGpuParams(&params);
+    worker->InitParam(params);
+    KALDI_LOG << "Mpi cluster info total " << worker->NumNodes()
+   			 << " worker rank " << worker->Rank();
     
-    Timer time;
-    KALDI_LOG << (crossvalidate?"CROSS-VALIDATION":"TRAINING") << " STARTED";
-	
+	Timer time;
+	int num_frames_since_last_sync = 0;
+	KALDI_LOG << "TRAINING STARTED";
 	SequenceDataReader reader(feature_rspecifier, targets_rspecifier, read_opts);
 
     CuMatrix<BaseFloat> nnet_out, obj_diff;
@@ -124,18 +158,11 @@ int main(int argc, char *argv[]) {
 		nnet.ResetLstmStreams(new_utt_flags);
 
         // forward pass
-        if (!crossvalidate) {
-            nnet.Propagate(nnet_in, &nnet_out);
-        } else {
-            nnet.Feedforward(nnet_in, &nnet_out);
-        }
-  		//evalute objective function we've chose 
+        nnet.Propagate(nnet_in, &nnet_out);
+		// evalute objective function we've chose 
    		loss->Eval(frame_mask, nnet_out, nnet_tgt, &obj_diff);
-    
         // backward pass
-        if (!crossvalidate) {
-            nnet.Backpropagate(obj_diff, NULL);
-        }
+        nnet.Backpropagate(obj_diff, NULL);
 
         // 1st minibatch : show what happens in network 
         if (kaldi::g_kaldi_verbose_level >= 1 && total_frames == 0) { // vlog-1
@@ -149,7 +176,13 @@ int main(int argc, char *argv[]) {
 
         int frame_progress = frame_mask.Sum();
         total_frames += frame_progress;
-
+		num_frames_since_last_sync += frame_mask.Sum();	
+		// Do synchronize
+		if (num_frames_since_last_sync > sync_period) {
+			KALDI_LOG << "Worker " << worker->Rank() << " synchronize once";
+			worker->Synchronize(num_frames_since_last_sync);
+			num_frames_since_last_sync = 0;
+		}
         int num_done_progress = 0;
         for (int i =0; i < new_utt_flags.size(); i++) {
             num_done_progress += new_utt_flags[i];
@@ -162,7 +195,6 @@ int main(int argc, char *argv[]) {
             num_sentence -= report_period;
         }
 
-        
         // monitor the NN training
         if (kaldi::g_kaldi_verbose_level >= 2) { // vlog-2
             if ((total_frames-frame_progress)/25000 != (total_frames/25000)) { // print every 25k frames
@@ -197,7 +229,7 @@ int main(int argc, char *argv[]) {
               }
           }
         }
-    }
+    } //while(!reader.Done())
       
     // after last minibatch : show what happens in network 
     if (kaldi::g_kaldi_verbose_level >= 1) { // vlog-1
@@ -208,11 +240,18 @@ int main(int argc, char *argv[]) {
         KALDI_VLOG(1) << nnet.InfoGradient();
       }
     }
+	
+	// Stop Worker
+	worker->Stop();
+	// Acc stats
+    std::vector<double *> acc_params; 
+    std::vector<std::pair<double*, int> > data_params;
+    nnet.GetAccStats(&acc_params, &data_params);
+    worker->ReduceAccStat(acc_params, data_params);
 
-    if (!crossvalidate) {
-      nnet.Write(target_model_filename, binary);
+    if (worker->IsMainNode()) {
+        nnet.Write(target_model_filename, binary);
     }
-
     KALDI_LOG << "Done " << num_done << " files, " 
 			  << "[" << (crossvalidate?"CROSS-VALIDATION":"TRAINING")
               << ", " << (randomize?"RANDOMIZED":"NOT-RANDOMIZED") 
@@ -220,16 +259,8 @@ int main(int argc, char *argv[]) {
               << "]";  
 	loss->Report();
 	if (loss != NULL) delete loss;
-/*
- * if (objective_function == "xent") {
-      KALDI_LOG << xent.Report();
-    } else if (objective_function == "mse") {
-      KALDI_LOG << mse.Report();
-    } else {
-      KALDI_ERR << "Unknown objective function code : " << objective_function;
-    }
-*
-* */
+	if (worker != NULL) delete worker;
+
 #if HAVE_CUDA==1
     CuDevice::Instantiate().PrintProfile();
 #endif

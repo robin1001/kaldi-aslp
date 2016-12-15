@@ -3006,6 +3006,71 @@ void CuMatrixBase<Real>::ComputeCtcErrorMSeq(const CuMatrixBase<Real> &alpha,
  }
 }
 
+template<typename Real>
+void CuMatrixBase<Real>::AddRowSumMat(Real alpha,
+                                      const CuMatrixBase<Real> &A,
+                                      Real beta) {
+#if HAVE_CUDA == 1
+  if (CuDevice::Instantiate().Enabled()) {
+    KALDI_ASSERT(this->NumRows() != 0 && A.NumRows() % this->NumRows() == 0);
+    KALDI_ASSERT(A.NumCols() == this->NumCols());
+    int patch_nrows = A.NumRows() / this->NumRows();
+    Timer tim;
+    dim3 dimBlock(CU2DBLOCK, CU2DBLOCK);
+    dim3 dimGrid(n_blocks(NumCols(), CU2DBLOCK), n_blocks(NumRows(), CU2DBLOCK));
+    cuda_add_row_sum_mat(dimGrid, dimBlock, this->data_, A.Data(), Dim(), A.Stride(), patch_nrows, alpha, beta);
+    CuDevice::Instantiate().AccuProfile(__func__, tim.Elapsed());
+  } else
+#endif
+  {
+    //KALDI_ERR << "CuMatrixBase::AddRowSumMat(): Not Implemented !";
+    KALDI_ASSERT(this->NumRows() != 0 && A.NumRows() % this->NumRows() == 0);
+    KALDI_ASSERT(A.NumCols() == this->NumCols());
+    int patch_nrows = A.NumRows() / this->NumRows();
+    for (int k = 0; k < NumRows() ; k++) {
+      Mat().Row(k).AddRowSumMat(alpha, A.Mat().RowRange(k*patch_nrows, patch_nrows), beta);
+    }
+  }
+}
+
+template<typename Real>
+void CuMatrixBase<Real>::AddConvMatMatElements(Real alpha,
+                                      const CuMatrixBase<Real> &A,
+                                      const CuMatrixBase<Real> &B,
+                                      Real beta) {
+#if HAVE_CUDA == 1
+  if (CuDevice::Instantiate().Enabled()) {
+    if (NumRows() == 0) {
+      return;
+    }
+    int32 a_nrows = A.NumRows(), b_nrows = B.NumRows();
+    // check dim
+    KALDI_ASSERT(a_nrows >= b_nrows && NumRows() == ((a_nrows - b_nrows + 1) * b_nrows));
+    KALDI_ASSERT(NumCols() == A.NumCols() && A.NumCols() == B.NumCols());
+    Timer tim;
+    // TODO : fix this later
+    int32 blockDimX = 2, blockDimY = b_nrows;
+    KALDI_ASSERT(blockDimY <= 128);
+    dim3 dimBlock(blockDimX, blockDimY);
+    dim3 dimGrid(n_blocks(NumCols(), blockDimX), n_blocks(NumRows(), blockDimY));
+    cuda_add_conv_mat_mat_elements(dimGrid, dimBlock, this->data_, A.Data(), B.Data(), Dim(), A.Stride(), B.Stride(), alpha, beta);
+    CuDevice::Instantiate().AccuProfile(__func__, tim.Elapsed());
+  } else
+#endif
+  {
+    if (NumRows() == 0) {
+      return;
+    }
+    int32 a_nrows = A.NumRows(), b_nrows = B.NumRows();
+    // check dim
+    KALDI_ASSERT(a_nrows >= b_nrows && NumRows() == ((a_nrows - b_nrows + 1) * b_nrows));
+    KALDI_ASSERT(NumCols() == A.NumCols() && A.NumCols() == B.NumCols());
+ 
+    for (int k = 0; k < (a_nrows-b_nrows+1); k++) {
+      Mat().RowRange(k * b_nrows, b_nrows).AddMatMatElements(alpha, A.Mat().RowRange(k, b_nrows), B.Mat(), beta);
+    }
+  }
+}
 
 /**
  * Print the matrix to stream

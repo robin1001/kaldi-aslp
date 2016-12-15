@@ -171,6 +171,168 @@ void FrameDataReader::ReadData(const CuMatrixBase<BaseFloat> **feat, const Poste
 }
 
 
+SequenceDataReader::SequenceDataReader(
+							const std::string &feature_rspecifier,
+							const std::string &targets_rspecifier,
+							const SequenceDataReaderOptions &read_opts):read_opts_(read_opts), read_done_(false){
+	feature_reader_ = new SequentialBaseFloatMatrixReader(feature_rspecifier);
+	target_reader_ = new RandomAccessPosteriorReader(targets_rspecifier);
+	curt_.resize(read_opts_.num_stream, 0);
+	lent_.resize(read_opts_.num_stream, 0);
+	new_utt_flags_.resize(read_opts_.num_stream, 0);
+	keys_.resize(read_opts_.num_stream);
+	feats_.resize(read_opts_.num_stream);
+	targets_.resize(read_opts_.num_stream);
+
+}
+
+SequenceDataReader::~SequenceDataReader(){}
+
+inline bool SequenceDataReader::Done() {
+	return (read_done_ && feature_reader_->Done());
+}
+
+void SequenceDataReader::AddNewUtt() {
+	
+	int32 num_stream = read_opts_.num_stream;
+	// loop over all streams, check if any stream reaches the end of its utterance
+	// if any, feed the exhhausted steam with a new utterance, update book-keeping infos
+	for (int s = 0; s < num_stream; s++) {
+		// this stream still has valid frames
+		if (curt_[s] < lent_[s]) {
+			new_utt_flags_[s] = 0;
+			continue;
+		}
+		// else, this stream exhausted, need new utterance
+		while (!feature_reader_->Done()) {
+			const std::string& key = feature_reader_->Key();
+			// get the feature matrix,
+			const Matrix<BaseFloat> &mat = feature_reader_->Value();
+			// dorp too long sentence	
+			int32 drop_len = read_opts_.drop_len;
+			if (drop_len > 0 && mat.NumRows() > drop_len) {
+				KALDI_WARN << key << ", too long, droped";
+				feature_reader_->Next();
+				continue;
+			}
+			// get the labels,
+			if (!target_reader_->HasKey(key)) {
+				KALDI_WARN << key << ", missing targets";
+				feature_reader_->Next();
+				continue;
+			}
+
+			const Posterior& target = target_reader_->Value(key);
+
+			// check that the length matches,
+			if (mat.NumRows() != target.size()) {
+				KALDI_WARN << key << ", length miss-match between feats and targers, skip";
+				feature_reader_->Next();
+				continue;
+			}
+
+			// Use skip
+			int32 skip_width =  read_opts_.skip_width;
+			CuMatrix<BaseFloat> cu_mat(mat.NumRows(), mat.NumCols());
+			cu_mat.CopyFromMat(mat);
+			if (skip_width > 1) {
+				int skip_len = (cu_mat.NumRows() - 1) / skip_width + 1;
+				CuMatrix<BaseFloat> skip_feat(skip_len, cu_mat.NumCols());
+				Posterior skip_target(skip_len);
+				for (int i = 0; i < skip_len; i++) {
+					skip_feat.Row(i).CopyFromVec(cu_mat.Row(i * skip_width));
+					skip_target[i] = target[i * skip_width];
+				}
+				feats_[s].Resize(skip_feat.NumRows(), skip_feat.NumCols());
+				skip_feat.CopyToMat(&feats_[s]);
+				targets_[s] = skip_target;
+			} else {
+				feats_[s].Resize(cu_mat.NumRows(), cu_mat.NumCols());
+				cu_mat.CopyToMat(&feats_[s]);
+				targets_[s] = target;
+			}
+			// checks ok, put the data in the buffers,
+			keys_[s] = key;
+			curt_[s] = 0;
+			lent_[s] = feats_[s].NumRows();
+			new_utt_flags_[s] = 1; // a new utterance feeded to this stream
+			feature_reader_->Next();
+			break;
+		}
+	}
+}
+
+void SequenceDataReader::FillBatchBuff(CuMatrix<BaseFloat> *feat,
+									   Posterior *target, 
+									   Vector<BaseFloat> *frame_mask) {
+	KALDI_ASSERT(feat != NULL);
+	KALDI_ASSERT(target != NULL);
+	KALDI_ASSERT(frame_mask != NULL);
+	
+	int32 num_stream = read_opts_.num_stream;
+	int32 batch_size = read_opts_.batch_size;
+	int32 targets_delay = read_opts_.targets_delay;
+	// we are done if all stream are exhausted
+	for (int s = 0; s < num_stream; s++) {
+		if (curt_[s] < lent_[s]) {
+			read_done_ = false; // this stream still contains vaild data, not exhausted
+			break;
+		}
+		else {
+			read_done_ = true;
+		}
+	}
+		
+	// fill a multi-stream bptt batch
+	// * frame_mask: o indicates padded frames, 1 indicates valid frames
+	// * target: padded to batch_size
+	// *feat: first shifted to achieve targets delay; then padded to batch_size
+	int32 feat_dim = feats_[0].NumCols();
+	Matrix<BaseFloat> feats(batch_size * num_stream, feat_dim, kSetZero);
+	Posterior &targets = *target;
+	targets.resize(batch_size * num_stream);
+	Vector<BaseFloat>& mask = *frame_mask;
+	mask.Resize(batch_size * num_stream, kSetZero);
+
+	if (!read_done_) {
+		for ( int t = 0; t < batch_size; t++) {
+			for (int s = 0; s < num_stream; s++) {
+				if (curt_[s] < lent_[s]) {
+					mask(t * num_stream + s) = 1;
+					targets[t * num_stream + s] = targets_[s][curt_[s]];
+				} else {
+					mask(t * num_stream + s) = 0;
+					targets[t * num_stream + s] = targets_[s][lent_[s]-1];
+				}
+				// feat shifting & padding
+				if (curt_[s] + targets_delay < lent_[s]) {
+					feats.Row(t * num_stream + s).CopyFromVec(feats_[s].Row(curt_[s]+targets_delay));
+				} else {
+					feats.Row(t * num_stream + s).CopyFromVec(feats_[s].Row(lent_[s]-1));
+				}
+				curt_[s]++;
+			}
+		}
+	feat->Resize(batch_size * num_stream, feat_dim, kSetZero);
+	feat->CopyFromMat(feats);
+	}
+}
+
+void SequenceDataReader::ReadData(CuMatrix<BaseFloat> *feat,
+								  Posterior *target,
+								  Vector<BaseFloat> *frame_mask) {
+	KALDI_ASSERT(feat != NULL);
+	KALDI_ASSERT(target != NULL);
+	KALDI_ASSERT(frame_mask != NULL);
+
+	if (Done())
+		KALDI_ERR << "Already read done!";
+	else {
+		AddNewUtt(); // add new utterance to multi-streams
+		// fill batch buffer for bptt
+		FillBatchBuff(feat, target, frame_mask);
+	}
+}
 
 } // namespace aslp_nnet
 } // namespace kaldi

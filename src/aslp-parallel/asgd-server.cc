@@ -33,7 +33,9 @@ AsgdServer::~AsgdServer() {
 
 void AsgdServer::Run() {
     int num_running_workers = NumNodes() - 1;
-    MPI_Status status;
+    int synchronized_count = 0;
+	std::vector<int> waited_worker;
+	MPI_Status status;
     int msg_type, worker_rank;
     while (num_running_workers > 0) {
         // tag 0, msg type 
@@ -44,20 +46,37 @@ void AsgdServer::Run() {
         switch (msg_type) {
             case kMsgFinished:
                 num_running_workers--;
-                KALDI_LOG << "Worker " << worker_rank << " Finished ";
+				KALDI_LOG << "Worker " << worker_rank << " Finished ";
                 break;
-            case kMsgSynchronize: 
-                Update(worker_rank); 
+            case kMsgSynchronize:
+				++synchronized_count;
+                if (synchronized_count >= sync_period_)
+					waited_worker.push_back(worker_rank);
+				Update(worker_rank, synchronized_count); 
                 break;
             default:
                 KALDI_WARN << "Unknown mpi msg type " << msg_type;
         }
+		if (synchronized_count >= sync_period_ && 
+				waited_worker.size() == num_running_workers && 
+				num_running_workers != 0) {
+			for (int j = 0; j < waited_worker.size(); j++) {
+				KALDI_LOG << "Worker " << waited_worker[j] << " synchronized!";
+				for (int i = 0; i < cpu_params_.size(); i++) {
+        		//KALDI_LOG << "send " << i << " size " << cpu_params_[i]->Dim();
+        			MPI_Send(cpu_params_[i]->Data(), cpu_params_[i]->Dim(), 
+            	    	 	 MPI_FLOAT, waited_worker[j], kTagModel, MPI_COMM_WORLD);
+    			}
+			}
+			synchronized_count = synchronized_count - sync_period_;
+			waited_worker.clear();
+		}
     }
 
     KALDI_LOG << "All worker finished";
 }
 
-void AsgdServer::Update(int worker_rank) {
+void AsgdServer::Update(int worker_rank, int synchronized_count) {
     MPI_Status status;
     // 1. receive gradient from worker
     for (int i = 0; i < cpu_params_.size(); i++) {
@@ -72,11 +91,13 @@ void AsgdServer::Update(int worker_rank) {
         cpu_params_[i]->CopyFromVec(*server_gpu_params_[i]);
     }
     // 3. send new model to worker
-    for (int i = 0; i < cpu_params_.size(); i++) {
-        //KALDI_LOG << "send " << i << " size " << cpu_params_[i]->Dim();
-        MPI_Send(cpu_params_[i]->Data(), cpu_params_[i]->Dim(), 
-                 MPI_FLOAT, worker_rank, kTagModel, MPI_COMM_WORLD);
-    }
+    if ( synchronized_count < sync_period_) {
+		for (int i = 0; i < cpu_params_.size(); i++) {
+        	//KALDI_LOG << "send " << i << " size " << cpu_params_[i]->Dim();
+        	MPI_Send(cpu_params_[i]->Data(), cpu_params_[i]->Dim(), 
+            	     MPI_FLOAT, worker_rank, kTagModel, MPI_COMM_WORLD);
+    	}
+	}
 }
 
 } // namespace kaldi

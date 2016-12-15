@@ -44,17 +44,35 @@ class AffineTransform : public UpdatableComponent {
 
   Component* Copy() const { return new AffineTransform(*this); }
   ComponentType GetType() const { return kAffineTransform; }
-  
+
+  static void InitMatParam(CuMatrix<BaseFloat> &m, float scale) {
+    m.SetRandUniform();  // uniform in [0, 1]
+    m.Add(-0.5);         // uniform in [-0.5, 0.5]
+    m.Scale(2 * scale);  // uniform in [-scale, +scale]
+  }
+
+  static void InitVecParam(CuVector<BaseFloat> &v, float scale) {
+    Vector<BaseFloat> tmp(v.Dim());
+    for (int i=0; i < tmp.Dim(); i++) {
+      tmp(i) = (RandUniform() - 0.5) * 2 * scale;
+    }
+    v = tmp;
+  }
   void InitData(std::istream &is) {
     // define options
     float bias_mean = -2.0, bias_range = 2.0, param_stddev = 0.1;
     float learn_rate_coef = 1.0, bias_learn_rate_coef = 1.0;
-    float max_norm = 0.0;
+    float max_norm = 0.0, norm_init_scale = 1.0;
+	bool guass_init = true;
     // parse config
     std::string token; 
     while (!is.eof()) {
       ReadToken(is, false, &token); 
-      /**/ if (token == "<ParamStddev>") ReadBasicType(is, false, &param_stddev);
+      /**/ if (token == "<NormInit>") {
+		  ReadBasicType(is, false, &norm_init_scale);
+		  guass_init = false;
+	  }
+	  else if (token == "<ParamStddev>") ReadBasicType(is, false, &param_stddev);
       else if (token == "<BiasMean>")    ReadBasicType(is, false, &bias_mean);
       else if (token == "<BiasRange>")   ReadBasicType(is, false, &bias_range);
       else if (token == "<LearnRateCoef>") ReadBasicType(is, false, &learn_rate_coef);
@@ -68,20 +86,28 @@ class AffineTransform : public UpdatableComponent {
     //
     // initialize
     //
-    Matrix<BaseFloat> mat(output_dim_, input_dim_);
-    for (int32 r=0; r<output_dim_; r++) {
-      for (int32 c=0; c<input_dim_; c++) {
-        mat(r,c) = param_stddev * RandGauss(); // 0-mean Gauss with given std_dev
-      }
-    }
-    linearity_ = mat;
-    //
-    Vector<BaseFloat> vec(output_dim_);
-    for (int32 i=0; i<output_dim_; i++) {
-      // +/- 1/2*bias_range from bias_mean:
-      vec(i) = bias_mean + (RandUniform() - 0.5) * bias_range; 
-    }
-    bias_ = vec;
+    if (!guass_init) {
+		// Normlized initialization(Glorot-Bengio initialization)
+		float scale = norm_init_scale * sqrt(6.0 / (linearity_.NumRows()+linearity_.NumCols()));
+		InitMatParam(linearity_, scale);
+		InitVecParam(bias_, scale);
+	} else {
+		// Guassian initialization
+		Matrix<BaseFloat> mat(output_dim_, input_dim_);
+    	for (int32 r=0; r<output_dim_; r++) {
+      		for (int32 c=0; c<input_dim_; c++) {
+        		mat(r,c) = param_stddev * RandGauss(); // 0-mean Gauss with given std_dev
+      		}
+    	}
+    	linearity_ = mat;
+    	//
+    	Vector<BaseFloat> vec(output_dim_);
+    	for (int32 i=0; i<output_dim_; i++) {
+      	// +/- 1/2*bias_range from bias_mean:
+      		vec(i) = bias_mean + (RandUniform() - 0.5) * bias_range; 
+    	}
+    	bias_ = vec;
+	}
     //
     learn_rate_coef_ = learn_rate_coef;
     bias_learn_rate_coef_ = bias_learn_rate_coef;

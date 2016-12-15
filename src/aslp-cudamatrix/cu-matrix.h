@@ -438,6 +438,13 @@ class CuMatrixBase {
   /// divide A into blocks of the same size as (*this) and add them to *this (times alpha)
   void AddMatBlocks(Real alpha, const CuMatrixBase<Real> &A, MatrixTransposeType trans = kNoTrans);
 
+  /// if A.NumRows() is multiple of (*this)->NumRows
+  /// divide A into blocks of the same size as A.NumRos()/this->NumRows()
+  /// and add row sum of each block to corresponding row of *this (times alpha)
+  void AddRowSumMat(Real alpha, const CuMatrixBase<Real> &A, Real beta);
+  
+  void AddConvMatMatElements(Real alpha, const CuMatrixBase<Real> &A, const CuMatrixBase<Real> &B, Real beta);
+
   /// (for each column c of *this), c = alpha * col + beta * c
   void AddVecToCols(Real alpha, const CuVectorBase<Real> &col, Real beta = 1.0);
   /// (for each row r of *this), r = alpha * row + beta * r

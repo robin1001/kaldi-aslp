@@ -36,6 +36,7 @@
 #include "aslp-nnet/nnet-row-convolution.h"
 #include "aslp-nnet/nnet-gru-streams.h"
 #include "aslp-nnet/nnet-lstm-couple-if-projected-streams.h"
+#include "aslp-nnet/nnet-cfsmn-component.h"
 
 #include <sstream>
 
@@ -74,6 +75,7 @@ const struct Component::key_value Component::kMarkerMap[] = {
   { Component::kBLstmProjectedStreamsLC, "<BLstmProjectedStreamsLC>"},
   { Component::kGruStreams, "<GruStreams>"},
   { Component::kLstmCifgProjectedStreams, "<LstmCifgProjectedStreams>"},
+  { Component::kCompactFsmn, "<CompactFsmn>"},
 };
 
 
@@ -187,6 +189,9 @@ Component* Component::NewComponentOfType(ComponentType comp_type,
     case Component::kLstmCifgProjectedStreams:
       ans = new LstmCifgProjectedStreams(input_dim, output_dim);
       break;
+	case Component::kCompactFsmn:
+	  ans = new CompactFsmn(input_dim, output_dim);
+	  break;
     case Component::kUnknown :
     default :
       KALDI_ERR << "Missing type: " << TypeToMarker(comp_type);
@@ -208,7 +213,33 @@ Component* Component::Init(const std::string &conf_line) {
   ExpectToken(is, false, "<OutputDim>");
   ReadBasicType(is, false, &output_dim);
   Component *ans = NewComponentOfType(component_type, input_dim, output_dim);
+  if (conf_line.find("<Name>") != std::string::npos) {
+	std::string name;
+	ExpectToken(is, false, "<Name>");
+	ReadToken(is, false, &name);
+	std::string input_string;
+	ExpectToken(is, false, "<Input>");
+	ReadToken(is, false, &input_string);
+	std::vector<std::string> sub_input_string;
+	SplitStringToVector(input_string, ",", true, &sub_input_string);
+	int32 num_input = sub_input_string.size();
+	std::vector<std::string> input_name;
+	std::vector<int32> offset(num_input, 0);
+	// Parse input
+	for (int i = 0; i < num_input; i++) {
+		std::vector<std::string> field;
+		SplitStringToVector(sub_input_string[i], ":", true, &field);
+		KALDI_ASSERT(field.size() >= 1);
+		KALDI_ASSERT(field.size() <= 2);
+		if (field.size() == 2) ConvertStringToInteger(field[1], &offset[i]);
+		input_name.push_back(field[0]);	
+	}
+	ans->SetInputName(input_name);
+	ans->SetName(name);
+	ans->SetOffset(offset);
+  }
   // Optional Id and 
+  /*
   if (conf_line.find("<Id>") != std::string::npos) {
     int32 id;
     ExpectToken(is, false, "<Id>");
@@ -239,7 +270,7 @@ Component* Component::Init(const std::string &conf_line) {
     ans->SetInput(input);
     ans->SetOffset(offset);
   }
-
+  */
   // initialize internal data with the remaining part of config line
   ans->InitData(is);
   return ans;
@@ -262,19 +293,23 @@ Component* Component::Read(std::istream &is, bool binary) {
   if(token == "</Nnet>") {
     return NULL;
   }
-
   ReadBasicType(is, binary, &dim_out); 
   ReadBasicType(is, binary, &dim_in);
 
+  std::string name;
   int32 id;
   std::vector<int32> input, offset;
+  if(Peek(is, binary) == '<') {
+	ExpectToken(is, binary, "<Name>");
+  	ReadToken(is, binary, &name);
+  }
   ReadBasicType(is, binary, &id);
   ReadIntegerVector(is, binary, &input);
   ReadIntegerVector(is, binary, &offset);
   KALDI_ASSERT(input.size() == offset.size());
-
   Component *ans = NewComponentOfType(MarkerToType(token), dim_in, dim_out);
   ans->ReadData(is, binary);
+  ans->SetName(name);
   ans->SetId(id);
   ans->SetInput(input);
   ans->SetOffset(offset);
@@ -286,6 +321,10 @@ void Component::Write(std::ostream &os, bool binary) const {
   WriteToken(os, binary, Component::TypeToMarker(GetType()));
   WriteBasicType(os, binary, OutputDim());
   WriteBasicType(os, binary, InputDim());
+  if(!name_.empty()) {
+	WriteToken(os, binary, "<Name>");
+	WriteToken(os, binary, name_);
+  }
   WriteBasicType(os, binary, id_);
   WriteIntegerVector(os, binary, input_);
   WriteIntegerVector(os, binary, offset_);

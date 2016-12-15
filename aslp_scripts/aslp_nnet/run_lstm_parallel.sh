@@ -3,12 +3,15 @@
 # Copyright 2016  ASLP (Author: zhangbinbin)
 # Apache 2.0
 
-stage=1
+stage=4
 feat_dir=data_fbank
 gmmdir=exp/tri2b
-dir=exp/2lstm
+skip_width=3
+dir=exp/cnn_2dnn_2lstm_sync_asgd
 ali=${gmmdir}_dnn
-num_cv_utt=3484
+num_cv_utt=4000
+#graph=graph_000_009_kni_p1e8_3gram
+graph=graph
 
 echo "$0 $@"  # Print the command line for logging
 [ -f cmd.sh ] && . ./cmd.sh;
@@ -40,16 +43,17 @@ fi
 if [ $stage -le 1 ]; then
     echo "Preparing alignment and feats"
         #--delta_opts "--delta-order=2" \
-    aslp_scripts/aslp_nnet/prepare_feats_ali.sh \
+    aslp_scripts/aslp_nnet/prepare_feats_ali_parallel.sh \
         --cmvn_opts "--norm-means=true --norm-vars=true" \
         --splice_opts "--left-context=5 --right-context=5" \
-        $feat_dir/train_tr $feat_dir/train_cv data/lang $ali $ali $dir || exit 1;
+        --num-worker 4 \
+	    $feat_dir/train_tr $feat_dir/train_cv data/lang $ali $ali $dir || exit 1;
 fi
 
 # Get feats_tr feats_cv labels_tr labels_cv 
-[ ! -f $dir/train.conf ] && \
-    echo "$dir/train.conf(config file for nn training): no such file" && exit 1 
-source $dir/train.conf
+[ ! -f $dir/train.parallel.conf ] && \
+    echo "$dir/train.parallel.conf(config file for nn training): no such file" && exit 1 
+source $dir/train.parallel.conf
 
 # Prepare lstm init nnet
 if [ $stage -le 2 ]; then
@@ -65,6 +69,7 @@ cat > $dir/nnet.proto <<EOF
 <NnetProto>
 <LstmProjectedStreams> <InputDim> $num_feat <OutputDim> 512 <CellDim> 1024 <ParamScale> 0.010000 <ClipGradient> 5.000000
 <LstmProjectedStreams> <InputDim> 512 <OutputDim> 512 <CellDim> 1024 <ParamScale> 0.010000 <ClipGradient> 5.000000
+<LstmProjectedStreams> <InputDim> 512 <OutputDim> 512 <CellDim> 1024 <ParamScale> 0.010000 <ClipGradient> 5.000000
 <AffineTransform> <InputDim> 512 <OutputDim> $num_tgt <BiasMean> 0.0 <BiasRange> 0.0 <ParamStddev> 0.040000
 <Softmax> <InputDim> $num_tgt <OutputDim> $num_tgt
 </NnetProto>
@@ -72,24 +77,55 @@ EOF
 
 fi
 
-# Train nnet(dnn, cnn, lstm)
 if [ $stage -le 3 ]; then
-    echo "Training nnet"
-    nnet_init=$dir/nnet/train.nnet.init
-    aslp-nnet-init $dir/nnet.proto $nnet_init
-    #"$train_cmd" $dir/log/train.log \
-    aslp_scripts/aslp_nnet/train_scheduler.sh --train-tool "aslp-nnet-train-lstm-streams" \
+    # init model
+	nnet_init=$dir/nnet/train.nnet.init
+	aslp-nnet-init $dir/nnet.proto $nnet_init
+	# warm start
+	single_init=$dir/nnet/train.single.nnet.final
+    
+	aslp_scripts/aslp_nnet/train_scheduler.sh --train-tool "aslp-nnet-train-lstm-streams" \
         --learn-rate 0.000032 \
         --momentum 0.9 \
-        --train-tool-opts "--batch-size=40 --num-stream=64 --targets-delay=5 --report-period=200" \
+        --max-iters 1 \
+		--train-tool-opts "--gpu-id=2 --skip-width=3 --batch-size=20 --num-stream=100  --report-period=1000" \
         $nnet_init "$feats_tr" "$feats_cv" "$labels_tr" "$labels_cv" $dir
+	cp $dir/final.nnet $single_init
+	rm $dir/final.nnet
+fi
+
+# Train nnet(dnn, cnn, lstm)
+if [ $stage -le 4 ]; then
+    echo "Training nnet"
+	single_final=$dir/nnet/train.single.nnet.final
+	asgd_init=$dir/nnet/train.asgd.nnet.init
+    cp $single_final $asgd_init 
+	# --worker-tool-opts "--alpha=0.5 --sync-period=256000" \
+	# --server-tool-opts "--alpha=0.5" \
+	# --bmuf-learn-rate=1.0 --bmuf-momentum=0.75 
+	aslp_scripts/aslp_nnet/train_scheduler_4workers.sh --train-type "asgd" \
+        --learn-rate 0.000032 --momentum 0.9 \
+		--gpu-num 4 --gpu-id 4 \
+		--skip-width 3 \
+		--max-iters 40 \
+		--server-tool-opts "--sync-period=100" \
+		--worker-tool-opts "--sync-period=10000" \
+		--train-tool "aslp-nnet-train-lstm-streams" \
+		--worker-tool "aslp-nnet-train-lstm-stream-worker" \
+		--train-tool-opts "--skip-width=$skip_width --batch-size=20 --num-stream=100 --report-period=1000" \
+        $asgd_init "$feats_tr" "$feats_cv" "$labels_tr" "$labels_cv" $dir
 fi
 
 # Decoding 
-if [ $stage -le 4 ]; then
-    aslp_scripts/aslp_nnet/decode.sh --nj 2 --num-threads 12 \
-        --cmd "$decode_cmd" --acwt 0.0666667 \
-        $gmmdir/graph $feat_dir/test $dir/decode_test3000 || exit 1;
-    aslp_scripts/score_basic.sh --cmd "$decode_cmd" $feat_dir/test \
-        $gmmdir/graph $dir/decode_test3000 || exit 1;
+if [ $stage -le 5 ]; then
+    for x in test3000 test3000_noise; do
+		aslp_scripts/aslp_nnet/decode.sh --nj 5 --num-threads 3 \
+        	--cmd "$decode_cmd" --acwt 0.0666667 \
+        	--nnet-forward-opts "--no-softmax=false --apply-log=true --skip-width=$skip_width" \
+        	--forward-tool "aslp-nnet-forward-skip" \
+        	$gmmdir/$graph $feat_dir/${x} $dir/decode_${x}_${graph} || exit 1;
+    	aslp_scripts/score_basic.sh --cmd "$decode_cmd" $feat_dir/${x} \
+        	$gmmdir/$graph $dir/decode_${x}_${graph} || exit 1;
+	done
 fi
+
