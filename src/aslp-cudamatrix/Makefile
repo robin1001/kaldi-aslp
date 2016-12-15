@@ -6,7 +6,7 @@ OPENFST_LDLIBS =
 
 
 include ../aslp.mk
-include $(KALDI_DIR)/kaldi.mk
+include ../kaldi.mk
 
 LDFLAGS += $(CUDA_LDFLAGS)
 LDLIBS += $(CUDA_LDLIBS)
@@ -75,9 +75,9 @@ endif
 %.o : %.cu
 	$(CUDATKDIR)/bin/nvcc -c $< -o $@ $(CUDA_INCLUDE) $(CUDA_FLAGS) $(CUDA_ARCH) -I../
 
-ADDLIBS = $(KALDI_DIR)/matrix/kaldi-matrix.a \
-          $(KALDI_DIR)/base/kaldi-base.a \
-          $(KALDI_DIR)/util/kaldi-util.a 
+ADDLIBS = ../matrix/kaldi-matrix.a \
+          ../base/kaldi-base.a \
+          ../util/kaldi-util.a 
 
-include $(KALDI_DIR)/makefiles/default_rules.mk
+include ../makefiles/default_rules.mk
 

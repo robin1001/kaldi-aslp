@@ -2,7 +2,7 @@
 all:
 
 include ../aslp.mk
-include $(KALDI_DIR)/kaldi.mk
+include ../kaldi.mk
 
 LDFLAGS += $(CUDA_LDFLAGS)
 LDLIBS += $(CUDA_LDLIBS)
@@ -27,13 +27,13 @@ endif
 LIBNAME = aslp-nnet
 
 ADDLIBS = ../aslp-cudamatrix/aslp-cudamatrix.a \
-          $(KALDI_DIR)/matrix/kaldi-matrix.a \
-          $(KALDI_DIR)/base/kaldi-base.a \
-          $(KALDI_DIR)/util/kaldi-util.a 
+          ../matrix/kaldi-matrix.a \
+          ../base/kaldi-base.a \
+          ../util/kaldi-util.a 
 
 ifeq ($(USE_WARP_CTC), true)
     ADDLIBS += ../warp-ctc/build/libwarpctc.a
 endif
 
-include $(KALDI_DIR)/makefiles/default_rules.mk
+include ../makefiles/default_rules.mk
 

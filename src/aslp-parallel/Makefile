@@ -1,7 +1,7 @@
 all:
 
 include ../aslp.mk
-include $(KALDI_DIR)/kaldi.mk
+include ../kaldi.mk
 
 CXX = mpicxx
 
@@ -20,11 +20,11 @@ BINFILES =
 LIBNAME = aslp-parallel
 
 ADDLIBS = ../aslp-nnet/aslp-nnet.a \
-	      ../aslp-cudamatrix/aslp-cudamatrix.a \
-          $(KALDI_DIR)/matrix/kaldi-matrix.a \
-          $(KALDI_DIR)/base/kaldi-base.a \
-          $(KALDI_DIR)/util/kaldi-util.a 
+	  ../aslp-cudamatrix/aslp-cudamatrix.a \
+          ../matrix/kaldi-matrix.a \
+          ../base/kaldi-base.a \
+          ../util/kaldi-util.a 
 
-include $(KALDI_DIR)/makefiles/default_rules.mk
+include ../makefiles/default_rules.mk
 
 

@@ -2,7 +2,7 @@
 all:
 
 include ../aslp.mk
-include $(KALDI_DIR)/kaldi.mk
+include ../kaldi.mk
 
 LDFLAGS += $(CUDA_LDFLAGS)
 LDLIBS += $(CUDA_LDLIBS)
@@ -17,12 +17,12 @@ BINFILES = aslp-ali-to-sil aslp-select-frames \
 		   aslp-compute-spectrum-feats aslp-apply-energy-vad
 
 ADDLIBS = ../aslp-vad/aslp-vad.a ../aslp-nnet/aslp-nnet.a ../aslp-cudamatrix/aslp-cudamatrix.a \
-          $(KALDI_DIR)/hmm/kaldi-hmm.a \
-          $(KALDI_DIR)/gmm/kaldi-gmm.a \
-          $(KALDI_DIR)/feat/kaldi-feat.a \
-	      $(KALDI_DIR)/tree/kaldi-tree.a \
-          $(KALDI_DIR)/matrix/kaldi-matrix.a \
-          $(KALDI_DIR)/util/kaldi-util.a \
-          $(KALDI_DIR)/base/kaldi-base.a
+          ../hmm/kaldi-hmm.a \
+          ../gmm/kaldi-gmm.a \
+          ../feat/kaldi-feat.a \
+	  ../tree/kaldi-tree.a \
+          ../matrix/kaldi-matrix.a \
+          ../util/kaldi-util.a \
+          ../base/kaldi-base.a
 
-include $(KALDI_DIR)/makefiles/default_rules.mk
+include ../makefiles/default_rules.mk

@@ -2,7 +2,7 @@
 all:
 
 include ../aslp.mk
-include $(KALDI_DIR)/kaldi.mk
+include ../kaldi.mk
 
 
 EXTRA_CXXFLAGS += -Wno-sign-compare -fopenmp
@@ -51,13 +51,13 @@ OBJFILES =
 TESTFILES =
 
 ADDLIBS = ../aslp-nnet/aslp-nnet.a ../aslp-cudamatrix/aslp-cudamatrix.a \
-          $(KALDI_DIR)/lat/kaldi-lat.a $(KALDI_DIR)/hmm/kaldi-hmm.a \
-          $(KALDI_DIR)/tree/kaldi-tree.a $(KALDI_DIR)/matrix/kaldi-matrix.a \
-          $(KALDI_DIR)/util/kaldi-util.a $(KALDI_DIR)/base/kaldi-base.a 
+          ../lat/kaldi-lat.a ../hmm/kaldi-hmm.a \
+          ../tree/kaldi-tree.a ../matrix/kaldi-matrix.a \
+          ../util/kaldi-util.a ../base/kaldi-base.a 
 
 ifeq ($(USE_WARP_CTC), true)
     ADDLIBS += ../warp-ctc/build/libwarpctc.a
 endif
 
-include $(KALDI_DIR)/makefiles/default_rules.mk
+include ../makefiles/default_rules.mk
 

@@ -2,7 +2,7 @@
 all:
 
 include ../aslp.mk
-include $(KALDI_DIR)/kaldi.mk
+include ../kaldi.mk
 
 EXTRA_CXXFLAGS += -I $(CRF_ROOT)
 
@@ -21,14 +21,14 @@ TESTFILES = audio-provider-test
           
 ADDLIBS = ../aslp-online/aslp-online.a ../aslp-vad/aslp-vad.a ../aslp-nnet/aslp-nnet.a \
           $(CRF_FLAGS) \
-          $(KALDI_DIR)/decoder/kaldi-decoder.a \
-          $(KALDI_DIR)/lat/kaldi-lat.a \
-          $(KALDI_DIR)/fstext/kaldi-fstext.a \
-          $(KALDI_DIR)/cudamatrix/kaldi-cudamatrix.a \
-          $(KALDI_DIR)/feat/kaldi-feat.a \
-          $(KALDI_DIR)/transform/kaldi-transform.a \
-          $(KALDI_DIR)/thread/kaldi-thread.a $(KALDI_DIR)/hmm/kaldi-hmm.a $(KALDI_DIR)/tree/kaldi-tree.a \
-          $(KALDI_DIR)/matrix/kaldi-matrix.a $(KALDI_DIR)/util/kaldi-util.a $(KALDI_DIR)/base/kaldi-base.a
+          ../decoder/kaldi-decoder.a \
+          ../lat/kaldi-lat.a \
+          ../fstext/kaldi-fstext.a \
+          ../cudamatrix/kaldi-cudamatrix.a \
+          ../feat/kaldi-feat.a \
+          ../transform/kaldi-transform.a \
+          ../thread/kaldi-thread.a ../hmm/kaldi-hmm.a ../tree/kaldi-tree.a \
+          ../matrix/kaldi-matrix.a ../util/kaldi-util.a ../base/kaldi-base.a
 
-include $(KALDI_DIR)/makefiles/default_rules.mk
+include ../makefiles/default_rules.mk
 
