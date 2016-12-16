@@ -2,7 +2,7 @@
 all:
 
 include ../aslp.mk
-include $(KALDI_DIR)/kaldi.mk
+include ../kaldi.mk
 
 EXTRA_CXXFLAGS += -I $(CRF_ROOT)
 
@@ -16,12 +16,12 @@ OBJFILES = online-feature-pipeline.o online-nnet-decoder.o online-endpoint.o \
 LIBNAME = aslp-online
 
 ADDLIBS = ../aslp-nnet/aslp-nnet.a \
-          $(KALDI_DIR)/gmm/kaldi-gmm.a $(KALDI_DIR)/transform/kaldi-transform.a $(KALDI_DIR)/feat/kaldi-feat.a \
-          $(KALDI_DIR)/matrix/kaldi-matrix.a $(KALDI_DIR)/util/kaldi-util.a $(KALDI_DIR)/base/kaldi-base.a \
-          $(KALDI_DIR)/lat/kaldi-lat.a $(KALDI_DIR)/decoder/kaldi-decoder.a $(KALDI_DIR)/hmm/kaldi-hmm.a \
-          $(KALDI_DIR)/thread/kaldi-thread.a $(KALDI_DIR)/ivector/kaldi-ivector.a \
-          $(KALDI_DIR)/cudamatrix/kaldi-cudamatrix.a
+          ../gmm/kaldi-gmm.a ../transform/kaldi-transform.a ../feat/kaldi-feat.a \
+          ../matrix/kaldi-matrix.a ../util/kaldi-util.a ../base/kaldi-base.a \
+          ../lat/kaldi-lat.a ../decoder/kaldi-decoder.a ../hmm/kaldi-hmm.a \
+          ../thread/kaldi-thread.a ../ivector/kaldi-ivector.a \
+          ../cudamatrix/kaldi-cudamatrix.a
 
-include $(KALDI_DIR)/makefiles/default_rules.mk
+include ../makefiles/default_rules.mk
 
 
