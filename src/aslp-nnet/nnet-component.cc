@@ -76,6 +76,8 @@ const struct Component::key_value Component::kMarkerMap[] = {
   { Component::kGruStreams, "<GruStreams>"},
   { Component::kLstmCifgProjectedStreams, "<LstmCifgProjectedStreams>"},
   { Component::kCompactFsmn, "<CompactFsmn>"},
+  { Component::kPnormComponent, "<Pnorm>"},
+  { Component::kPnormComponent, "<Maxout>"},
 };
 
 
@@ -192,6 +194,12 @@ Component* Component::NewComponentOfType(ComponentType comp_type,
 	case Component::kCompactFsmn:
 	  ans = new CompactFsmn(input_dim, output_dim);
 	  break;
+    case Component::kPnormComponent:
+	  ans = new PnormComponent(input_dim, output_dim);
+      break;
+    case Component::kMaxoutComponent:
+	  ans = new MaxoutComponent(input_dim, output_dim);
+      break;
     case Component::kUnknown :
     default :
       KALDI_ERR << "Missing type: " << TypeToMarker(comp_type);
