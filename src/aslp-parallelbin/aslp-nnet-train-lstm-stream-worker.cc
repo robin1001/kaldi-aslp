@@ -67,7 +67,7 @@ int main(int argc, char *argv[]) {
     
 	// for worker
 	std::string worker_type = "bsp";
-	po.Register("worker-type", &worker_type, "Worker type(bsp | bmuf | easgd)");
+    po.Register("worker-type", &worker_type, "Worker type(bsp | bmuf | easgd | asgd | masgd)");
 	float alpha = 0.5;
 	po.Register("alpha", &alpha, "Moving rate alpha for easgd worker");
 	float bmuf_momentum = 0.9;
@@ -127,7 +127,7 @@ int main(int argc, char *argv[]) {
 		worker = new EasgdWorker(alpha);
 	} else if (worker_type == "bmuf") {
 		worker = new BmufWorker(bmuf_learn_rate, bmuf_momentum);
-	} else if (worker_type == "asgd") {
+    } else if (worker_type == "asgd" || worker_type == "masgd") {
 		worker = new AsgdWorker();
 	} else {
 		KALDI_ERR << "Unsupported worker type: " << worker_type;

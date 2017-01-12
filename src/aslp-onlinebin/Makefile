@@ -24,6 +24,7 @@ ADDLIBS = ../aslp-online/aslp-online.a ../aslp-vad/aslp-vad.a ../aslp-nnet/aslp-
           ../decoder/kaldi-decoder.a \
           ../lat/kaldi-lat.a \
           ../fstext/kaldi-fstext.a \
+          ../aslp-cudamatrix/aslp-cudamatrix.a \
           ../cudamatrix/kaldi-cudamatrix.a \
           ../feat/kaldi-feat.a \
           ../transform/kaldi-transform.a \

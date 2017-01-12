@@ -1,37 +1,64 @@
-/* Created on 2016-07-28
- * Author: Zhang Binbin, Li Wenpeng, He Changqing
+/* Created on 2017-01-12
+ * Author: Zhang Binbin
  */
 
-#include "aslp-parallel/asgd-server.h"
+#include "aslp-parallel/masgd-server.h"
 
 
 namespace kaldi {
 
-void AsgdServer::InitParam(
+void MasgdServer::InitParam(
         const std::vector<std::pair<BaseFloat *, int> > &params) {
     server_gpu_params_.resize(params.size());
     worker_gpu_params_.resize(params.size());
     cpu_params_.resize(params.size());
-
+#if MASGD_TYPE == GMASGD
+    diffs_.resize(params.size());
+#elif MASGD_TYPE == LMASGD
+    diffs_.resize(NumNodes() - 1);
+    for (int i = 0; i < NumNodes() - 1; i++) {
+        diffs_[i].resize(params.size());
+    }
+#else 
+    #error "Unknown masgd type"
+#endif
     for (int i = 0; i < params.size(); i++) {
         server_gpu_params_[i] = new 
             CuSubVector<BaseFloat>(params[i].first, params[i].second); 
         worker_gpu_params_[i] = new CuVector<BaseFloat>(params[i].second);
         cpu_params_[i] = new Vector<BaseFloat>(params[i].second);
+#if MASGD_TYPE == GMASGD
+        diffs_[i] = new CuVector<BaseFloat>(params[i].second);
+#elif MASGD_TYPE == LMASGD
+        for (int j = 0; j < NumNodes() - 1; j++) {
+            diffs_[j][i] = new CuVector<BaseFloat>(params[i].second);
+        }
+#else 
+    #error "Unknown masgd type"
+#endif
     }
 }
 
-AsgdServer::~AsgdServer() {
+MasgdServer::~MasgdServer() {
     KALDI_ASSERT(server_gpu_params_.size() == cpu_params_.size());
     KALDI_ASSERT(worker_gpu_params_.size() == cpu_params_.size());
     for (int i = 0; i < server_gpu_params_.size(); i++) {
         delete server_gpu_params_[i];
         delete worker_gpu_params_[i];
         delete cpu_params_[i];
+#if MASGD_TYPE == GMASGD
+        delete diffs_[i];
+#elif MASGD_TYPE == LMASGD
+        for (int j = 0; j < NumNodes() - 1; j++) {
+            delete diffs_[j][i];
+        }
+#else 
+    #error "Unknown masgd type"
+#endif
     }
 }
 
-void AsgdServer::Run() {
+void MasgdServer::Run() {
     int num_running_workers = NumNodes() - 1;
     int synchronized_count = 0;
 	std::vector<int> waited_worker;
@@ -77,7 +104,7 @@ void AsgdServer::Run() {
     KALDI_LOG << "All worker finished";
 }
 
-void AsgdServer::Update(int worker_rank, int synchronized_count) {
+void MasgdServer::Update(int worker_rank, int synchronized_count) {
     MPI_Status status;
     // 1. receive gradient from worker
     for (int i = 0; i < cpu_params_.size(); i++) {
@@ -88,7 +115,15 @@ void AsgdServer::Update(int worker_rank, int synchronized_count) {
     }
     // 2. update model
     for (int i = 0; i < worker_gpu_params_.size(); i++) {
-        server_gpu_params_[i]->AddVec(alpha_, *worker_gpu_params_[i], 1.0);
+#if MASGD_TYPE == GMASGD
+        diffs_[i]->AddVec(1.0, *worker_gpu_params_[i], momentum_);
+        server_gpu_params_[i]->AddVec(1.0, *diffs_[i], 1.0);
+#elif MASGD_TYPE == LMASGD
+        diffs_[worker_rank-1][i]->AddVec(1.0, *worker_gpu_params_[i], momentum_);
+        server_gpu_params_[i]->AddVec(1.0, *diffs_[worker_rank-1][i], 1.0);
+#else 
+    #error "Unknown masgd type"
+#endif
         cpu_params_[i]->CopyFromVec(*server_gpu_params_[i]);
     }
     // 3. send new model to worker
