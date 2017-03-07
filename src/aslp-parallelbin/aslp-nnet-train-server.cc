@@ -76,7 +76,7 @@ int main(int argc, char *argv[]) {
         } else if (server_type == "asgd") {
             server = new AsgdServer(alpha, sync_period);
         } else if (server_type == "masgd") {
-            server = new AsgdServer(sync_period, masgd_momentum);
+            server = new MasgdServer(sync_period, masgd_momentum);
         }
         else {
             KALDI_ERR << "Unsupported server type: " << server_type;

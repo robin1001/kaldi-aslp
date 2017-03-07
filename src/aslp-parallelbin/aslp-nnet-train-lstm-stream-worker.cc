@@ -19,6 +19,7 @@
 #include "aslp-parallel/easgd-worker.h"
 #include "aslp-parallel/bmuf-worker.h"
 #include "aslp-parallel/asgd-worker.h"
+#include "aslp-parallel/sod-worker.h"
 
 int main(int argc, char *argv[]) {
   using namespace kaldi;
@@ -43,7 +44,9 @@ int main(int argc, char *argv[]) {
     rnd_opts.Register(&po);
     SequenceDataReaderOptions read_opts;
 	read_opts.Register(&po);
-   
+    OptimizerOption optimizer_opts;
+    optimizer_opts.Register(&po);
+
    bool binary = true, 
    		crossvalidate = false;
     po.Register("binary", &binary, "Write output in binary mode");
@@ -67,7 +70,7 @@ int main(int argc, char *argv[]) {
     
 	// for worker
 	std::string worker_type = "bsp";
-    po.Register("worker-type", &worker_type, "Worker type(bsp | bmuf | easgd | asgd | masgd)");
+    po.Register("worker-type", &worker_type, "Worker type(bsp | bmuf | easgd | asgd | masgd | sod)");
 	float alpha = 0.5;
 	po.Register("alpha", &alpha, "Moving rate alpha for easgd worker");
 	float bmuf_momentum = 0.9;
@@ -128,7 +131,9 @@ int main(int argc, char *argv[]) {
 	} else if (worker_type == "bmuf") {
 		worker = new BmufWorker(bmuf_learn_rate, bmuf_momentum);
     } else if (worker_type == "asgd" || worker_type == "masgd") {
-		worker = new AsgdWorker();
+        worker = new AsgdWorker();
+    } else if (worker_type == "sod") {
+        worker = new SodWorker(optimizer_opts);
 	} else {
 		KALDI_ERR << "Unsupported worker type: " << worker_type;
 	}
