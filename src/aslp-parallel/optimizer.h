@@ -157,7 +157,7 @@ public:
         diff_.ApplyPow(0.5);
         diff_.InvertElements();
         diff_.MulElements(grad_);
-        param->AddVec(lr_ * s1, diff_);
+        param->AddVec(-lr_ * s1, diff_);
         t_++;
     }
 private:
