@@ -51,6 +51,8 @@ int main(int argc, char *argv[]) {
         po.Register("dropout-retention", &dropout_retention, "number between 0..1, saying how many neurons to preserve (0.0 will keep original value");
         int report_period = -1; // 
         po.Register("report-period", &report_period, "Number of frames for one report log, default(-1, no report)");
+        int32 gpu_id = -1;
+        po.Register("gpu-id", &gpu_id, "selected gpu id, if negative then select automaticly");
 
         po.Read(argc, argv);
 
@@ -68,7 +70,11 @@ int main(int argc, char *argv[]) {
         }
         //Select the GPU
 #if HAVE_CUDA==1
-        CuDevice::Instantiate().SelectGpuId(use_gpu);
+        if (gpu_id >= 0) {
+            CuDevice::Instantiate().SetGpuId(gpu_id);
+        } else {
+            CuDevice::Instantiate().SelectGpuId(use_gpu);
+        }
 #endif
         Nnet nnet;
         nnet.Read(model_filename);

@@ -13,7 +13,7 @@ LDLIBS += $(CUDA_LDLIBS)
 TESTFILES = reduce-barrier-test
 
 OBJFILES = bsp-worker.o easgd-server.o easgd-worker.o bmuf-worker.o \
-		   asgd-worker.o asgd-server.o
+		   asgd-worker.o asgd-server.o masgd-server.o sod-worker.o
 
 BINFILES = 
 

@@ -297,6 +297,84 @@ class ReLU: public Component {
   }
 };
 
+/**
+ * PnormComponent :
+ * Apply the function y(i) = (sum_{j = i*G}^{(i+1)*G-1} x_j ^ (power)) ^ (1 / p)
+ * where G = InputDim / OutputDim must be an integer.
+ */
+class PnormComponent : public Component {
+    public:
+        PnormComponent(int32 dim_in, int32 dim_out) 
+            : Component(dim_in, dim_out), p(2.0)
+        { }
+        ~PnormComponent()
+        { }
+
+        Component* Copy() const { return new PnormComponent(*this); }
+        ComponentType GetType() const { return kPnormComponent; }
+
+        void InitData(std::istream &is) {
+            // parse config
+            std::string token; 
+            while (!is.eof()) {
+                ReadToken(is, false, &token);
+                if (token == "<P>") ReadBasicType(is, false, &p);
+                else KALDI_ERR << "Unknown token " << token << ", a typo in config?"
+                    << " (P)";
+                is >> std::ws; // eat-up whitespace
+            }
+            // check
+            KALDI_ASSERT(p != 0 );
+        }
+
+        void ReadData(std::istream &is, bool binary) {
+            // pooling hyperparameters
+            ExpectToken(is, binary, "<P>");
+            ReadBasicType(is, binary, &p);
+        }
+
+        void WriteData(std::ostream &os, bool binary) const {
+            // pooling hyperparameters
+            WriteToken(os, binary, "<P>");
+            WriteBasicType(os, binary, p);
+        }
+
+        void PropagateFnc(const CuMatrixBase<BaseFloat> &in, CuMatrixBase<BaseFloat> *out) {
+            out->GroupPnorm(in, p);  
+        }
+
+        void BackpropagateFnc(const CuMatrixBase<BaseFloat> &in, const CuMatrixBase<BaseFloat> &out,
+                const CuMatrixBase<BaseFloat> &out_diff, CuMatrixBase<BaseFloat> *in_diff) {
+            in_diff->GroupPnormDeriv(in, out, p);
+            in_diff->MulRowsGroupMat(out_diff);    
+        }
+
+    private:
+        BaseFloat p;
+};
+
+class MaxoutComponent: public Component {
+    public:
+        MaxoutComponent(int32 dim_in, int32 dim_out) 
+            : Component(dim_in, dim_out) { 
+            KALDI_ASSERT(dim_in % dim_out == 0);
+        }
+        ~MaxoutComponent()
+        { }
+
+        Component* Copy() const { return new MaxoutComponent(*this); }
+        ComponentType GetType() const { return kMaxoutComponent; }
+        void PropagateFnc(const CuMatrixBase<BaseFloat> &in, CuMatrixBase<BaseFloat> *out) {
+            out->GroupMax(in);  
+        }
+
+        void BackpropagateFnc(const CuMatrixBase<BaseFloat> &in, const CuMatrixBase<BaseFloat> &out,
+                const CuMatrixBase<BaseFloat> &out_diff, CuMatrixBase<BaseFloat> *in_diff) {
+            in_diff->GroupMaxDeriv(in, out);
+            in_diff->MulRowsGroupMat(out_diff);    
+        }
+
+};
 
 
 } // namespace aslp_nnet

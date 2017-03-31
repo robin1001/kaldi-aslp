@@ -97,7 +97,9 @@ class Component {
     kBLstmProjectedStreamsLC,
     kGruStreams,
     kLstmCifgProjectedStreams,
-	kCompactFsmn
+	kCompactFsmn,
+    kPnormComponent,
+    kMaxoutComponent
   } ComponentType;
   /// A pair of type and marker 
   struct key_value {

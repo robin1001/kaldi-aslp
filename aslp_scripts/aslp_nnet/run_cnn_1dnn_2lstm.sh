@@ -65,8 +65,8 @@ if [ $stage -le 2 ]; then
 cat > $dir/nnet.proto <<EOF
 <NnetProto>
 <ConvolutionalComponent> <InputDim> $num_feat <OutputDim> 4096 <PatchDim> 9 <PatchStep> 1 <PatchStride> 40 <BiasMean> -2.000000 <BiasRange> 4.000000 <ParamStddev> 0.1 <MaxNorm> 30
+<BatchNormalization> <InputDim> 4096 <OutputDim> 4096
 <MaxPoolingComponent> <InputDim> 4096 <OutputDim> 1024 <PoolSize> 4 <PoolStep> 4 <PoolStride> 128
-<BatchNormalization> <InputDim> 1024 <OutputDim> 1024
 <Sigmoid> <InputDim> 1024 <OutputDim> 1024
 <AffineTransform> <InputDim> 1024 <OutputDim> 512 <BiasMean> -2.000000 <BiasRange> 4.000000 <ParamStddev> 0.1
 <BatchNormalization> <InputDim> 512 <OutputDim> 512

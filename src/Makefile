@@ -210,3 +210,6 @@ aslp-online: decoder gmm transform feat matrix util base lat hmm thread tree \
 aslp-onlinebin: aslp-online
 aslp-parallel: util base matrix aslp-cudamatrix aslp-nnet
 aslp-parallelbin: aslp-parallel
+aslp-bin: base matrix util feat tree optimization thread gmm transform sgmm sgmm2 fstext hmm \
+ lm decoder lat cudamatrix nnet nnet2 nnet3 ivector
+
