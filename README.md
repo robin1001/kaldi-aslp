@@ -69,6 +69,7 @@ export LC_ALL=C
 Anybody, any contribution is highly appriciated.
 
 ## What's New
+* 2017-03-20 SOD parallel surpport, adagrad, adadelta, rmpsprop, adam optimizer
 * 2016-10-06 MPI based Parallel support
 * 2016-07-10 More VAD support, ROC, boundary accuracy, and Praat format tools
 * 2016-06-06 Online support
