@@ -20,7 +20,7 @@ MEMTESTDIRS = base matrix util feat tree thread gmm transform sgmm \
 # kaldi aslp
 include aslp.mk
 SUBDIRS += aslp-cudamatrix aslp-segment \
-          aslp-nnet aslp-nnetbin aslp-vad aslp-bin 
+          aslp-nnet aslp-nnetbin aslp-vad aslp-bin aslp-vadbin
 # Warp-CTC
 ifeq ($(USE_WARP_CTC), true)
     SUBDIRS += warp-ctc
