@@ -37,19 +37,21 @@ inline void WriteBasic(FILE *fout, T t) {
 }
 
 struct Arc {
-    Arc() {}
-    Arc(int32_t ilabel, float weight, int32_t next_state): 
-        ilabel(ilabel), weight(weight), next_state(next_state) {}
+    Arc(): ilabel(0), weight(0.0f), olabel(0), next_state(0) {}
+    Arc(int32_t ilabel, float weight, int32_t olabel, int32_t next_state): 
+        ilabel(ilabel), weight(weight), olabel(olabel), next_state(next_state) {}
 
     void Read(FILE *fin) {
         ReadBasic(fin, &ilabel);
         ReadBasic(fin, &weight);
+        ReadBasic(fin, &olabel);
         ReadBasic(fin, &next_state);
     }
 
     void Write(FILE *fout) {
         WriteBasic(fout, ilabel);
         WriteBasic(fout, weight);
+        WriteBasic(fout, olabel);
         WriteBasic(fout, next_state);
     }
 
@@ -59,6 +61,7 @@ struct Arc {
 
     int32_t ilabel;
 	float weight;
+    int32_t olabel;
     int32_t next_state;
 };
 
@@ -160,7 +163,7 @@ public:
 	void Write(const char *file) const; // write fsm to file
     void Info() const; 
     // print to dot format
-    void Dot(SymbolTable *symbol_table = NULL) const;
+    void Dot(SymbolTable *isymbol_table = NULL, SymbolTable *osymbol_table = NULL) const;
 
     // Determine, simple determine, ignore weight
 //    void Determine(Fsm *fsm_out) const;

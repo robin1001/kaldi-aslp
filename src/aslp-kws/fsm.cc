@@ -88,15 +88,18 @@ void Fsm::ReadTopo(const char *file) {
 
     char buffer[1024];
     bool first_line = true;
-    int32_t src, dest, label;
+    int32_t src, dest, ilabel, olabel;
     float weight = 0.0f;
 
     while(fgets(buffer, 1024, fp)) {
-        int32_t num = sscanf(buffer, "%d %d %d %f", &src, &dest, &label, &weight);
-        //LOG("read arc %d %d %d", src, dest, label);
-        if (num == 3 || num == 4) {
-            if (num == 3) weight = 0.0;
-            this->AddArc(src, Arc(label, weight, dest));
+        int32_t num = sscanf(buffer, "%d %d %d %d %f", &src, &dest, &ilabel, &olabel, &weight);
+        if (num >= 3) {
+            if (num == 3) {
+                olabel = kEpsilon;
+                weight = 0;
+            }
+            if (num == 4) weight = 0;
+            this->AddArc(src, Arc(ilabel, weight, olabel, dest));
             if (first_line) {
                 SetStart(src);
                 first_line = false;
@@ -214,15 +217,16 @@ void Fsm::Info() const {
     for (int32_t i = 0; i < states_.size(); i++) {
         fprintf(stderr, "state %d arcs %d: { ", i, states_[i]->NumArcs());
         for (int32_t j = 0; j < states_[i]->NumArcs(); j++) {
-            fprintf(stderr, "(%d, %f, %d) ", states_[i]->arcs[j].ilabel, 
-                                             states_[i]->arcs[j].weight,
-                                             states_[i]->arcs[j].next_state);
+            fprintf(stderr, "(%d, %f, %d, %d) ", states_[i]->arcs[j].ilabel, 
+                                                 states_[i]->arcs[j].weight,
+                                                 states_[i]->arcs[j].olabel,
+                                                 states_[i]->arcs[j].next_state);
         }
         fprintf(stderr, "}\n");
     }
 }
 
-void Fsm::Dot(SymbolTable *symbol_table) const {
+void Fsm::Dot(SymbolTable *isymbol_table, SymbolTable *osymbol_table) const {
     printf("digraph FSM {\n");
     printf("rankdir = LR;\n");
     // printf("orientation = Landscape;\n");
@@ -234,15 +238,17 @@ void Fsm::Dot(SymbolTable *symbol_table) const {
             printf("%d [label = \"%d\" ]\n", i, i);
         }
         for (int32_t j = 0; j < states_[i]->NumArcs(); j++) {
-            if (symbol_table == NULL) {
-                printf("\t %d -> %d [label = \"%d/%f\" ]\n", i, 
+            if (isymbol_table == NULL || osymbol_table == NULL) {
+                printf("\t %d -> %d [label = \"%d:%d/%f\" ]\n", i, 
                         states_[i]->arcs[j].next_state,
                         states_[i]->arcs[j].ilabel,
+                        states_[i]->arcs[j].olabel,
                         states_[i]->arcs[j].weight);
             } else {
-                printf("\t %d -> %d [label = \"%s/%f\" ]\n", i, 
+                printf("\t %d -> %d [label = \"%s:%s/%f\" ]\n", i, 
                         states_[i]->arcs[j].next_state,
-                        symbol_table->MapToWord(states_[i]->arcs[j].ilabel).c_str(),
+                        isymbol_table->MapToWord(states_[i]->arcs[j].ilabel).c_str(),
+                        osymbol_table->MapToWord(states_[i]->arcs[j].olabel).c_str(),
                         states_[i]->arcs[j].weight);
             }
         }

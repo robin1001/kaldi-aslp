@@ -14,8 +14,9 @@ int main(int argc, char *argv[]) {
 
     ParseOptions option(usage);
     
-    std::string symbol_table_file = "";
-    option.Register("symbol-table-file", &symbol_table_file, "");
+    std::string isymbol_table_file, osymbol_table_file ;
+    option.Register("isymbol-table-file", &isymbol_table_file, "");
+    option.Register("osymbol-table-file", &osymbol_table_file, "");
 
     option.Read(argc, argv);
 
@@ -34,12 +35,15 @@ int main(int argc, char *argv[]) {
         fsm.Read(fsm_file.c_str());
     }
 
-    SymbolTable *symbol_table = NULL;
-    if (symbol_table_file != "") {
-        symbol_table = new SymbolTable(symbol_table_file.c_str()); 
+    SymbolTable *isymbol_table = NULL, *osymbol_table = NULL;
+    if (isymbol_table_file != "") {
+        isymbol_table = new SymbolTable(isymbol_table_file.c_str()); 
     }
-
-    fsm.Dot(symbol_table);
+    
+    if (osymbol_table_file != "") {
+        osymbol_table = new SymbolTable(osymbol_table_file.c_str()); 
+    }
+    fsm.Dot(isymbol_table, osymbol_table);
     return 0;
 }
 
