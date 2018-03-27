@@ -17,6 +17,7 @@
 #include "aslp-parallel/itf.h"
 #include "aslp-parallel/easgd-server.h"
 #include "aslp-parallel/asgd-server.h"
+#include "aslp-parallel/masgd-server.h"
 
 
 int main(int argc, char *argv[]) {
