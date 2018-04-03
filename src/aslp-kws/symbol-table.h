@@ -7,76 +7,64 @@
 #define SYMBOL_TABLE_H_
 
 #include <stdio.h>
-
 #include <string>
 
-#include "util/stl-utils.h"
 #include "utils.h"
 
 namespace kaldi {
 namespace kws {
 
-const int kEpsilon = -1;
+const int kEpsilon = 0;
 
 class SymbolTable {
 public:
-    SymbolTable(const char *symbol_file) {
-        ReadWordFile(symbol_file);
-        word_table_["<eps>"] = kEpsilon;
-        id_table_[kEpsilon] = "<eps>";
+    SymbolTable(const std::string &symbol_file) {
+        ReadSymbolFile(symbol_file);
     }
 
     ~SymbolTable() {}
 
-    int MapToId(std::string word) const {
-        if (!HaveSymbol(word)) {
-            ERROR("%s is not in the symbol table", word.c_str());
+    std::string GetSymbol(int32_t id) const {
+        CHECK(id < symbol_tabel_.size());
+        return symbol_tabel_[id];
+    }
+
+    // GetId is used in the construction fst period
+    // so here just a lazy/inefficient implemenation
+    int32_t GetId(const std::string &symbol) const {
+        for (int32_t i = 0; i < symbol_tabel_.size(); i++) {
+            if (symbol == symbol_tabel_[i]) return i;
         }
-        return word_table_[word];
-    }
-
-    std::string MapToWord(int id) const {
-        return id_table_[id];
-    }
-
-    bool HaveSymbol(std::string word) const {
-        if (word_table_.find(word) != word_table_.end()) {
-            return true;
-        } else {
-            return false;
-        }
-    }
-
-    int NumSymbols() const {
-        return word_table_.size();
+        return 0;
     }
 
 protected:
-    void ReadWordFile(const char *symbol_file) {
-        word_table_.clear();
-        id_table_.clear();
-        FILE *fp = fopen(symbol_file, "r");
+    void ReadSymbolFile(const std::string &symbol_file) {
+        FILE *fp = fopen(symbol_file.c_str(), "r");
         if (!fp) {
-            ERROR("%s not exint, please check!!!", symbol_file);
+            ERROR("%s not exint, please check!!!", symbol_file.c_str());
         }
         char buffer[1024], str[1024];
-        int word_id;
+        int id;
         while (fgets(buffer, 1024, fp)) {
-            int num = sscanf(buffer, "%s %d", str, &word_id);
+            int num = sscanf(buffer, "%s %d", str, &id);
             if (num != 2) {
                 ERROR("each line shoud have 2 fields, symbol & id");
             }
             CHECK(str != NULL);
-            CHECK(word_id >= 0);
-            std::string word  = str;
-            word_table_[word] = word_id;
-            id_table_[word_id] = word;
+            CHECK(id >= 0);
+            
+            std::string symbol = str;
+            if (id >= symbol_tabel_.size()) {
+                symbol_tabel_.resize(id + 1); 
+            }
+
+            symbol_tabel_[id] = symbol;
         }
         fclose(fp);
     }
-
-    mutable unordered_map<std::string, int> word_table_;
-    mutable unordered_map<int, std::string> id_table_;
+    
+    std::vector<std::string> symbol_tabel_;
     DISALLOW_COPY_AND_ASSIGN(SymbolTable);
 };
 

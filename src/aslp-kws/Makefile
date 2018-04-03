@@ -10,7 +10,7 @@ LDLIBS += $(CUDA_LDLIBS)
 
 TESTFILES = 
 
-OBJFILES = fsm.o 
+OBJFILES = fst.o 
 
 LIBNAME = aslp-kws
 

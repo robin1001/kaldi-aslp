@@ -11,8 +11,10 @@ LDLIBS += $(CUDA_LDLIBS)
 TESTFILES = 
 
 BINFILES = aslp-kws-convert-phone-ali \
-           aslp-fsm-init aslp-fsm-info aslp-fsm-to-dot \
-           aslp-kws-score
+           aslp-fst-init \
+           aslp-fst-info \
+           aslp-fst-to-dot \
+           #aslp-kws-score
 
 ADDLIBS = ../aslp-kws/aslp-kws.a ../aslp-nnet/aslp-nnet.a ../aslp-cudamatrix/aslp-cudamatrix.a \
           ../feat/kaldi-feat.a \
