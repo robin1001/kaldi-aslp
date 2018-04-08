@@ -9,6 +9,8 @@
 #include <stdio.h>
 #include <string>
 
+#include "util/stl-utils.h"
+
 #include "utils.h"
 
 namespace kaldi {
@@ -25,7 +27,7 @@ public:
     ~SymbolTable() {}
 
     std::string GetSymbol(int32_t id) const {
-        CHECK(id < symbol_tabel_.size());
+        CHECK(symbol_tabel_.find(id) != symbol_tabel_.end());
         return symbol_tabel_[id];
     }
 
@@ -35,7 +37,12 @@ public:
         for (int32_t i = 0; i < symbol_tabel_.size(); i++) {
             if (symbol == symbol_tabel_[i]) return i;
         }
-        return 0;
+        // return -f if not find
+        return -1;
+    }
+
+    bool HaveId (int32_t id) const {
+        return (symbol_tabel_.find(id) != symbol_tabel_.end());
     }
 
 protected:
@@ -55,16 +62,12 @@ protected:
             CHECK(id >= 0);
             
             std::string symbol = str;
-            if (id >= symbol_tabel_.size()) {
-                symbol_tabel_.resize(id + 1); 
-            }
-
             symbol_tabel_[id] = symbol;
         }
         fclose(fp);
     }
     
-    std::vector<std::string> symbol_tabel_;
+    mutable unordered_map<int32_t, std::string> symbol_tabel_;
     DISALLOW_COPY_AND_ASSIGN(SymbolTable);
 };
 

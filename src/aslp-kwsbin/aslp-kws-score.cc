@@ -40,7 +40,8 @@ int main(int argc, char *argv[]) {
     const char *usage =
         "Perform keyword spot through Neural Network.\n"
         "\n"
-        "Usage:  aslp-kws-score [options] <model-in> <fsm-in> <feature-rspecifier> <confidence-wspecifier>\n"
+        "Usage:  aslp-kws-score [options] <model-in> <fst-in> <ouput-table-file> <valid-keyword-phone-table-file>"
+        "<feature-rspecifier> <confidence-wspecifier> <keyword-id-wspecifier> \n"
         "e.g.: \n"
         " aslp-kws-score nnet ark:features.ark ark,t:confidence.ark\n";
 
@@ -51,15 +52,18 @@ int main(int argc, char *argv[]) {
 
     po.Read(argc, argv);
 
-    if (po.NumArgs() != 4) {
+    if (po.NumArgs() != 7) {
       po.PrintUsage();
       exit(1);
     }
 
     std::string model_filename = po.GetArg(1),
-        fsm_filename = po.GetArg(2),
-        feature_rspecifier = po.GetArg(3),
-        confidence_wspecifier = po.GetArg(4);
+        fst_filename = po.GetArg(2),
+        keyword_table_file = po.GetArg(3),
+        filler_table_file = po.GetArg(4),
+        feature_rspecifier = po.GetArg(5),
+        confidence_wspecifier = po.GetArg(6),
+        keyword_id_wspecifier = po.GetArg(7);
         
     //Select the GPU
 #if HAVE_CUDA==1
@@ -68,19 +72,24 @@ int main(int argc, char *argv[]) {
 
     Nnet nnet;
     nnet.Read(model_filename);
+    
+    SymbolTable keyword_table(keyword_table_file),
+                filler_table(filler_table_file);
 
-    Fsm fsm;
-    fsm.Read(fsm_filename.c_str());
-    KeywordSpot keyword_spotter(fsm);
+    Fst fst;
+    fst.Read(fst_filename.c_str());
+    KeywordSpot keyword_spotter(fst, keyword_table, filler_table);
 
     kaldi::int64 tot_t = 0;
 
     SequentialBaseFloatMatrixReader feature_reader(feature_rspecifier);
     BaseFloatVectorWriter confidence_writer(confidence_wspecifier);
+    Int32VectorWriter keyword_id_writer(keyword_id_wspecifier);
 
     CuMatrix<BaseFloat> feats, nnet_out;
     Matrix<BaseFloat> nnet_out_host;
     Vector<BaseFloat> confidence;
+    std::vector<int32_t> id_vector;
 
 
     Timer time;
@@ -114,13 +123,17 @@ int main(int argc, char *argv[]) {
       nnet_out_host.Resize(nnet_out.NumRows(), nnet_out.NumCols());
       nnet_out.CopyToMat(&nnet_out_host);
       confidence.Resize(nnet_out.NumRows());
+      id_vector.resize(nnet_out.NumRows());
 
       float keyword_confidence = 0.0;
+      int keyword_id = 0;
+      std::string keyword = "";
       keyword_spotter.Reset();
       for (int i = 0; i < nnet_out_host.NumRows(); i++) {
-        keyword_spotter.Spot(nnet_out_host.Row(i).Data(), 
-            nnet_out_host.NumCols(), &keyword_confidence);
+        keyword_spotter.Spot(nnet_out_host.Row(i).Data(), nnet_out_host.NumCols(), 
+                             &keyword_confidence, &keyword, &keyword_id);
         confidence(i) = keyword_confidence;
+        id_vector[i] = keyword_id;
       }
 
       // write,
@@ -128,6 +141,7 @@ int main(int argc, char *argv[]) {
         KALDI_ERR << "NaN or inf found in final output nn-output for " << utt;
       }
       confidence_writer.Write(feature_reader.Key(), confidence);
+      keyword_id_writer.Write(feature_reader.Key(), id_vector);
       
       if (num_done % 100 == 0) {
         time_now = time.Elapsed();
