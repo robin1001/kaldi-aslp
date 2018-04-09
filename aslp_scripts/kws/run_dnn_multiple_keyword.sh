@@ -19,7 +19,7 @@ ali=exp/tri3a_merge_ali
 kws_data=data/kws
 train_merge_data=data/kws/train_kws
 test_merge_data=data/kws/test_kws
-dir=exp/kws_lstm_cell64
+dir=exp/kws_dnn_multiple_keyword
 
 # Align kws data
 if [ $stage -le 0 ]; then
@@ -83,16 +83,28 @@ if [ $stage -le 2 ]; then
 fi
 
 if [ $stage -le 3 ]; then 
-    echo "Prepare hotword phone mapping"
-    [ ! -f $kws_data/hotword.txt ] && echo "$kws_data/hotword.txt is required" && exit -1;
-    echo "sil" > $kws_data/hotword.phone
-    cat $kws_data/hotword.txt | awk '{ for(i=2; i<=NF; i++) print $i; }' | sort | uniq >> $kws_data/hotword.phone
-    cat $kws_data/hotword.phone | awk '{print $1, NR}' > $kws_data/hotword.phone.int
-    echo "<gbg> 0" >> $kws_data/hotword.phone.int
-    awk -v hotword_phone=$kws_data/hotword.phone.int \
+    [ ! -d $dir ] && mkdir -p $dir;
+    echo "Prepare keyword phone & id"
+    echo "你好小瓜 n i3 h ao3 x iao3 g ua1" > $dir/hotword.lexicon
+    echo "哈喽小瓜 h a1 l ou2 x iao3 g ua1" >> $dir/hotword.lexicon
+    echo "小彬彬 x iao3 b in1 b in1" >> $dir/hotword.lexicon
+    echo "<eps> 0" > $dir/hotword.int
+    echo "你好小瓜 1" >> $dir/hotword.int
+    echo "哈喽小瓜 2" >> $dir/hotword.int
+    echo "小彬彬 3" >> $dir/hotword.int
+    echo "sil" > $dir/hotword.phone
+    cat $dir/hotword.lexicon | awk '{ for(i=2; i<=NF; i++) print $i; }' | sort | uniq >> $dir/hotword.phone
+    echo "<eps> 0" > $dir/hotword.phone.int
+    echo "<gbg> 1" >> $dir/hotword.phone.int
+    cat $dir/hotword.phone | awk '{print $1, NR+1}' >> $dir/hotword.phone.int
+    echo "sil" > $dir/hotword.filler
+    echo "<eps>" >> $dir/hotword.filler
+    echo "<gbg>" >> $dir/hotword.filler
+    utils/filter_scp.pl $dir/hotword.filler $dir/hotword.phone.int > $dir/hotword.filler.int
+    awk -v hotword_phone=$dir/hotword.phone.int \
     'BEGIN {
         while (getline < hotword_phone) {
-            map[$1] = $2 
+            map[$1] = $2 - 1
         }
     }
     {
@@ -100,15 +112,27 @@ if [ $stage -le 3 ]; then
             printf("%s %s\n", $2, map[$1] != "" ? map[$1] : 0)
         }
     }
-    ' data/lang/phones.txt > $kws_data/phone.map
+    ' data/lang/phones.txt > $dir/phone.map
 fi
 
 if [ $stage -le 4 ]; then
+    echo "python aslp_scripts/kws/gen_text_fst.py $dir/hotword.lexicon $dir/hotword.text.fst"
+    python aslp_scripts/kws/gen_text_fst.py $dir/hotword.lexicon $dir/hotword.text.openfst 
+    fstcompile --isymbols=$dir/hotword.phone.int --osymbols=$dir/hotword.int $dir/hotword.text.openfst | \
+        fstdeterminize | fstminimizeencoded > $dir/hotword.openfst 
+    fstdraw --isymbols=$dir/hotword.phone.int --osymbols=$dir/hotword.int $dir/hotword.openfst $dir/hotword.openfst.dot
+    fstprint --isymbols=$dir/hotword.phone.int --osymbols=$dir/hotword.int $dir/hotword.openfst $dir/hotword.text.min.openfst
+    aslp-fst-init --isymbols=$dir/hotword.phone.int --osymbols=$dir/hotword.int $dir/hotword.text.min.openfst $dir/hotword.fst
+    aslp-fst-to-dot --isymbols=$dir/hotword.phone.int --osymbols=$dir/hotword.int $dir/hotword.fst > $dir/hotword.fst.dot
+fi
+
+if [ $stage -le 5 ]; then
     echo "Preparing alignment and feats"
     aslp_scripts/kws/prepare_feats_ali.sh \
         --global_cmvn_file $feat_dir/train/global_cmvn \
         --cmvn_opts "--norm-means=true --norm-vars=true" \
-        --phone_map_file $kws_data/phone.map \
+        --splice_opts "--left-context=5 --right-context=5" \
+        --phone_map_file $dir/phone.map \
         $feat_dir/train_tr $feat_dir/train_cv $feat_dir/test data/lang $ali $ali $dir || exit 1;
     cp $feat_dir/test/label $dir/test.label
 fi
@@ -119,21 +143,24 @@ fi
 source $dir/train.conf
 
 # Prepare lstm init nnet
-if [ $stage -le 5 ]; then
+if [ $stage -le 6 ]; then
     echo "Pretraining nnet"
     num_feat=$(feat-to-dim "$feats_tr" -) 
-    num_phones=`cat $kws_data/hotword.phone | wc -l`
-    num_tgt=$[$num_phones+1]
-    cell_dim=64 # number of neurons per layer,
-    recurrent_dim=32
+    num_phones=`cat $dir/hotword.phone | wc -l`
+    num_tgt=$[$num_phones+1] # add filler 
+    hid_dim=128
     echo $num_feat $num_tgt
 
 # Init nnet.proto with 2 lstm layers
 cat > $dir/nnet.proto <<EOF
 <NnetProto>
-<LstmProjectedStreams> <InputDim> $num_feat <OutputDim> $recurrent_dim <CellDim> $cell_dim <ParamScale> 0.010000 <ClipGradient> 5.000000
-<LstmProjectedStreams> <InputDim> $recurrent_dim <OutputDim> $recurrent_dim <CellDim> $cell_dim <ParamScale> 0.010000 <ClipGradient> 5.000000
-<AffineTransform> <InputDim> $recurrent_dim <OutputDim> $num_tgt <BiasMean> 0.0 <BiasRange> 0.0 <ParamStddev> 0.040000
+<AffineTransform> <InputDim> $num_feat <OutputDim> $hid_dim <BiasMean> -2.000000 <BiasRange> 4.000000 <ParamStddev> 0.1
+<ReLU> <InputDim> $hid_dim <OutputDim> $hid_dim
+<AffineTransform> <InputDim> $hid_dim <OutputDim> $hid_dim <BiasMean> -2.000000 <BiasRange> 4.000000 <ParamStddev> 0.1
+<ReLU> <InputDim> $hid_dim <OutputDim> $hid_dim
+<AffineTransform> <InputDim> $hid_dim <OutputDim> $hid_dim <BiasMean> -2.000000 <BiasRange> 4.000000 <ParamStddev> 0.1
+<ReLU> <InputDim> $hid_dim <OutputDim> $hid_dim
+<AffineTransform> <InputDim> $hid_dim <OutputDim> $num_tgt <BiasMean> -2.000000 <BiasRange> 4.000000 <ParamStddev> 0.1
 <Softmax> <InputDim> $num_tgt <OutputDim> $num_tgt
 </NnetProto>
 EOF
@@ -141,31 +168,27 @@ EOF
 fi
 
 # Train nnet(dnn, cnn, lstm)
-if [ $stage -le 6 ]; then
+if [ $stage -le 7 ]; then
     echo "Training nnet"
     nnet_init=$dir/nnet/train.nnet.init
     aslp-nnet-init $dir/nnet.proto $nnet_init
     #"$train_cmd" $dir/log/train.log \
-    aslp_scripts/aslp_nnet/train_scheduler.sh --train-tool "aslp-nnet-train-lstm-streams" \
-        --learn-rate 0.00001 \
+    aslp_scripts/aslp_nnet/train_scheduler.sh --train-tool "aslp-nnet-train-frame" \
+        --learn-rate 0.0001 \
         --momentum 0.9 \
         --min-iters 5 \
         --max-iters 50 \
         --keep-lr-iters 3 \
         --l2-penalty 1e-5 \
-        --train-tool-opts "--batch-size=20 --num-stream=128 --targets-delay=5 --report-period=200" \
+        --minibatch_size 256 \
+        --train-tool-opts "" \
         $nnet_init "$feats_tr" "$feats_cv" "$labels_tr" "$labels_cv" $dir
-fi
-
-if [ $stage -le 7 ]; then
-    python aslp_scripts/kws/text_graph.py $kws_data/hotword.phone.int $kws_data/hotword.txt > $dir/kws_fsm.txt
-    aslp-fsm-init $dir/kws_fsm.txt $dir/kws.fsm
-    aslp-fsm-to-dot --symbol-table-file=$kws_data/hotword.phone.int $dir/kws.fsm > $dir/kws.dot
 fi
 
 if [ $stage -le 8 ]; then
     [ ! -e $dir/final.nnet ] && echo "$dir/final.nnet: no such file" && exit 1;
-    aslp-kws-score --verbose=1 $dir/final.nnet $dir/kws.fsm "$feats_test" ark,t:$dir/confidence.ark &> $dir/score.log 
-    python aslp_scripts/kws/evaluation_roc.py $dir/confidence.ark $dir/test.label > $dir/test.result
-    cat $dir/test.result | awk '{printf("%s\t%s\n", $8, $6)}' > $dir/test.roc 
+    aslp-kws-score --verbose=1 $dir/final.nnet $dir/hotword.fst $dir/hotword.int $dir/hotword.filler.int \
+        "$feats_test" "ark,t:$dir/confidence.ark" "ark,t:$dir/id.ark" &> $dir/score.log 
+    #python aslp_scripts/kws/evaluation_roc.py $dir/confidence.ark $dir/test.label > $dir/test.result
+    #cat $dir/test.result | awk '{printf("%s\t%s\n", $8, $6)}' > $dir/test.roc 
 fi

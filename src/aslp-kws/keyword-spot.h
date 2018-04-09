@@ -73,7 +73,7 @@ public:
                     float score = logf(am_score[arc->ilabel - 1]); // 0 for <eps>
                     bool is_filler = IsFillerPhone(arc->ilabel);
                     bool is_self_arc = (i == arc->next_state);
-                    bool olabel = arc->olabel;
+                    int32_t olabel = arc->olabel;
                     cur_tokens_[arc->next_state].Update(prev_tokens_[i], olabel,
                         is_self_arc, is_filler, score);
                 }
