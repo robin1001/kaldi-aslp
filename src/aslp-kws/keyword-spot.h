@@ -92,7 +92,7 @@ public:
 
         // if we get best score at final state, then get confidence
         if (fst_.IsFinal(best_state)) {
-            *confidence = expf(cur_tokens_[best_state].average_keyword_score);
+            *confidence = expf(cur_tokens_[best_state].average_max_keyword_score);
             *keyword_id = cur_tokens_[best_state].keyword;
             *keyword = keyword_table_.GetSymbol(cur_tokens_[best_state].keyword);
             if (cur_tokens_[best_state].num_keyword_frames >= min_keyword_frames_ && 
@@ -157,14 +157,19 @@ public:
                     num_keyword_frames = t + 1;
                     if (is_self_arc) {
                         num_frames_of_current_state = prev.num_frames_of_current_state + 1;
+                        num_keyword_states = prev.num_keyword_states;
                         max_score_of_current_state = std::max(prev.max_score_of_current_state, am_score);
+                        average_max_keyword_score_before = prev.average_max_keyword_score_before;
                         CHECK(num_keyword_states > 0);
-                        average_max_keyword_score = (max_score_of_current_state + 
-                                                     average_max_keyword_score_before) / num_keyword_states;
                     } else {
+                        num_frames_of_current_state = 1;
                         num_keyword_states = prev.num_keyword_states + 1;
+                        max_score_of_current_state = am_score;
                         average_max_keyword_score_before = prev.average_max_keyword_score;
                     }
+                    average_max_keyword_score = (max_score_of_current_state + 
+                                                 average_max_keyword_score_before * (num_keyword_states - 1)) / 
+                                                 num_keyword_states;
                     if (olabel != 0) keyword = olabel;
                 }
             }
