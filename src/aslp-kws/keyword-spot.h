@@ -18,11 +18,8 @@ const int kMaxTokenPassingFrames = 100 * 60 * 10; // 10 minitue
 
 class KeywordSpot {
 public:
-    KeywordSpot(const Fst &fst, 
-                const SymbolTable &keyword_table, 
-                const SymbolTable &filler_table):
+    KeywordSpot(const Fst &fst, const SymbolTable &filler_table):
             fst_(fst),
-            keyword_table_(keyword_table),
             filler_table_(filler_table),
             num_frames_(0),
             spot_threshold_(0.5), 
@@ -58,10 +55,9 @@ public:
     }
 
     bool Spot(const float *am_score, int num, float *confidence, 
-              std::string *keyword, int32_t *keyword_id) {
+              int32_t *keyword_id) {
         bool spot = false;
         *confidence = 0.0;
-        *keyword = "";
         *keyword_id = 0;
 
         for (int i = 0; i < prev_tokens_.size(); i++) {
@@ -94,7 +90,6 @@ public:
         if (fst_.IsFinal(best_state)) {
             *confidence = expf(cur_tokens_[best_state].average_max_keyword_score);
             *keyword_id = cur_tokens_[best_state].keyword;
-            *keyword = keyword_table_.GetSymbol(cur_tokens_[best_state].keyword);
             if (cur_tokens_[best_state].num_keyword_frames >= min_keyword_frames_ && 
                 cur_tokens_[best_state].num_frames_of_current_state >= min_frames_for_last_state_ &&
                 *confidence > spot_threshold_) {
@@ -195,7 +190,6 @@ public:
 
 private:
     const Fst &fst_; // determined fst
-    const SymbolTable &keyword_table_;
     // the left is filler phone/state, such as silence or <gbg> 
     const SymbolTable &filler_table_; 
     int num_frames_;
