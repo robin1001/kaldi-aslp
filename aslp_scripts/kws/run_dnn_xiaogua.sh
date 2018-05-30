@@ -6,7 +6,7 @@
 [ -f path.sh ] && . ./path.sh; 
 . parse_options.sh || exit 1;
 
-stage=8
+stage=3
 cmd=run.pl
 nj=10
 num_cv_utt=1000
@@ -19,7 +19,7 @@ ali=exp/tri3a_merge_ali
 kws_data=data/kws
 train_merge_data=data/kws/train_kws
 test_merge_data=data/kws/test_kws
-dir=exp/kws_dnn_one_keyword
+dir=exp/kws_dnn256_xiaogua
 
 # Align kws data
 if [ $stage -le 0 ]; then
@@ -86,8 +86,10 @@ if [ $stage -le 3 ]; then
     [ ! -d $dir ] && mkdir -p $dir;
     echo "Prepare keyword phone & id"
     echo "你好小瓜 n i3 h ao3 x iao3 g ua1" > $dir/hotword.lexicon
+    echo "Hello小瓜 h a1 l ou2 x iao3 g ua1" >> $dir/hotword.lexicon
     echo "<eps> 0" > $dir/hotword.int
     echo "你好小瓜 1" >> $dir/hotword.int
+    echo "Hello小瓜 2" >> $dir/hotword.int
     echo "sil" > $dir/hotword.phone
     cat $dir/hotword.lexicon | awk '{ for(i=2; i<=NF; i++) print $i; }' | sort | uniq >> $dir/hotword.phone
     echo "<eps> 0" > $dir/hotword.phone.int
@@ -144,7 +146,7 @@ if [ $stage -le 6 ]; then
     num_feat=$(feat-to-dim "$feats_tr" -) 
     num_phones=`cat $dir/hotword.phone | wc -l`
     num_tgt=$[$num_phones+1] # add filler 
-    hid_dim=128
+    hid_dim=256
     echo $num_feat $num_tgt
 
 # Init nnet.proto with 2 lstm layers
@@ -185,6 +187,6 @@ if [ $stage -le 8 ]; then
     [ ! -e $dir/final.nnet ] && echo "$dir/final.nnet: no such file" && exit 1;
     aslp-kws-score --verbose=1 $dir/final.nnet $dir/hotword.fst $dir/hotword.filler.int \
         "$feats_test" "ark,t:$dir/confidence.ark" "ark,t:$dir/id.ark" &> $dir/score.log 
-    python aslp_scripts/kws/evaluation_roc.py $dir/confidence.ark $dir/test.label > $dir/test.result
-    cat $dir/test.result | awk '{printf("%s\t%s\n", $8, $6)}' > $dir/test.roc 
+    #python aslp_scripts/kws/evaluation_roc.py $dir/confidence.ark $dir/test.label > $dir/test.result
+    #cat $dir/test.result | awk '{printf("%s\t%s\n", $8, $6)}' > $dir/test.roc 
 fi

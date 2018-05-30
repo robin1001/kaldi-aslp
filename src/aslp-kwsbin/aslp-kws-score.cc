@@ -40,7 +40,7 @@ int main(int argc, char *argv[]) {
     const char *usage =
         "Perform keyword spot through Neural Network.\n"
         "\n"
-        "Usage:  aslp-kws-score [options] <model-in> <fst-in> <filler-table-file>"
+        "Usage:  aslp-kws-score [options] <model-in> <fst-in> <filler-table-file> "
         "<feature-rspecifier> <confidence-wspecifier> <keyword-id-wspecifier> \n"
         "e.g.: \n"
         " aslp-kws-score nnet ark:features.ark ark,t:confidence.ark\n";
@@ -52,7 +52,7 @@ int main(int argc, char *argv[]) {
 
     po.Read(argc, argv);
 
-    if (po.NumArgs() != 7) {
+    if (po.NumArgs() != 6) {
       po.PrintUsage();
       exit(1);
     }

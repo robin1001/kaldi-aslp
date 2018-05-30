@@ -6,7 +6,7 @@
 [ -f path.sh ] && . ./path.sh; 
 . parse_options.sh || exit 1;
 
-stage=8
+stage=3
 cmd=run.pl
 nj=10
 num_cv_utt=1000
@@ -19,7 +19,7 @@ ali=exp/tri3a_merge_ali
 kws_data=data/kws
 train_merge_data=data/kws/train_kws
 test_merge_data=data/kws/test_kws
-dir=exp/kws_dnn_one_keyword
+dir=exp/kws_dnn512_custom_kws
 
 # Align kws data
 if [ $stage -le 0 ]; then
@@ -85,22 +85,12 @@ fi
 if [ $stage -le 3 ]; then 
     [ ! -d $dir ] && mkdir -p $dir;
     echo "Prepare keyword phone & id"
-    echo "你好小瓜 n i3 h ao3 x iao3 g ua1" > $dir/hotword.lexicon
-    echo "<eps> 0" > $dir/hotword.int
-    echo "你好小瓜 1" >> $dir/hotword.int
-    echo "sil" > $dir/hotword.phone
-    cat $dir/hotword.lexicon | awk '{ for(i=2; i<=NF; i++) print $i; }' | sort | uniq >> $dir/hotword.phone
-    echo "<eps> 0" > $dir/hotword.phone.int
-    echo "<gbg> 1" >> $dir/hotword.phone.int
-    cat $dir/hotword.phone | awk '{print $1, NR+1}' >> $dir/hotword.phone.int
-    echo "sil" > $dir/hotword.filler
-    echo "<eps>" >> $dir/hotword.filler
-    echo "<gbg>" >> $dir/hotword.filler
-    utils/filter_scp.pl $dir/hotword.filler $dir/hotword.phone.int > $dir/hotword.filler.int
+    awk '{ if(!match($1, "#") && !match($1, "<"))
+            printf("%s %d\n", $1, $2-1) }' data/lang/phones.txt > $dir/hotword.phone.int
     awk -v hotword_phone=$dir/hotword.phone.int \
     'BEGIN {
         while (getline < hotword_phone) {
-            map[$1] = $2 - 1
+            map[$1] = $2
         }
     }
     {
@@ -109,17 +99,6 @@ if [ $stage -le 3 ]; then
         }
     }
     ' data/lang/phones.txt > $dir/phone.map
-fi
-
-if [ $stage -le 4 ]; then
-    echo "python aslp_scripts/kws/gen_text_fst.py $dir/hotword.lexicon $dir/hotword.text.fst"
-    python aslp_scripts/kws/gen_text_fst.py $dir/hotword.lexicon $dir/hotword.text.openfst 
-    fstcompile --isymbols=$dir/hotword.phone.int --osymbols=$dir/hotword.int $dir/hotword.text.openfst | \
-        fstdeterminize | fstminimizeencoded > $dir/hotword.openfst 
-    fstdraw --isymbols=$dir/hotword.phone.int --osymbols=$dir/hotword.int $dir/hotword.openfst $dir/hotword.openfst.dot
-    fstprint --isymbols=$dir/hotword.phone.int --osymbols=$dir/hotword.int $dir/hotword.openfst $dir/hotword.text.min.openfst
-    aslp-fst-init --isymbols=$dir/hotword.phone.int --osymbols=$dir/hotword.int $dir/hotword.text.min.openfst $dir/hotword.fst
-    aslp-fst-to-dot --isymbols=$dir/hotword.phone.int --osymbols=$dir/hotword.int $dir/hotword.fst > $dir/hotword.fst.dot
 fi
 
 if [ $stage -le 5 ]; then
@@ -142,9 +121,9 @@ source $dir/train.conf
 if [ $stage -le 6 ]; then
     echo "Pretraining nnet"
     num_feat=$(feat-to-dim "$feats_tr" -) 
-    num_phones=`cat $dir/hotword.phone | wc -l`
-    num_tgt=$[$num_phones+1] # add filler 
-    hid_dim=128
+    num_phones=`cat $dir/hotword.phone.int | wc -l`
+    num_tgt=$[$num_phones]
+    hid_dim=512
     echo $num_feat $num_tgt
 
 # Init nnet.proto with 2 lstm layers
@@ -169,6 +148,7 @@ if [ $stage -le 7 ]; then
     nnet_init=$dir/nnet/train.nnet.init
     aslp-nnet-init $dir/nnet.proto $nnet_init
     #"$train_cmd" $dir/log/train.log \
+    # Train phone model, phone based acostic model
     aslp_scripts/aslp_nnet/train_scheduler.sh --train-tool "aslp-nnet-train-frame" \
         --learn-rate 0.0001 \
         --momentum 0.9 \
@@ -181,10 +161,3 @@ if [ $stage -le 7 ]; then
         $nnet_init "$feats_tr" "$feats_cv" "$labels_tr" "$labels_cv" $dir
 fi
 
-if [ $stage -le 8 ]; then
-    [ ! -e $dir/final.nnet ] && echo "$dir/final.nnet: no such file" && exit 1;
-    aslp-kws-score --verbose=1 $dir/final.nnet $dir/hotword.fst $dir/hotword.filler.int \
-        "$feats_test" "ark,t:$dir/confidence.ark" "ark,t:$dir/id.ark" &> $dir/score.log 
-    python aslp_scripts/kws/evaluation_roc.py $dir/confidence.ark $dir/test.label > $dir/test.result
-    cat $dir/test.result | awk '{printf("%s\t%s\n", $8, $6)}' > $dir/test.roc 
-fi

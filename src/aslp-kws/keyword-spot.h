@@ -76,26 +76,39 @@ public:
             }
         }
         
-        // find best score
-        int best_state = 1;
-        float best_score = cur_tokens_[1].score;
-        for (int i = 2; i < cur_tokens_.size(); i++) {
+        // find best final score
+        int best_state = 0, best_final_state = 0;
+        float best_score = cur_tokens_[0].score, best_final_score = 0.0f;
+        bool reach_final = false;
+        for (int i = 1; i < cur_tokens_.size(); i++) {
             if (cur_tokens_[i].active && best_score < cur_tokens_[i].score) {
                 best_score = cur_tokens_[i].score;
                 best_state = i;
             }
+
+            if (cur_tokens_[i].active && fst_.IsFinal(i)) {
+                if (!reach_final) {
+                    best_final_state = i;
+                    best_final_score = cur_tokens_[i].score;
+                    reach_final = true;
+                } else if (best_final_score < cur_tokens_[i].score) {
+                    best_final_state = i;
+                    best_final_score = cur_tokens_[i].score;
+                }
+            }
         }
 
-        // if we get best score at final state, then get confidence
-        if (fst_.IsFinal(best_state)) {
-            *confidence = expf(cur_tokens_[best_state].average_max_keyword_score);
-            *keyword_id = cur_tokens_[best_state].keyword;
-            if (cur_tokens_[best_state].num_keyword_frames >= min_keyword_frames_ && 
-                cur_tokens_[best_state].num_frames_of_current_state >= min_frames_for_last_state_ &&
+        // if we reach final state, then get confidence
+        if (reach_final) {
+            *confidence = expf(cur_tokens_[best_final_state].average_max_keyword_score);
+            *keyword_id = cur_tokens_[best_final_state].keyword;
+            if (cur_tokens_[best_final_state].num_keyword_frames >= min_keyword_frames_ && 
+                cur_tokens_[best_final_state].num_frames_of_current_state >= min_frames_for_last_state_ &&
                 *confidence > spot_threshold_) {
                 spot = true;
             }
         }
+
         prev_tokens_.swap(cur_tokens_);
         for (int i = 0; i < cur_tokens_.size(); i++) {
             cur_tokens_[i].Reset();

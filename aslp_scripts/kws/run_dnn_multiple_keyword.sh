@@ -6,7 +6,7 @@
 [ -f path.sh ] && . ./path.sh; 
 . parse_options.sh || exit 1;
 
-stage=8
+stage=3
 cmd=run.pl
 nj=10
 num_cv_utt=1000
@@ -19,7 +19,7 @@ ali=exp/tri3a_merge_ali
 kws_data=data/kws
 train_merge_data=data/kws/train_kws
 test_merge_data=data/kws/test_kws
-dir=exp/kws_dnn_multiple_keyword
+dir=exp/kws_dnn512_multiple_keyword
 
 # Align kws data
 if [ $stage -le 0 ]; then
@@ -85,13 +85,17 @@ fi
 if [ $stage -le 3 ]; then 
     [ ! -d $dir ] && mkdir -p $dir;
     echo "Prepare keyword phone & id"
-    echo "你好小瓜 n i3 h ao3 x iao3 g ua1" > $dir/hotword.lexicon
-    echo "哈喽小瓜 h a1 l ou2 x iao3 g ua1" >> $dir/hotword.lexicon
-    echo "小彬彬 x iao3 b in1 b in1" >> $dir/hotword.lexicon
+    echo "拍照 p ai1 zh ao4" > $dir/hotword.lexicon
+    echo "茄子 q ie2 z iy5" >> $dir/hotword.lexicon
+    echo "切换摄像头 q ie1 h uan4 sh e4 x iang4 t ou2" >> $dir/hotword.lexicon
+    echo "打开闪光灯 d a3 k ai1 sh an3 g uang1 d eng1" >> $dir/hotword.lexicon
+    echo "打开相册 d a3 k ai1 x iang1 c e4" >> $dir/hotword.lexicon
     echo "<eps> 0" > $dir/hotword.int
-    echo "你好小瓜 1" >> $dir/hotword.int
-    echo "哈喽小瓜 2" >> $dir/hotword.int
-    echo "小彬彬 3" >> $dir/hotword.int
+    echo "拍照 1" >> $dir/hotword.int
+    echo "茄子 2" >> $dir/hotword.int
+    echo "切换摄像头 3" >> $dir/hotword.int
+    echo "打开闪光灯 4" >> $dir/hotword.int
+    echo "打开相册 5" >> $dir/hotword.int
     echo "sil" > $dir/hotword.phone
     cat $dir/hotword.lexicon | awk '{ for(i=2; i<=NF; i++) print $i; }' | sort | uniq >> $dir/hotword.phone
     echo "<eps> 0" > $dir/hotword.phone.int
@@ -148,7 +152,7 @@ if [ $stage -le 6 ]; then
     num_feat=$(feat-to-dim "$feats_tr" -) 
     num_phones=`cat $dir/hotword.phone | wc -l`
     num_tgt=$[$num_phones+1] # add filler 
-    hid_dim=128
+    hid_dim=512
     echo $num_feat $num_tgt
 
 # Init nnet.proto with 2 lstm layers
