@@ -150,7 +150,7 @@ void FrameDataReader::ReadData(std::vector<const CuMatrixBase<BaseFloat> *> *inp
 }
 
 
-void FrameDataReader::ReadData(const CuMatrixBase<BaseFloat> **feat, const Posterior **targets) {
+bool FrameDataReader::ReadData(const CuMatrixBase<BaseFloat> **feat, const Posterior **targets) {
     KALDI_ASSERT(feat != NULL);
     KALDI_ASSERT(targets != NULL);
     KALDI_ASSERT(num_input_ == 1);
@@ -162,12 +162,17 @@ void FrameDataReader::ReadData(const CuMatrixBase<BaseFloat> **feat, const Poste
     if (feature_randomizers_[0]->Done()) {
         FillRandomizer();
     }
-    const CuMatrixBase<BaseFloat> &mat = feature_randomizers_[0]->Value();
-    *feat = &mat;
-    feature_randomizers_[0]->Next();
-    const Posterior &tgt = targets_randomizers_[0]->Value();
-    *targets = &tgt;
-    targets_randomizers_[0]->Next();
+    // Even read, but still can not fill a batch size
+    if (!Done()) {
+        const CuMatrixBase<BaseFloat> &mat = feature_randomizers_[0]->Value();
+        *feat = &mat;
+        feature_randomizers_[0]->Next();
+        const Posterior &tgt = targets_randomizers_[0]->Value();
+        *targets = &tgt;
+        targets_randomizers_[0]->Next();
+        return true;
+    }
+    return false;
 }
 
 

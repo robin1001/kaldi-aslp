@@ -30,7 +30,7 @@ public:
                     const std::string &targets_rspecifier,
                     const NnetDataRandomizerOptions &rand_opts);
     ~FrameDataReader();
-    void ReadData(const CuMatrixBase<BaseFloat> **feat, const Posterior **targets); 
+    bool ReadData(const CuMatrixBase<BaseFloat> **feat, const Posterior **targets); 
     void ReadData(std::vector<const CuMatrixBase<BaseFloat > *> *input, 
                   std::vector<const Posterior *> *output); 
     bool Done();

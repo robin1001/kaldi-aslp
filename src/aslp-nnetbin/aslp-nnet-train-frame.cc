@@ -107,7 +107,8 @@ int main(int argc, char *argv[]) {
         const Posterior *nnet_tgt;
 
         while (!reader.Done()) {
-            reader.ReadData(&nnet_in, &nnet_tgt); 
+            bool ok = reader.ReadData(&nnet_in, &nnet_tgt); 
+            if (!ok) continue;
             // Forward pass
             if (!crossvalidate) {
                 nnet.Propagate(*nnet_in, &nnet_out);
