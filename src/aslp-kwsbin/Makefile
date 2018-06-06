@@ -14,9 +14,12 @@ BINFILES = aslp-kws-convert-phone-ali \
            aslp-fst-init \
            aslp-fst-info \
            aslp-fst-to-dot \
-           aslp-kws-score
+           aslp-kws-score \
+           aslp-kws-gen-state-map
 
 ADDLIBS = ../aslp-kws/aslp-kws.a ../aslp-nnet/aslp-nnet.a ../aslp-cudamatrix/aslp-cudamatrix.a \
+          ../tree/kaldi-tree.a \
+          ../hmm/kaldi-hmm.a \
           ../feat/kaldi-feat.a \
           ../matrix/kaldi-matrix.a \
           ../util/kaldi-util.a \

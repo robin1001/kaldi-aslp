@@ -93,6 +93,7 @@ int main(int argc, char *argv[]) {
       const std::vector<int32> &old_alignment = alignment_reader.Value();
       std::vector<int32> new_alignment(old_alignment.size(), 0);
       for (int i = 0; i < old_alignment.size(); i++) {
+        KALDI_ASSERT(old_alignment[i] < phone_map.size());
         new_alignment[i] = phone_map[old_alignment[i]];
       }
       alignment_writer.Write(key, new_alignment);
