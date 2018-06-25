@@ -1,0 +1,42 @@
+<html>
+<head>
+    <title>online-asr admin </title>
+    <script language="JavaScript"> 
+    function myrefresh() 
+    { 
+        window.location.reload(); 
+    } 
+    setTimeout('myrefresh()',2000); //指定2秒刷新一次 
+    </script> 
+</head>
+<body>
+    <h1>online-asr admin & diagnostics</h1>
+    <h2> current connections: {{ num_connection }}  </h2>
+    <hr>
+    <table border="1">
+        <tr>
+            <th>Decoders Ip</th>
+            <th>Decoders Port</th>
+            <th>MaxThread</th>
+            <th>FreeThread</th>
+            <th>Available</th>
+            <th>Operation</th>
+        </tr>
+        {% for item in items %}
+            <tr>
+                <td>{{ item[0] }}</td>
+                <td>{{ item[1] }}</td>
+                <td>{{ item[2] }}</td>
+                <td>{{ item[3] }}</td>
+                <td>{{ item[4] }}</td>
+                {% if item[5] == None %}
+                <td>-</td>
+                {% else %}
+                <td><a href={{ item[5] }} >restart</a></td>
+                {% end %}
+            </tr>
+        {% end %}
+        </table>
+    </ul>
+</body>
+</html>
