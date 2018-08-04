@@ -26,7 +26,7 @@ endif
 
 LIBNAME = aslp-nnet
 
-ADDLIBS = ../aslp-cudamatrix/aslp-cudamatrix.a \
+ADDLIBS = ../hmm/kaldi-hmm.a ../aslp-cudamatrix/aslp-cudamatrix.a \
           ../matrix/kaldi-matrix.a \
           ../base/kaldi-base.a \
           ../util/kaldi-util.a 
